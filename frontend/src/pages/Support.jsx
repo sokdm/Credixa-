@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ChevronLeft, Phone, Video, MoreVertical, Check, CheckCheck, HelpCircle, MessageCircle, AlertTriangle, CreditCard, Wallet, Shield, User, ArrowRight } from 'lucide-react';
+import { Send, ChevronLeft, MoreVertical, Check, CheckCheck, HelpCircle, MessageCircle, AlertTriangle, CreditCard, Wallet, Shield, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
@@ -114,19 +114,22 @@ const Support = () => {
       read: false
     };
 
+    // Optimistic update - show immediately
     setMessages(prev => [...prev, msg]);
     setNewMessage('');
 
+    // Emit via socket first (real-time)
+    socket.emit('send_message', msg);
+
+    // Try to persist via API
     try {
       await axios.post(`${API_URL}/api/chat/user`, msg, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         timeout: 5000
       });
     } catch (err) {
-      console.log('Message save failed, using socket only');
+      console.log('Message save failed, sent via socket only');
     }
-    
-    socket.emit('send_message', msg);
   };
 
   const formatTime = (date) => {
@@ -158,6 +161,7 @@ const Support = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
+      {/* Header */}
       <div className="bg-[#1f2c34] px-4 py-3 flex items-center gap-4 sticky top-0 z-20">
         <button 
           onClick={() => step === 'chat' ? setStep('category') : navigate(-1)}
@@ -176,8 +180,6 @@ const Support = () => {
           </p>
         </div>
         <div className="flex items-center gap-4 text-white/70">
-          <Phone size={20} className="hover:text-white cursor-pointer" />
-          <Video size={20} className="hover:text-white cursor-pointer" />
           <MoreVertical size={20} className="hover:text-white cursor-pointer" />
         </div>
       </div>
@@ -245,6 +247,7 @@ const Support = () => {
             exit={{ opacity: 0, x: 20 }}
             className="flex-1 flex flex-col"
           >
+            {/* Chat Background */}
             <div
               className="flex-1 overflow-y-auto p-4"
               style={{
@@ -253,6 +256,7 @@ const Support = () => {
               }}
             >
               <div className="max-w-3xl mx-auto space-y-2">
+                {/* Date divider */}
                 <div className="flex justify-center mb-4">
                   <span className="bg-[#1f2c34] text-white/50 text-xs px-3 py-1 rounded-lg">
                     Today
@@ -298,6 +302,7 @@ const Support = () => {
               </div>
             </div>
 
+            {/* Input Area */}
             <div className="bg-[#1f2c34] px-4 py-3 flex items-center gap-3">
               <div className="flex-1 bg-[#2a3942] rounded-full px-4 py-2 flex items-center">
                 <input
