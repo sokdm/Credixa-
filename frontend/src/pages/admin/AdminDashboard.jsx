@@ -5,13 +5,13 @@ import {
   LayoutDashboard, Users, MessageSquare, ArrowLeftRight,
   Lock, Unlock, Send, Search, ChevronLeft, LogOut,
   TrendingUp, DollarSign, UserCheck, Menu, CheckCircle,
-  Download
+  Download, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import io from 'socket.io-client';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const GlassCard = ({ children, className = '' }) => (
   <div className={`bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl ${className}`}>
@@ -71,13 +71,15 @@ const AdminDashboard = () => {
   const [chatOpen, setChatOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [apiError, setApiError] = useState('');
   const { logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) { navigate('/admin/login'); return; }
-    const newSocket = io(API_URL.replace('/api', ''));
+    
+    const newSocket = io(API_URL);
     setSocket(newSocket);
     newSocket.emit('join_admin');
     newSocket.on('new_chat', () => fetchChats());
@@ -97,27 +99,34 @@ const AdminDashboard = () => {
     if (activeTab === 'transfers') fetchUsers();
   }, [activeTab]);
 
+  const handleApiError = (err, context) => {
+    console.error(`${context} error:`, err);
+    const msg = err.response?.data?.error || err.message || 'Request failed';
+    setApiError(`${context}: ${msg}`);
+    setTimeout(() => setApiError(''), 5000);
+  };
+
   const fetchStats = async () => {
     try {
-      const res = await axios.get(`${API_URL}/admin/stats`, {
+      const res = await axios.get(`${API_URL}/api/admin/stats`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setStats(res.data);
-    } catch (err) { console.error(err); }
+    } catch (err) { handleApiError(err, 'Stats'); }
   };
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get(`${API_URL}/admin/users`, {
+      const res = await axios.get(`${API_URL}/api/admin/users`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setUsers(res.data);
-    } catch (err) { console.error(err); }
+    } catch (err) { handleApiError(err, 'Users'); }
   };
 
   const fetchChats = async () => {
     try {
-      const res = await axios.get(`${API_URL}/chat/all`, {
+      const res = await axios.get(`${API_URL}/api/chat/all`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setChats(res.data);
@@ -125,16 +134,16 @@ const AdminDashboard = () => {
         acc + chat.messages.filter(m => m.sender === 'user' && !m.read).length, 0
       );
       setUnreadCount(unread);
-    } catch (err) { console.error(err); }
+    } catch (err) { handleApiError(err, 'Chats'); }
   };
 
   const handleLockUser = async (userId) => {
     try {
-      await axios.put(`${API_URL}/admin/users/${userId}/lock`, {}, {
+      await axios.put(`${API_URL}/api/admin/users/${userId}/lock`, {}, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       fetchUsers();
-    } catch (err) { console.error(err); }
+    } catch (err) { handleApiError(err, 'Lock user'); }
   };
 
   const handleTransfer = async (e) => {
@@ -146,7 +155,7 @@ const AdminDashboard = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await axios.post(`${API_URL}/admin/transfer`, transferData, {
+      const res = await axios.post(`${API_URL}/api/admin/transfer`, transferData, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setTransferReceipt(res.data.transaction);
@@ -169,15 +178,15 @@ const AdminDashboard = () => {
     setChatOpen(true);
     setMessages([]);
     try {
-      const res = await axios.get(`${API_URL}/chat/${chat.userId._id}`, {
+      const res = await axios.get(`${API_URL}/api/chat/${chat.userId._id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setMessages(res.data.messages || []);
-      await axios.put(`${API_URL}/chat/read/${chat.userId._id}`, {}, {
+      await axios.put(`${API_URL}/api/chat/read/${chat.userId._id}`, {}, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       fetchChats();
-    } catch (err) { console.error(err); }
+    } catch (err) { handleApiError(err, 'Open chat'); }
   };
 
   const sendReply = async (e) => {
@@ -186,7 +195,7 @@ const AdminDashboard = () => {
     const text = replyText.trim();
     setReplyText('');
     try {
-      await axios.post(`${API_URL}/chat/reply/${selectedChat.userId._id}`,
+      await axios.post(`${API_URL}/api/chat/reply/${selectedChat.userId._id}`,
         { text },
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
@@ -198,7 +207,7 @@ const AdminDashboard = () => {
         read: false
       }]);
       socket.emit('admin_reply', { userId: selectedChat.userId._id, text: text });
-    } catch (err) { console.error(err); }
+    } catch (err) { handleApiError(err, 'Send reply'); }
   };
 
   const filteredUsers = users.filter(u =>
@@ -311,6 +320,17 @@ const AdminDashboard = () => {
         </div>
 
         <div className="p-4 lg:p-8">
+          {apiError && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 p-4 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center gap-3"
+            >
+              <AlertCircle size={20} className="text-red-400 flex-shrink-0" />
+              <p className="text-red-400 text-sm">{apiError}</p>
+            </motion.div>
+          )}
+
           <AnimatePresence mode="wait">
             {activeTab === 'overview' && (
               <motion.div key="overview" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
@@ -333,6 +353,7 @@ const AdminDashboard = () => {
                 </div>
               </motion.div>
             )}
+
             {activeTab === 'users' && (
               <motion.div key="users" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -344,6 +365,53 @@ const AdminDashboard = () => {
                   </div>
                 </div>
                 <div className="space-y-3">
+                  {filteredUsers.length === 0 && !apiError && (
+                    <div className="text-center py-12 text-white/30">
+                      <Users size={48} className="mx-auto mb-4" />
+                      <p>No users found</p>
+                    </div>
+                  )}
+                  {filteredUsers.map((u, idx) => (
+                    <motion.div key={u._id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }}
+                      className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center text-base lg:text-lg font-bold flex-shrink-0 ${u.isLocked ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                          {u.fullName?.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-sm lg:text-base truncate">{u.fullName}</h3>
+                          <p className="text-white/50 text-xs truncate">{u.email}</p>
+                          <p className="text-white/30 text-xs">{u.phoneNumber}</p>
+                          <p className="text-white/50 text-xs mt-0.5">Bal: {u.currency}{u.balance?.toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleLockUser(u._id)}
+                        className={`px-3 py-2 rounded-lg flex items-center gap-1.5 text-xs lg:text-sm flex-shrink-0 ml-2 ${u.isLocked ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                        {u.isLocked ? <Unlock size={14} /> : <Lock size={14} />}
+                        <span className="hidden sm:inline">{u.isLocked ? 'Unlock' : 'Lock'}</span>
+                      </motion.button>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+            {activeTab === 'users' && (
+              <motion.div key="users" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                  <h2 className="text-2xl lg:text-3xl font-bold">User Management</h2>
+                  <div className="relative w-full sm:w-auto">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                    <input type="text" placeholder="Search users..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-violet-500 w-full sm:w-64" />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {filteredUsers.length === 0 && !apiError && (
+                    <div className="text-center py-12 text-white/30">
+                      <Users size={48} className="mx-auto mb-4" />
+                      <p>No users found</p>
+                    </div>
+                  )}
                   {filteredUsers.map((u, idx) => (
                     <motion.div key={u._id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }}
                       className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-4 flex items-center justify-between">
@@ -539,21 +607,18 @@ const AdminDashboard = () => {
                           <span className="text-white/50 text-xs">Time</span>
                           <span className="text-sm">{formatTime(transferReceipt.date)}</span>
                         </div>
-
                         <div className="py-3 border-b border-white/5">
                           <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">From</p>
                           <p className="font-semibold text-sm">{transferReceipt.senderName}</p>
                           <p className="text-xs text-white/50">System Administrator</p>
                           <p className="text-xs text-white/50">Credixa Banking</p>
                         </div>
-
                         <div className="py-3 border-b border-white/5">
                           <p className="text-xs text-white/40 mb-2 uppercase tracking-wider">To</p>
                           <p className="font-semibold text-sm">{transferReceipt.receiverName}</p>
                           <p className="text-xs text-white/50">{transferReceipt.receiverAccountNumber || 'N/A'}</p>
                           <p className="text-xs text-white/50">{transferReceipt.bankName || 'Credixa Banking'}</p>
                         </div>
-
                         <div className="bg-gradient-to-r from-violet-600/10 to-purple-600/10 rounded-xl p-4 text-center">
                           <p className="text-white/50 text-xs mb-1">Amount Transferred</p>
                           <p className="text-3xl font-bold text-white">{transferReceipt.currency}{transferReceipt.amount.toLocaleString()}</p>
@@ -567,21 +632,17 @@ const AdminDashboard = () => {
                         )}
                       </div>
 
-                      <div className="p-4 border-t border-white/10 text-center bg-white/5">
-                        <p className="text-xs text-white/40">Thank you for banking with Credixa</p>
-                        <p className="text-xs text-white/40">support@credixa.com</p>
+                      <div className="p-4 border-t border-white/10 flex gap-3">
+                        <motion.button whileTap={{ scale: 0.98 }} onClick={resetTransfer}
+                          className="flex-1 py-3 bg-white/10 rounded-xl text-white font-medium text-sm">
+                          New Transfer
+                        </motion.button>
+                        <motion.button whileTap={{ scale: 0.98 }} onClick={downloadReceipt}
+                          className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl text-white font-medium text-sm flex items-center justify-center gap-2">
+                          <Download size={16} />
+                          Download
+                        </motion.button>
                       </div>
-                    </div>
-
-                    <div className="flex gap-3 mt-6">
-                      <button onClick={downloadReceipt}
-                        className="flex-1 py-3 border-2 border-violet-600 text-violet-400 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-violet-600/10">
-                        <Download size={18} /> Download
-                      </button>
-                      <button onClick={resetTransfer}
-                        className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl text-white font-bold">
-                        New Transfer
-                      </button>
                     </div>
                   </motion.div>
                 )}
