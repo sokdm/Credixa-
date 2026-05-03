@@ -7,7 +7,7 @@ import io from 'socket.io-client';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const SOCKET_URL = API_URL.replace('/api', '');
+const SOCKET_URL = API_URL;
 
 const PROBLEM_CATEGORIES = [
   { id: 'transaction', label: 'Transaction Issue', icon: Wallet, desc: 'Failed, pending, or wrong transfer' },
@@ -25,16 +25,14 @@ const Support = () => {
   const [newMessage, setNewMessage] = useState('');
   const [socket, setSocket] = useState(null);
   const [chatInfo, setChatInfo] = useState({ problemType: null, status: 'active' });
-  const [loading, setLoading] = useState(true);
-  const [step, setStep] = useState('category'); // 'category' | 'chat'
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState('category');
   const messagesEndRef = useRef(null);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Initialize socket and fetch history
   useEffect(() => {
     if (!user?._id) return;
 
@@ -46,7 +44,6 @@ const Support = () => {
 
     newSocket.on('new_message', (msg) => {
       setMessages(prev => {
-        // Prevent duplicates
         const exists = prev.some(m => 
           m.timestamp === msg.timestamp && m.text === msg.text
         );
@@ -55,7 +52,6 @@ const Support = () => {
       });
     });
 
-    // Fetch existing messages
     fetchMessages();
 
     return () => newSocket.close();
@@ -64,7 +60,8 @@ const Support = () => {
   const fetchMessages = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/chat/user`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        timeout: 5000
       });
       const data = res.data;
       setMessages(data.messages || []);
@@ -74,37 +71,35 @@ const Support = () => {
       });
       if (data.problemType) setStep('chat');
     } catch (err) {
-      console.error('Fetch messages failed:', err);
-    } finally {
-      setLoading(false);
+      console.log('No chat history or endpoint not available');
     }
   };
 
   const selectCategory = async (categoryId) => {
+    setLoading(true);
     try {
       await axios.post(`${API_URL}/api/chat/start`, {
         userId: user._id,
         problemType: categoryId
       }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        timeout: 5000
       });
-      
-      setChatInfo(prev => ({ ...prev, problemType: categoryId }));
-      setStep('chat');
-      
-      // Add system welcome message
-      const welcomeMsg = {
-        sender: 'admin',
-        text: `Thanks for reaching out about ${PROBLEM_CATEGORIES.find(c => c.id === categoryId)?.label || 'your issue'}. An agent will assist you shortly. How can we help?`,
-        timestamp: new Date(),
-        read: true
-      };
-      setMessages(prev => [...prev, welcomeMsg]);
     } catch (err) {
-      console.error('Start chat failed:', err);
-      // Still switch to chat even if API fails
-      setStep('chat');
+      console.log('Chat start API not available, continuing anyway');
     }
+    
+    setChatInfo(prev => ({ ...prev, problemType: categoryId }));
+    setStep('chat');
+    setLoading(false);
+    
+    const welcomeMsg = {
+      sender: 'admin',
+      text: `Thanks for reaching out about ${PROBLEM_CATEGORIES.find(c => c.id === categoryId)?.label || 'your issue'}. An agent will assist you shortly. How can we help?`,
+      timestamp: new Date().toISOString(),
+      read: true
+    };
+    setMessages(prev => [...prev, welcomeMsg]);
   };
 
   const sendMessage = async (e) => {
@@ -119,19 +114,19 @@ const Support = () => {
       read: false
     };
 
-    // Optimistic update
     setMessages(prev => [...prev, msg]);
     setNewMessage('');
 
     try {
       await axios.post(`${API_URL}/api/chat/user`, msg, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        timeout: 5000
       });
-      socket.emit('send_message', msg);
     } catch (err) {
-      console.error('Send failed:', err);
-      socket.emit('send_message', msg);
+      console.log('Message save failed, using socket only');
     }
+    
+    socket.emit('send_message', msg);
   };
 
   const formatTime = (date) => {
@@ -144,17 +139,25 @@ const Support = () => {
     return PROBLEM_CATEGORIES.find(c => c.id === chatInfo.problemType)?.label || 'Support';
   };
 
-  if (loading) {
+  if (!user) {
     return (
-      <div className="min-h-screen bg-[#0b141a] flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full"></div>
+      <div className="min-h-screen bg-[#0b141a] flex items-center justify-center p-4">
+        <div className="text-center">
+          <HelpCircle size={48} className="text-white/20 mx-auto mb-4" />
+          <p className="text-white/60">Please log in to access support</p>
+          <button 
+            onClick={() => navigate('/login')}
+            className="mt-4 px-6 py-2 bg-primary-600 text-white rounded-full text-sm"
+          >
+            Go to Login
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
-      {/* Header */}
       <div className="bg-[#1f2c34] px-4 py-3 flex items-center gap-4 sticky top-0 z-20">
         <button 
           onClick={() => step === 'chat' ? setStep('category') : navigate(-1)}
@@ -197,29 +200,35 @@ const Support = () => {
                 <p className="text-white/50 text-sm">Choose a topic to get started with support</p>
               </div>
 
-              <div className="space-y-3">
-                {PROBLEM_CATEGORIES.map((cat) => {
-                  const Icon = cat.icon;
-                  return (
-                    <motion.button
-                      key={cat.id}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => selectCategory(cat.id)}
-                      className="w-full bg-[#1f2c34] hover:bg-[#2a3942] rounded-xl p-4 flex items-center gap-4 transition-colors text-left group"
-                    >
-                      <div className="w-12 h-12 rounded-full bg-primary-600/20 flex items-center justify-center group-hover:bg-primary-600/30 transition-colors">
-                        <Icon size={24} className="text-primary-400" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-white font-medium">{cat.label}</h4>
-                        <p className="text-white/50 text-sm">{cat.desc}</p>
-                      </div>
-                      <ArrowRight size={20} className="text-white/30 group-hover:text-white/60 transition-colors" />
-                    </motion.button>
-                  );
-                })}
-              </div>
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full"></div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {PROBLEM_CATEGORIES.map((cat) => {
+                    const Icon = cat.icon;
+                    return (
+                      <motion.button
+                        key={cat.id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => selectCategory(cat.id)}
+                        className="w-full bg-[#1f2c34] hover:bg-[#2a3942] rounded-xl p-4 flex items-center gap-4 transition-colors text-left group"
+                      >
+                        <div className="w-12 h-12 rounded-full bg-primary-600/20 flex items-center justify-center group-hover:bg-primary-600/30 transition-colors">
+                          <Icon size={24} className="text-primary-400" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-white font-medium">{cat.label}</h4>
+                          <p className="text-white/50 text-sm">{cat.desc}</p>
+                        </div>
+                        <ArrowRight size={20} className="text-white/30 group-hover:text-white/60 transition-colors" />
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="mt-8 text-center">
                 <p className="text-white/40 text-xs">
@@ -236,7 +245,6 @@ const Support = () => {
             exit={{ opacity: 0, x: 20 }}
             className="flex-1 flex flex-col"
           >
-            {/* Chat Background */}
             <div
               className="flex-1 overflow-y-auto p-4"
               style={{
@@ -245,7 +253,6 @@ const Support = () => {
               }}
             >
               <div className="max-w-3xl mx-auto space-y-2">
-                {/* Date divider */}
                 <div className="flex justify-center mb-4">
                   <span className="bg-[#1f2c34] text-white/50 text-xs px-3 py-1 rounded-lg">
                     Today
@@ -291,7 +298,6 @@ const Support = () => {
               </div>
             </div>
 
-            {/* Input Area */}
             <div className="bg-[#1f2c34] px-4 py-3 flex items-center gap-3">
               <div className="flex-1 bg-[#2a3942] rounded-full px-4 py-2 flex items-center">
                 <input
