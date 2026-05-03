@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ChevronLeft, MoreVertical, Check, CheckCheck, HelpCircle, MessageCircle, AlertTriangle, CreditCard, Wallet, Shield, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import io from 'socket.io-client';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const SOCKET_URL = API_URL;
 
 const PROBLEM_CATEGORIES = [
   { id: 'transaction', label: 'Transaction Issue', icon: Wallet, desc: 'Failed, pending, or wrong transfer' },
@@ -21,9 +23,9 @@ const Support = () => {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [socket, setSocket] = useState(null);
   const [chatInfo, setChatInfo] = useState({ problemType: null, status: 'active' });
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [step, setStep] = useState('category');
   const messagesEndRef = useRef(null);
 
@@ -31,96 +33,124 @@ const Support = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Check for existing chat on mount - THIS IS THE KEY FIX
   useEffect(() => {
     if (!user?._id) return;
-    fetchMessages();
+    
+    const checkExistingChat = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/api/chat/user`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          timeout: 10000
+        });
+        const data = res.data;
+        // If chat exists with messages, resume it
+        if (data && data.messages && data.messages.length > 0) {
+          setMessages(data.messages);
+          setChatInfo({
+            problemType: data.problemType,
+            status: data.status || 'active'
+          });
+          setStep('chat');
+        }
+      } catch (err) {
+        console.log('No existing chat');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkExistingChat();
   }, [user]);
 
-  const fetchMessages = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/api/support/chat`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        timeout: 10000
+  // Socket setup - only when in chat
+  useEffect(() => {
+    if (!user?._id || step !== 'chat') return;
+
+    const newSocket = io(SOCKET_URL);
+    setSocket(newSocket);
+
+    newSocket.emit('join_user', user._id);
+    newSocket.emit('join_chat', user._id);
+
+    newSocket.on('new_message', (msg) => {
+      setMessages(prev => {
+        const exists = prev.some(m => 
+          m.timestamp === msg.timestamp && m.text === msg.text
+        );
+        if (exists) return prev;
+        return [...prev, msg];
       });
-      const data = res.data;
-      setMessages(data.messages || []);
-      setChatInfo({
-        problemType: data.problemType || null,
-        status: data.status || 'active'
-      });
-      if (data.problemType) setStep('chat');
-    } catch (err) {
-      console.log('No chat history or endpoint not available');
-    }
-  };
+    });
+
+    return () => newSocket.close();
+  }, [user, step]);
 
   const selectCategory = async (categoryId) => {
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/api/support/chat/start`, {
+      // Emit via socket
+      if (socket) {
+        socket.emit('start_chat', {
+          userId: user._id,
+          problemType: categoryId
+        });
+      }
+      
+      // Also persist via API
+      await axios.post(`${API_URL}/api/chat/start`, {
+        userId: user._id,
         problemType: categoryId
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         timeout: 10000
-      });
-      setMessages(res.data.messages || []);
-      setChatInfo({
-        problemType: res.data.problemType,
-        status: res.data.status
-      });
-      setStep('chat');
+      }).catch(() => {});
     } catch (err) {
-      console.error('Start chat failed:', err);
-      // Fallback: show chat with welcome anyway
-      setChatInfo(prev => ({ ...prev, problemType: categoryId }));
-      setStep('chat');
-      const welcomeMsg = {
-        sender: 'admin',
-        text: `Thanks for reaching out about ${PROBLEM_CATEGORIES.find(c => c.id === categoryId)?.label || 'your issue'}. An agent will assist you shortly. How can we help?`,
-        timestamp: new Date().toISOString(),
-        read: true
-      };
-      setMessages([welcomeMsg]);
-    } finally {
-      setLoading(false);
+      console.log('Chat start API not available');
     }
+
+    setChatInfo(prev => ({ ...prev, problemType: categoryId }));
+    setStep('chat');
+    setLoading(false);
+
+    const welcomeMsg = {
+      sender: 'admin',
+      text: `Thanks for reaching out about ${PROBLEM_CATEGORIES.find(c => c.id === categoryId)?.label || 'your issue'}. An agent will assist you shortly. How can we help?`,
+      timestamp: new Date().toISOString(),
+      read: true
+    };
+    setMessages(prev => [...prev, welcomeMsg]);
   };
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || sending) return;
+    if (!newMessage.trim() || !socket) return;
 
     const text = newMessage.trim();
     setNewMessage('');
-    setSending(true);
 
-    // Optimistic update
-    const tempMsg = {
+    const msg = {
+      userId: user._id,
       sender: 'user',
       text,
       timestamp: new Date().toISOString(),
       read: false
     };
-    setMessages(prev => [...prev, tempMsg]);
 
+    // Optimistic update
+    setMessages(prev => [...prev, msg]);
+
+    // Emit via socket (this sends to admin_room too)
+    socket.emit('send_message', msg);
+
+    // Persist via API as backup
     try {
-      const res = await axios.post(`${API_URL}/api/support/chat/user`, {
-        text
-      }, {
+      await axios.post(`${API_URL}/api/chat/user`, msg, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         timeout: 10000
       });
-      // Replace temp with server response
-      setMessages(prev => prev.map(m => 
-        m.timestamp === tempMsg.timestamp && m.text === tempMsg.text ? res.data : m
-      ));
     } catch (err) {
-      console.error('Send failed:', err);
-      // Remove temp message on failure
-      setMessages(prev => prev.filter(m => m.timestamp !== tempMsg.timestamp));
-      alert('Failed to send message. Please try again.');
-    } finally {
-      setSending(false);
+      console.log('Message save failed, sent via socket only');
     }
   };
 
@@ -248,7 +278,6 @@ const Support = () => {
               }}
             >
               <div className="max-w-3xl mx-auto space-y-2">
-                {/* Date divider */}
                 <div className="flex justify-center mb-4">
                   <span className="bg-[#1f2c34] text-white/50 text-xs px-3 py-1 rounded-lg">
                     Today
@@ -294,7 +323,6 @@ const Support = () => {
               </div>
             </div>
 
-            {/* Input Area */}
             <form onSubmit={sendMessage} className="bg-[#1f2c34] px-4 py-3 flex items-center gap-3">
               <div className="flex-1 bg-[#2a3942] rounded-full px-4 py-2 flex items-center">
                 <input
@@ -309,7 +337,7 @@ const Support = () => {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 type="submit"
-                disabled={!newMessage.trim() || sending}
+                disabled={!newMessage.trim()}
                 className="w-10 h-10 bg-violet-600 rounded-full flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send size={18} />

@@ -21,16 +21,34 @@ const TransferConfirm = () => {
     }
     setLoading(true)
     setError('')
+
+    const rawAmount = transferData.amount
+    const cleanAmount = typeof rawAmount === 'string' 
+      ? parseFloat(rawAmount.replace(/[$,]/g, ''))
+      : Number(rawAmount)
+
+    const payload = {
+      pin,
+      amount: cleanAmount,
+      narration: transferData.narration || ''
+    }
+
+    if (transferData.type === 'external') {
+      payload.bankName = transferData.bankName
+      payload.accountNumber = transferData.accountNumber
+      payload.accountName = transferData.accountName
+    } else {
+      payload.recipientAccount = transferData.recipientAccount
+    }
+
     try {
       const endpoint = transferData.type === 'external' ? '/api/transfer/external' : '/api/transfer/internal'
-      const res = await axios.post(`${API_URL}${endpoint}`, {
-        ...transferData,
-        pin
-      }, {
+      const res = await axios.post(`${API_URL}${endpoint}`, payload, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       })
       navigate('/transfer-success', { state: res.data.transaction })
     } catch (err) {
+      console.error('Transfer error:', err.response?.data)
       setError(err.response?.data?.error || 'Transfer failed')
     } finally {
       setLoading(false)
@@ -64,7 +82,7 @@ const TransferConfirm = () => {
         <div className="bg-gray-800 rounded-2xl p-5 border border-gray-700 space-y-4">
           <div className="flex justify-between">
             <span className="text-gray-400">Amount</span>
-            <span className="font-bold">${transferData.amount?.toLocaleString()}</span>
+            <span className="font-bold">${Number(transferData.amount).toLocaleString()}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-400">Bank</span>
