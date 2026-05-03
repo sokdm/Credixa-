@@ -1,5 +1,6 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
@@ -9,44 +10,53 @@ const router = express.Router();
 router.post('/internal', auth, async (req, res) => {
   try {
     const { recipientAccount, amount, narration, pin } = req.body;
-    const sender = req.user;
     
+    // Re-fetch sender with pin field (auth middleware excludes it)
+    const sender = await User.findById(req.user.id);
+    if (!sender) return res.status(404).json({ error: 'Sender not found' });
+
     if (sender.isLocked) {
-      return res.status(403).json({ 
-        error: 'Account locked due to huge amount transferred at once. Contact support.' 
-      });
+      return res.status(403).json({ error: 'Account locked. Contact support.' });
     }
-    
+
+    if (!sender.transactionPin) {
+      return res.status(400).json({ error: 'Transaction PIN not set' });
+    }
+
     if (sender.transactionPin !== pin) {
       return res.status(400).json({ error: 'Invalid transaction PIN' });
     }
-    
+
     const transferAmount = parseFloat(amount);
+    if (isNaN(transferAmount) || transferAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+
     if (sender.balance < transferAmount) {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
-    
+
     const receiver = await User.findOne({ accountNumber: recipientAccount });
     if (!receiver) {
       return res.status(404).json({ error: 'Recipient not found' });
     }
-    
+
     if (sender.accountNumber === recipientAccount) {
       return res.status(400).json({ error: 'Cannot transfer to yourself' });
     }
-    
+
     sender.balance -= transferAmount;
     receiver.balance += transferAmount;
-    
+
     if (!sender.firstTransferDate) {
       sender.firstTransferDate = new Date();
     }
-    
+
     await sender.save();
     await receiver.save();
-    
+
     const reference = 'CRX' + uuidv4().substring(0, 12).toUpperCase();
-    
+
     const transaction = new Transaction({
       senderId: sender._id,
       senderName: sender.fullName,
@@ -58,21 +68,21 @@ router.post('/internal', auth, async (req, res) => {
       type: 'internal',
       reference
     });
-    
+
     await transaction.save();
-    
+
     await Notification.create({
       userId: sender._id,
       title: 'Transfer Successful',
       message: `You sent ${sender.currency}${transferAmount.toLocaleString()} to ${receiver.fullName}`
     });
-    
+
     await Notification.create({
       userId: receiver._id,
       title: 'Money Received',
       message: `You received ${receiver.currency}${transferAmount.toLocaleString()} from ${sender.fullName}`
     });
-    
+
     res.json({
       success: true,
       transaction: {
@@ -90,6 +100,7 @@ router.post('/internal', auth, async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Internal transfer error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -97,31 +108,41 @@ router.post('/internal', auth, async (req, res) => {
 router.post('/external', auth, async (req, res) => {
   try {
     const { bankName, accountNumber, accountName, amount, narration, pin } = req.body;
-    const sender = req.user;
     
+    const sender = await User.findById(req.user.id);
+    if (!sender) return res.status(404).json({ error: 'Sender not found' });
+
     if (sender.isLocked) {
-      return res.status(403).json({ 
-        error: 'Account locked due to huge amount transferred at once. Contact support.' 
-      });
+      return res.status(403).json({ error: 'Account locked. Contact support.' });
     }
-    
+
+    if (!sender.transactionPin) {
+      return res.status(400).json({ error: 'Transaction PIN not set' });
+    }
+
     if (sender.transactionPin !== pin) {
       return res.status(400).json({ error: 'Invalid transaction PIN' });
     }
-    
+
     const transferAmount = parseFloat(amount);
+    if (isNaN(transferAmount) || transferAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+
     if (sender.balance < transferAmount) {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
-    
+
     sender.balance -= transferAmount;
+
     if (!sender.firstTransferDate) {
       sender.firstTransferDate = new Date();
     }
+
     await sender.save();
-    
+
     const reference = 'CRX' + uuidv4().substring(0, 12).toUpperCase();
-    
+
     const transaction = new Transaction({
       senderId: sender._id,
       senderName: sender.fullName,
@@ -133,15 +154,15 @@ router.post('/external', auth, async (req, res) => {
       type: 'external',
       reference
     });
-    
+
     await transaction.save();
-    
+
     await Notification.create({
       userId: sender._id,
       title: 'External Transfer Sent',
       message: `You sent ${sender.currency}${transferAmount.toLocaleString()} to ${accountName} at ${bankName}`
     });
-    
+
     res.json({
       success: true,
       transaction: {
@@ -159,6 +180,7 @@ router.post('/external', auth, async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('External transfer error:', error);
     res.status(500).json({ error: error.message });
   }
 });
