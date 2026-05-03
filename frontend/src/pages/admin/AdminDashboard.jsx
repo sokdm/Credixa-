@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -66,6 +66,7 @@ const AdminDashboard = () => {
   const [transferData, setTransferData] = useState({ userId: '', amount: '', description: '', senderName: '' });
   const [transferReceipt, setTransferReceipt] = useState(null);
   const [socket, setSocket] = useState(null);
+  const [socketConnected, setSocketConnected] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -74,14 +75,38 @@ const AdminDashboard = () => {
   const [apiError, setApiError] = useState('');
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const socketRef = useRef(null);
+
+  const getToken = () => localStorage.getItem('token');
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (!token) { navigate('/admin/login'); return; }
-    
-    const newSocket = io(API_URL);
+
+    const newSocket = io(API_URL, {
+      transports: ['websocket', 'polling'],
+      timeout: 10000,
+      reconnectionAttempts: 5
+    });
+
+    socketRef.current = newSocket;
     setSocket(newSocket);
-    newSocket.emit('join_admin');
+
+    newSocket.on('connect', () => {
+      console.log('Admin socket connected');
+      setSocketConnected(true);
+      newSocket.emit('join_admin');
+    });
+
+    newSocket.on('connect_error', (err) => {
+      console.log('Admin socket error:', err.message);
+      setSocketConnected(false);
+    });
+
+    newSocket.on('disconnect', () => {
+      setSocketConnected(false);
+    });
+
     newSocket.on('new_chat', () => fetchChats());
     newSocket.on('new_message', (msg) => {
       if (selectedChat && msg.chatId === selectedChat._id && msg.sender === 'user') {
@@ -89,6 +114,7 @@ const AdminDashboard = () => {
       }
       fetchChats();
     });
+
     return () => newSocket.close();
   }, [navigate, selectedChat]);
 
@@ -109,7 +135,7 @@ const AdminDashboard = () => {
   const fetchStats = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/admin/stats`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${getToken()}` }
       });
       setStats(res.data);
     } catch (err) { handleApiError(err, 'Stats'); }
@@ -118,7 +144,7 @@ const AdminDashboard = () => {
   const fetchUsers = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/admin/users`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${getToken()}` }
       });
       setUsers(res.data);
     } catch (err) { handleApiError(err, 'Users'); }
@@ -127,7 +153,7 @@ const AdminDashboard = () => {
   const fetchChats = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/chat/all`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${getToken()}` }
       });
       setChats(res.data);
       const unread = res.data.reduce((acc, chat) =>
@@ -140,7 +166,7 @@ const AdminDashboard = () => {
   const handleLockUser = async (userId) => {
     try {
       await axios.put(`${API_URL}/api/admin/users/${userId}/lock`, {}, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${getToken()}` }
       });
       fetchUsers();
     } catch (err) { handleApiError(err, 'Lock user'); }
@@ -156,10 +182,11 @@ const AdminDashboard = () => {
     setError('');
     try {
       const res = await axios.post(`${API_URL}/api/admin/transfer`, transferData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${getToken()}` }
       });
       setTransferReceipt(res.data.transaction);
       fetchStats();
+      fetchUsers();
     } catch (err) {
       setError(err.response?.data?.error || 'Transfer failed');
     } finally {
@@ -178,12 +205,12 @@ const AdminDashboard = () => {
     setChatOpen(true);
     setMessages([]);
     try {
-      const res = await axios.get(`${API_URL}/api/chat/${chat.userId._id}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      const res = await axios.get(`${API_URL}/api/chat/${chat.userId._id || chat.userId}`, {
+        headers: { Authorization: `Bearer ${getToken()}` }
       });
       setMessages(res.data.messages || []);
-      await axios.put(`${API_URL}/api/chat/read/${chat.userId._id}`, {}, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      await axios.put(`${API_URL}/api/chat/read/${chat.userId._id || chat.userId}`, {}, {
+        headers: { Authorization: `Bearer ${getToken()}` }
       });
       fetchChats();
     } catch (err) { handleApiError(err, 'Open chat'); }
@@ -195,9 +222,9 @@ const AdminDashboard = () => {
     const text = replyText.trim();
     setReplyText('');
     try {
-      await axios.post(`${API_URL}/api/chat/reply/${selectedChat.userId._id}`,
+      await axios.post(`${API_URL}/api/chat/reply/${selectedChat.userId._id || selectedChat.userId}`,
         { text },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+        { headers: { Authorization: `Bearer ${getToken()}` } }
       );
       setMessages(prev => [...prev, {
         _id: Date.now(),
@@ -206,7 +233,9 @@ const AdminDashboard = () => {
         timestamp: new Date(),
         read: false
       }]);
-      socket.emit('admin_reply', { userId: selectedChat.userId._id, text: text });
+      if (socketRef.current && socketConnected) {
+        socketRef.current.emit('admin_reply', { userId: selectedChat.userId._id || selectedChat.userId, text: text });
+      }
     } catch (err) { handleApiError(err, 'Send reply'); }
   };
 
@@ -330,7 +359,6 @@ const AdminDashboard = () => {
               <p className="text-red-400 text-sm">{apiError}</p>
             </motion.div>
           )}
-
           <AnimatePresence mode="wait">
             {activeTab === 'overview' && (
               <motion.div key="overview" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
@@ -348,53 +376,12 @@ const AdminDashboard = () => {
                   </GlassCard>
                   <GlassCard className="p-5">
                     <h3 className="text-sm font-semibold text-white/70 mb-2">Unread Messages</h3>
-                    <p className="text-3xl font-bold text-yellow-400">{unreadCount}</p>
+                    <p className="text-3xl font-bold text-yellow-400">{unreadCount || 0}</p>
                   </GlassCard>
                 </div>
               </motion.div>
             )}
 
-            {activeTab === 'users' && (
-              <motion.div key="users" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                  <h2 className="text-2xl lg:text-3xl font-bold">User Management</h2>
-                  <div className="relative w-full sm:w-auto">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={18} />
-                    <input type="text" placeholder="Search users..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-violet-500 w-full sm:w-64" />
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {filteredUsers.length === 0 && !apiError && (
-                    <div className="text-center py-12 text-white/30">
-                      <Users size={48} className="mx-auto mb-4" />
-                      <p>No users found</p>
-                    </div>
-                  )}
-                  {filteredUsers.map((u, idx) => (
-                    <motion.div key={u._id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }}
-                      className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center text-base lg:text-lg font-bold flex-shrink-0 ${u.isLocked ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-                          {u.fullName?.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="font-semibold text-sm lg:text-base truncate">{u.fullName}</h3>
-                          <p className="text-white/50 text-xs truncate">{u.email}</p>
-                          <p className="text-white/30 text-xs">{u.phoneNumber}</p>
-                          <p className="text-white/50 text-xs mt-0.5">Bal: {u.currency}{u.balance?.toLocaleString()}</p>
-                        </div>
-                      </div>
-                      <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleLockUser(u._id)}
-                        className={`px-3 py-2 rounded-lg flex items-center gap-1.5 text-xs lg:text-sm flex-shrink-0 ml-2 ${u.isLocked ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                        {u.isLocked ? <Unlock size={14} /> : <Lock size={14} />}
-                        <span className="hidden sm:inline">{u.isLocked ? 'Unlock' : 'Lock'}</span>
-                      </motion.button>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
             {activeTab === 'users' && (
               <motion.div key="users" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -535,7 +522,6 @@ const AdminDashboard = () => {
                     {error}
                   </div>
                 )}
-
                 {!transferReceipt ? (
                   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
                     <form onSubmit={handleTransfer} className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 lg:p-8 space-y-4 lg:space-y-6">

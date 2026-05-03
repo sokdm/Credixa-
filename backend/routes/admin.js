@@ -9,32 +9,39 @@ router.use(adminAuth);
 
 router.get('/users', async (req, res) => {
   try {
-    const users = await User.find({}, 'fullName email balance isActive accountNumber currency phoneNumber isLocked');
+    const users = await User.find({}, 'fullName email balance isActive accountNumber currency phoneNumber isLocked createdAt');
     res.json(users);
   } catch (err) {
+    console.error('Admin users error:', err);
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
 
 router.get('/stats', async (req, res) => {
   try {
-    const users = await User.find();
-    const totalBalance = users.reduce((sum, u) => sum + (u.balance || 0), 0);
-    const totalTransfers = await Transaction.countDocuments({ type: 'admin' });
-    const totalVolume = await Transaction.aggregate([
-      { $match: { type: 'admin' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+    const [users, totalTransfersAgg, totalVolumeAgg] = await Promise.all([
+      User.find(),
+      Transaction.countDocuments({ type: { $in: ['internal', 'external', 'admin'] } }),
+      Transaction.aggregate([
+        { $match: { type: { $in: ['internal', 'external', 'admin'] } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ])
     ]);
+
+    const totalBalance = users.reduce((sum, u) => sum + (u.balance || 0), 0);
     const activeUsers = users.filter(u => !u.isLocked).length;
     const lockedUsers = users.filter(u => u.isLocked).length;
+
     res.json({
       totalUsers: users.length,
-      totalTransfers,
-      totalVolume: totalVolume[0]?.total || 0,
+      totalTransfers: totalTransfersAgg,
+      totalVolume: totalVolumeAgg[0]?.total || 0,
       activeUsers,
-      lockedUsers
+      lockedUsers,
+      totalBalance
     });
   } catch (err) {
+    console.error('Admin stats error:', err);
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
@@ -47,6 +54,7 @@ router.put('/users/:id/lock', async (req, res) => {
     await user.save();
     res.json({ message: `User ${user.isLocked ? 'locked' : 'unlocked'}`, user });
   } catch (err) {
+    console.error('Admin lock error:', err);
     res.status(500).json({ error: 'Failed to update user' });
   }
 });
@@ -83,7 +91,21 @@ router.post('/transfer', async (req, res) => {
     await receiver.save();
     await transaction.save();
 
-    res.json({ success: true, message: 'Transfer completed' });
+    res.json({ 
+      success: true, 
+      message: 'Transfer completed', 
+      transaction: {
+        reference,
+        senderName: senderName || 'Credixa Admin',
+        receiverName: receiver.fullName,
+        receiverAccountNumber: receiver.accountNumber,
+        amount: Number(amount),
+        currency: receiver.currency || '$',
+        date: new Date().toISOString(),
+        status: 'completed',
+        narration: description || 'Admin transfer'
+      }
+    });
   } catch (err) {
     console.error('Admin transfer error:', err);
     res.status(500).json({ error: err.message || 'Transfer failed' });

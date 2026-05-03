@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ChevronLeft, MoreVertical, Check, CheckCheck, HelpCircle, MessageCircle, AlertTriangle, CreditCard, Wallet, Shield, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -24,25 +24,25 @@ const Support = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [socket, setSocket] = useState(null);
+  const [socketConnected, setSocketConnected] = useState(false);
   const [chatInfo, setChatInfo] = useState({ problemType: null, status: 'active' });
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState('category');
   const messagesEndRef = useRef(null);
   const loadingTimerRef = useRef(null);
+  const socketRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // HARD TIMEOUT: Force loading false after 3 seconds so UI never hangs
+  // HARD TIMEOUT: Force loading false after 2 seconds
   useEffect(() => {
-    if (loading) {
-      loadingTimerRef.current = setTimeout(() => {
-        setLoading(false);
-      }, 3000);
-    }
+    loadingTimerRef.current = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
     return () => clearTimeout(loadingTimerRef.current);
-  }, [loading]);
+  }, []);
 
   // Check for existing chat on mount
   useEffect(() => {
@@ -55,7 +55,7 @@ const Support = () => {
       try {
         const res = await axios.get(`${API_URL}/api/chat/user`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-          timeout: 8000
+          timeout: 5000
         });
         const data = res.data;
         if (data && data.messages && data.messages.length > 0) {
@@ -76,26 +76,34 @@ const Support = () => {
     checkExistingChat();
   }, [user]);
 
-  // Socket setup - only when in chat
+  // Socket setup - initialize immediately when user is available, not just in chat step
   useEffect(() => {
-    if (!user?._id || step !== 'chat') return;
+    if (!user?._id) return;
 
     const newSocket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       timeout: 10000,
-      reconnectionAttempts: 3
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
+
+    socketRef.current = newSocket;
     setSocket(newSocket);
 
-    newSocket.emit('join_user', user._id);
-    newSocket.emit('join_chat', user._id);
-
     newSocket.on('connect', () => {
-      console.log('Socket connected');
+      console.log('Socket connected:', newSocket.id);
+      setSocketConnected(true);
+      newSocket.emit('join_user', user._id);
     });
 
     newSocket.on('connect_error', (err) => {
       console.log('Socket error:', err.message);
+      setSocketConnected(false);
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('Socket disconnected');
+      setSocketConnected(false);
     });
 
     newSocket.on('new_message', (msg) => {
@@ -108,48 +116,61 @@ const Support = () => {
       });
     });
 
-    return () => newSocket.close();
-  }, [user, step]);
+    return () => {
+      newSocket.close();
+      socketRef.current = null;
+    };
+  }, [user?._id]);
+
+  // Join chat room when entering chat step
+  useEffect(() => {
+    if (step === 'chat' && socketRef.current && socketConnected) {
+      socketRef.current.emit('join_chat', user._id);
+    }
+  }, [step, socketConnected, user?._id]);
 
   const selectCategory = async (categoryId) => {
     setLoading(true);
-    try {
-      if (socket) {
-        socket.emit('start_chat', {
-          userId: user._id,
-          problemType: categoryId
-        });
-      }
-
-      await axios.post(`${API_URL}/api/chat/start`, {
-        userId: user._id,
-        problemType: categoryId
-      }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        timeout: 8000
-      }).catch(() => {});
-    } catch (err) {
-      console.log('Chat start API not available');
-    }
-
-    setChatInfo(prev => ({ ...prev, problemType: categoryId }));
-    setStep('chat');
-    setLoading(false);
-
+    
     const welcomeMsg = {
       sender: 'admin',
       text: `Thanks for reaching out about ${PROBLEM_CATEGORIES.find(c => c.id === categoryId)?.label || 'your issue'}. An agent will assist you shortly. How can we help?`,
       timestamp: new Date().toISOString(),
       read: true
     };
+    
     setMessages(prev => [...prev, welcomeMsg]);
+    setChatInfo(prev => ({ ...prev, problemType: categoryId }));
+    setStep('chat');
+    setLoading(false);
+
+    // Emit via socket if connected
+    if (socketRef.current && socketConnected) {
+      socketRef.current.emit('start_chat', {
+        userId: user._id,
+        problemType: categoryId
+      });
+    }
+
+    // Persist via API
+    try {
+      await axios.post(`${API_URL}/api/chat/start`, {
+        userId: user._id,
+        problemType: categoryId
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        timeout: 5000
+      });
+    } catch (err) {
+      console.log('Chat start API not available');
+    }
   };
 
-  const sendMessage = async (e) => {
+  const sendMessage = useCallback(async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !socket) return;
-
     const text = newMessage.trim();
+    if (!text) return;
+
     setNewMessage('');
 
     const msg = {
@@ -160,19 +181,26 @@ const Support = () => {
       read: false
     };
 
+    // Optimistic update
     setMessages(prev => [...prev, msg]);
 
-    socket.emit('send_message', msg);
+    // Emit via socket
+    if (socketRef.current && socketConnected) {
+      socketRef.current.emit('send_message', msg);
+    } else {
+      console.log('Socket not connected, message queued');
+    }
 
+    // Persist via API as backup
     try {
       await axios.post(`${API_URL}/api/chat/user`, msg, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        timeout: 8000
+        timeout: 5000
       });
     } catch (err) {
       console.log('Message save failed, sent via socket only');
     }
-  };
+  }, [newMessage, user?._id, socketConnected]);
 
   const formatTime = (date) => {
     return new Date(date).toLocaleTimeString('en-US', {
@@ -218,7 +246,7 @@ const Support = () => {
           <h2 className="font-semibold text-white truncate">Credixa Support</h2>
           <p className="text-green-400 text-xs flex items-center gap-1">
             <span className="w-2 h-2 bg-green-400 rounded-full inline-block"></span>
-            {step === 'category' ? 'Select a topic' : `${getCategoryLabel()} • Online`}
+            {step === 'category' ? 'Select a topic' : `${getCategoryLabel()} • ${socketConnected ? 'Online' : 'Connecting...'}`}
           </p>
         </div>
         <div className="flex items-center gap-4 text-white/70">
@@ -314,7 +342,7 @@ const Support = () => {
                 <AnimatePresence>
                   {messages.map((msg, idx) => (
                     <motion.div
-                      key={idx}
+                      key={`${msg.timestamp}-${idx}`}
                       initial={{ opacity: 0, y: 10, scale: 0.9 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
