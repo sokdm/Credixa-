@@ -52,7 +52,7 @@ const ScheduledPayments = () => {
     }
   }
 
-  const toggleStatus = async ( const toggleStatus = async (id, currentStatus) => {
+  const toggleStatus = async (id, currentStatus) => {
     try {
       const newStatus = currentStatus === 'active' ? 'paused' : 'active'
       await axios.put(`${API_URL}/api/scheduled/${id}`, { status: newStatus }, {
