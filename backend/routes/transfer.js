@@ -8,61 +8,40 @@ const { auth } = require('../middleware/auth');
 const router = express.Router();
 
 router.post('/internal', auth, async (req, res) => {
-  const session = await User.startSession();
-  session.startTransaction();
-
   try {
     const { recipientAccount, amount, narration, pin } = req.body;
 
-    const sender = await User.findById(req.user._id).session(session);
-    if (!sender) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(404).json({ error: 'Sender not found' });
-    }
+    const sender = await User.findById(req.user._id);
+    if (!sender) return res.status(404).json({ error: 'Sender not found' });
 
     if (sender.isLocked) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(403).json({ error: 'Account locked. Contact support.' });
     }
 
     if (!sender.transactionPin) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ error: 'Transaction PIN not set' });
     }
 
     const isPinValid = await bcrypt.compare(pin, sender.transactionPin);
     if (!isPinValid) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ error: 'Invalid transaction PIN' });
     }
 
     const transferAmount = parseFloat(amount);
     if (isNaN(transferAmount) || transferAmount <= 0) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
     if (sender.balance < transferAmount) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ error: 'Insufficient balance' });
     }
 
-    const receiver = await User.findOne({ accountNumber: recipientAccount }).session(session);
+    const receiver = await User.findOne({ accountNumber: recipientAccount });
     if (!receiver) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(404).json({ error: 'Recipient not found' });
     }
 
     if (sender.accountNumber === recipientAccount) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ error: 'Cannot transfer to yourself' });
     }
 
@@ -73,8 +52,8 @@ router.post('/internal', auth, async (req, res) => {
       sender.firstTransferDate = new Date();
     }
 
-    await sender.save({ session });
-    await receiver.save({ session });
+    await sender.save();
+    await receiver.save();
 
     const reference = 'CRX' + uuidv4().substring(0, 12).toUpperCase();
 
@@ -92,20 +71,19 @@ router.post('/internal', auth, async (req, res) => {
       status: 'completed'
     });
 
-    await transaction.save({ session });
+    await transaction.save();
 
-    await Notification.create([{
+    await Notification.create({
       userId: sender._id,
       title: 'Transfer Successful',
       message: `You sent ${sender.currency}${transferAmount.toLocaleString()} to ${receiver.fullName}`
-    }, {
+    });
+
+    await Notification.create({
       userId: receiver._id,
       title: 'Money Received',
       message: `You received ${receiver.currency}${transferAmount.toLocaleString()} from ${sender.fullName}`
-    }], { session });
-
-    await session.commitTransaction();
-    session.endSession();
+    });
 
     res.json({
       success: true,
@@ -124,56 +102,37 @@ router.post('/internal', auth, async (req, res) => {
       }
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     console.error('Internal transfer error:', error);
     res.status(500).json({ error: error.message || 'Transfer failed' });
   }
 });
 
 router.post('/external', auth, async (req, res) => {
-  const session = await User.startSession();
-  session.startTransaction();
-
   try {
     const { bankName, accountNumber, accountName, amount, narration, pin } = req.body;
 
-    const sender = await User.findById(req.user._id).session(session);
-    if (!sender) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(404).json({ error: 'Sender not found' });
-    }
+    const sender = await User.findById(req.user._id);
+    if (!sender) return res.status(404).json({ error: 'Sender not found' });
 
     if (sender.isLocked) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(403).json({ error: 'Account locked. Contact support.' });
     }
 
     if (!sender.transactionPin) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ error: 'Transaction PIN not set' });
     }
 
     const isPinValid = await bcrypt.compare(pin, sender.transactionPin);
     if (!isPinValid) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ error: 'Invalid transaction PIN' });
     }
 
     const transferAmount = parseFloat(amount);
     if (isNaN(transferAmount) || transferAmount <= 0) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
     if (sender.balance < transferAmount) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ error: 'Insufficient balance' });
     }
 
@@ -182,7 +141,7 @@ router.post('/external', auth, async (req, res) => {
       sender.firstTransferDate = new Date();
     }
 
-    await sender.save({ session });
+    await sender.save();
 
     const reference = 'CRX' + uuidv4().substring(0, 12).toUpperCase();
 
@@ -200,16 +159,13 @@ router.post('/external', auth, async (req, res) => {
       status: 'completed'
     });
 
-    await transaction.save({ session });
+    await transaction.save();
 
-    await Notification.create([{
+    await Notification.create({
       userId: sender._id,
       title: 'External Transfer Sent',
       message: `You sent ${sender.currency}${transferAmount.toLocaleString()} to ${accountName} at ${bankName}`
-    }], { session });
-
-    await session.commitTransaction();
-    session.endSession();
+    });
 
     res.json({
       success: true,
@@ -228,8 +184,6 @@ router.post('/external', auth, async (req, res) => {
       }
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     console.error('External transfer error:', error);
     res.status(500).json({ error: error.message || 'External transfer failed' });
   }
