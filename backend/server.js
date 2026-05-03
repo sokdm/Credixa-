@@ -19,13 +19,17 @@ const io = new Server(httpServer, {
   }
 });
 
+// FIX: Trust proxy for Render deployment (required for rate-limit behind proxy)
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({ origin: CLIENT_URL }));
 app.use(express.json({ limit: '10mb' }));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100
+  max: 100,
+  validate: { trustProxy: false }  // FIX: Prevent ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
 });
 app.use('/api/', limiter);
 
