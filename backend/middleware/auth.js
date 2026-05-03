@@ -15,7 +15,7 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid token payload' });
     }
 
-    const user = await User.findById(userId).select('-password +transactionPin');
+    const user = await User.findById(userId).select('-password');
 
     if (!user) return res.status(401).json({ error: 'Token is not valid' });
 
@@ -39,7 +39,7 @@ const adminAuth = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid token payload' });
     }
 
-    const user = await User.findById(userId).select('-password +transactionPin');
+    const user = await User.findById(userId).select('-password');
 
     if (!user) return res.status(401).json({ error: 'Token is not valid' });
     if (!user.isAdmin) return res.status(403).json({ error: 'Admin access required' });
