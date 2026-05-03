@@ -3,11 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ChevronLeft, MoreVertical, Check, CheckCheck, HelpCircle, MessageCircle, AlertTriangle, CreditCard, Wallet, Shield, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const SOCKET_URL = API_URL;
 
 const PROBLEM_CATEGORIES = [
   { id: 'transaction', label: 'Transaction Issue', icon: Wallet, desc: 'Failed, pending, or wrong transfer' },
@@ -23,9 +21,9 @@ const Support = () => {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [socket, setSocket] = useState(null);
   const [chatInfo, setChatInfo] = useState({ problemType: null, status: 'active' });
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
   const [step, setStep] = useState('category');
   const messagesEndRef = useRef(null);
 
@@ -35,39 +33,20 @@ const Support = () => {
 
   useEffect(() => {
     if (!user?._id) return;
-
-    const newSocket = io(SOCKET_URL);
-    setSocket(newSocket);
-
-    newSocket.emit('join_user', user._id);
-    newSocket.emit('join_chat', user._id);
-
-    newSocket.on('new_message', (msg) => {
-      setMessages(prev => {
-        const exists = prev.some(m => 
-          m.timestamp === msg.timestamp && m.text === msg.text
-        );
-        if (exists) return prev;
-        return [...prev, msg];
-      });
-    });
-
     fetchMessages();
-
-    return () => newSocket.close();
   }, [user]);
 
   const fetchMessages = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/chat/user`, {
+      const res = await axios.get(`${API_URL}/api/support/chat`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        timeout: 5000
+        timeout: 10000
       });
       const data = res.data;
       setMessages(data.messages || []);
-      setChatInfo({ 
-        problemType: data.problemType || null, 
-        status: data.status || 'active' 
+      setChatInfo({
+        problemType: data.problemType || null,
+        status: data.status || 'active'
       });
       if (data.problemType) setStep('chat');
     } catch (err) {
@@ -78,57 +57,70 @@ const Support = () => {
   const selectCategory = async (categoryId) => {
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/api/chat/start`, {
-        userId: user._id,
+      const res = await axios.post(`${API_URL}/api/support/chat/start`, {
         problemType: categoryId
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        timeout: 5000
+        timeout: 10000
       });
+      setMessages(res.data.messages || []);
+      setChatInfo({
+        problemType: res.data.problemType,
+        status: res.data.status
+      });
+      setStep('chat');
     } catch (err) {
-      console.log('Chat start API not available, continuing anyway');
+      console.error('Start chat failed:', err);
+      // Fallback: show chat with welcome anyway
+      setChatInfo(prev => ({ ...prev, problemType: categoryId }));
+      setStep('chat');
+      const welcomeMsg = {
+        sender: 'admin',
+        text: `Thanks for reaching out about ${PROBLEM_CATEGORIES.find(c => c.id === categoryId)?.label || 'your issue'}. An agent will assist you shortly. How can we help?`,
+        timestamp: new Date().toISOString(),
+        read: true
+      };
+      setMessages([welcomeMsg]);
+    } finally {
+      setLoading(false);
     }
-    
-    setChatInfo(prev => ({ ...prev, problemType: categoryId }));
-    setStep('chat');
-    setLoading(false);
-    
-    const welcomeMsg = {
-      sender: 'admin',
-      text: `Thanks for reaching out about ${PROBLEM_CATEGORIES.find(c => c.id === categoryId)?.label || 'your issue'}. An agent will assist you shortly. How can we help?`,
-      timestamp: new Date().toISOString(),
-      read: true
-    };
-    setMessages(prev => [...prev, welcomeMsg]);
   };
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !socket) return;
+    if (!newMessage.trim() || sending) return;
 
-    const msg = {
-      userId: user._id,
+    const text = newMessage.trim();
+    setNewMessage('');
+    setSending(true);
+
+    // Optimistic update
+    const tempMsg = {
       sender: 'user',
-      text: newMessage.trim(),
+      text,
       timestamp: new Date().toISOString(),
       read: false
     };
+    setMessages(prev => [...prev, tempMsg]);
 
-    // Optimistic update - show immediately
-    setMessages(prev => [...prev, msg]);
-    setNewMessage('');
-
-    // Emit via socket first (real-time)
-    socket.emit('send_message', msg);
-
-    // Try to persist via API
     try {
-      await axios.post(`${API_URL}/api/chat/user`, msg, {
+      const res = await axios.post(`${API_URL}/api/support/chat/user`, {
+        text
+      }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        timeout: 5000
+        timeout: 10000
       });
+      // Replace temp with server response
+      setMessages(prev => prev.map(m => 
+        m.timestamp === tempMsg.timestamp && m.text === tempMsg.text ? res.data : m
+      ));
     } catch (err) {
-      console.log('Message save failed, sent via socket only');
+      console.error('Send failed:', err);
+      // Remove temp message on failure
+      setMessages(prev => prev.filter(m => m.timestamp !== tempMsg.timestamp));
+      alert('Failed to send message. Please try again.');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -148,9 +140,9 @@ const Support = () => {
         <div className="text-center">
           <HelpCircle size={48} className="text-white/20 mx-auto mb-4" />
           <p className="text-white/60">Please log in to access support</p>
-          <button 
+          <button
             onClick={() => navigate('/login')}
-            className="mt-4 px-6 py-2 bg-primary-600 text-white rounded-full text-sm"
+            className="mt-4 px-6 py-2 bg-violet-600 text-white rounded-full text-sm"
           >
             Go to Login
           </button>
@@ -163,13 +155,13 @@ const Support = () => {
     <div className="min-h-screen bg-gray-900 flex flex-col">
       {/* Header */}
       <div className="bg-[#1f2c34] px-4 py-3 flex items-center gap-4 sticky top-0 z-20">
-        <button 
+        <button
           onClick={() => step === 'chat' ? setStep('category') : navigate(-1)}
           className="text-white/70 hover:text-white transition-colors"
         >
           <ChevronLeft size={24} />
         </button>
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-pink flex items-center justify-center text-white font-bold">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white font-bold">
           C
         </div>
         <div className="flex-1 min-w-0">
@@ -195,8 +187,8 @@ const Support = () => {
           >
             <div className="max-w-lg mx-auto pt-8">
               <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-primary-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <HelpCircle size={32} className="text-primary-400" />
+                <div className="w-16 h-16 bg-violet-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <HelpCircle size={32} className="text-violet-400" />
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-2">How can we help?</h3>
                 <p className="text-white/50 text-sm">Choose a topic to get started with support</p>
@@ -204,7 +196,7 @@ const Support = () => {
 
               {loading ? (
                 <div className="flex justify-center py-12">
-                  <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full"></div>
+                  <div className="animate-spin w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full"></div>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -218,8 +210,8 @@ const Support = () => {
                         onClick={() => selectCategory(cat.id)}
                         className="w-full bg-[#1f2c34] hover:bg-[#2a3942] rounded-xl p-4 flex items-center gap-4 transition-colors text-left group"
                       >
-                        <div className="w-12 h-12 rounded-full bg-primary-600/20 flex items-center justify-center group-hover:bg-primary-600/30 transition-colors">
-                          <Icon size={24} className="text-primary-400" />
+                        <div className="w-12 h-12 rounded-full bg-violet-600/20 flex items-center justify-center group-hover:bg-violet-600/30 transition-colors">
+                          <Icon size={24} className="text-violet-400" />
                         </div>
                         <div className="flex-1">
                           <h4 className="text-white font-medium">{cat.label}</h4>
@@ -303,13 +295,12 @@ const Support = () => {
             </div>
 
             {/* Input Area */}
-            <div className="bg-[#1f2c34] px-4 py-3 flex items-center gap-3">
+            <form onSubmit={sendMessage} className="bg-[#1f2c34] px-4 py-3 flex items-center gap-3">
               <div className="flex-1 bg-[#2a3942] rounded-full px-4 py-2 flex items-center">
                 <input
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage(e)}
                   placeholder="Type a message"
                   className="flex-1 bg-transparent text-white placeholder-white/40 outline-none text-sm"
                 />
@@ -317,13 +308,13 @@ const Support = () => {
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                onClick={sendMessage}
-                disabled={!newMessage.trim()}
-                className="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                type="submit"
+                disabled={!newMessage.trim() || sending}
+                className="w-10 h-10 bg-violet-600 rounded-full flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send size={18} />
               </motion.button>
-            </div>
+            </form>
           </motion.div>
         )}
       </AnimatePresence>
