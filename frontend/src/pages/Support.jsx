@@ -28,23 +28,36 @@ const Support = () => {
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState('category');
   const messagesEndRef = useRef(null);
+  const loadingTimerRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Check for existing chat on mount - THIS IS THE KEY FIX
+  // HARD TIMEOUT: Force loading false after 3 seconds so UI never hangs
   useEffect(() => {
-    if (!user?._id) return;
-    
+    if (loading) {
+      loadingTimerRef.current = setTimeout(() => {
+        setLoading(false);
+      }, 3000);
+    }
+    return () => clearTimeout(loadingTimerRef.current);
+  }, [loading]);
+
+  // Check for existing chat on mount
+  useEffect(() => {
+    if (!user?._id) {
+      setLoading(false);
+      return;
+    }
+
     const checkExistingChat = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/chat/user`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-          timeout: 10000
+          timeout: 8000
         });
         const data = res.data;
-        // If chat exists with messages, resume it
         if (data && data.messages && data.messages.length > 0) {
           setMessages(data.messages);
           setChatInfo({
@@ -54,7 +67,7 @@ const Support = () => {
           setStep('chat');
         }
       } catch (err) {
-        console.log('No existing chat');
+        console.log('No existing chat or API unavailable');
       } finally {
         setLoading(false);
       }
@@ -67,15 +80,27 @@ const Support = () => {
   useEffect(() => {
     if (!user?._id || step !== 'chat') return;
 
-    const newSocket = io(SOCKET_URL);
+    const newSocket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      timeout: 10000,
+      reconnectionAttempts: 3
+    });
     setSocket(newSocket);
 
     newSocket.emit('join_user', user._id);
     newSocket.emit('join_chat', user._id);
 
+    newSocket.on('connect', () => {
+      console.log('Socket connected');
+    });
+
+    newSocket.on('connect_error', (err) => {
+      console.log('Socket error:', err.message);
+    });
+
     newSocket.on('new_message', (msg) => {
       setMessages(prev => {
-        const exists = prev.some(m => 
+        const exists = prev.some(m =>
           m.timestamp === msg.timestamp && m.text === msg.text
         );
         if (exists) return prev;
@@ -89,21 +114,19 @@ const Support = () => {
   const selectCategory = async (categoryId) => {
     setLoading(true);
     try {
-      // Emit via socket
       if (socket) {
         socket.emit('start_chat', {
           userId: user._id,
           problemType: categoryId
         });
       }
-      
-      // Also persist via API
+
       await axios.post(`${API_URL}/api/chat/start`, {
         userId: user._id,
         problemType: categoryId
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        timeout: 10000
+        timeout: 8000
       }).catch(() => {});
     } catch (err) {
       console.log('Chat start API not available');
@@ -137,17 +160,14 @@ const Support = () => {
       read: false
     };
 
-    // Optimistic update
     setMessages(prev => [...prev, msg]);
 
-    // Emit via socket (this sends to admin_room too)
     socket.emit('send_message', msg);
 
-    // Persist via API as backup
     try {
       await axios.post(`${API_URL}/api/chat/user`, msg, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        timeout: 10000
+        timeout: 8000
       });
     } catch (err) {
       console.log('Message save failed, sent via socket only');

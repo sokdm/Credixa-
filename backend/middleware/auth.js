@@ -7,10 +7,10 @@ const auth = async (req, res, next) => {
     if (!token) return res.status(401).json({ error: 'No token, authorization denied' });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    const user = await User.findById(decoded.id).select('-password');
-    
+    const user = await User.findById(decoded.id).select('-password +transactionPin');
+
     if (!user) return res.status(401).json({ error: 'Token is not valid' });
-    
+
     req.user = user;
     next();
   } catch (error) {
@@ -24,11 +24,11 @@ const adminAuth = async (req, res, next) => {
     if (!token) return res.status(401).json({ error: 'No token, authorization denied' });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    const user = await User.findById(decoded.id).select('-password');
-    
+    const user = await User.findById(decoded.id).select('-password +transactionPin');
+
     if (!user) return res.status(401).json({ error: 'Token is not valid' });
     if (!user.isAdmin) return res.status(403).json({ error: 'Admin access required' });
-    
+
     req.user = user;
     next();
   } catch (error) {
