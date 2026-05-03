@@ -46,7 +46,7 @@ const Cards = () => {
 
   const fetchMyCards = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/card/my-cards')
+      const res = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/card/my-cards')
       setMyCards(res.data)
     } catch (error) {
       console.error(error)
@@ -57,7 +57,7 @@ const Cards = () => {
     e.preventDefault()
     setLoading(true)
     try {
-      await axios.post('http://localhost:5000/api/card/request', {
+      await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/card/request', {
         cardType: selectedType,
         address: formData.address,
         phone: formData.phone

@@ -3,7 +3,7 @@ import axios from 'axios'
 
 const AuthContext = createContext(null)
 
-axios.defaults.baseURL = 'http://localhost:5000'
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
@@ -35,22 +35,22 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.post('/api/auth/login', { email, password })
       const { token: newToken, user: userData } = res.data
-      
+
       localStorage.setItem('token', newToken)
       if (userData.isAdmin) {
         localStorage.setItem('adminToken', newToken)
       }
-      
+
       setToken(newToken)
       setUser(userData)
       axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
-      
+
       return { success: true, user: userData }
     } catch (error) {
       console.error('Login error:', error.response?.data || error.message)
-      return { 
-        success: false, 
-        error: error.response?.data?.error || 'Login failed' 
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Login failed'
       }
     }
   }
@@ -59,18 +59,18 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.post('/api/auth/register', userData)
       const { token: newToken, user: newUser } = res.data
-      
+
       localStorage.setItem('token', newToken)
       setToken(newToken)
       setUser(newUser)
       axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
-      
+
       return { success: true, user: newUser }
     } catch (error) {
       console.error('Register error:', error.response?.data || error.message)
-      return { 
-        success: false, 
-        error: error.response?.data?.error || 'Registration failed' 
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Registration failed'
       }
     }
   }
@@ -84,14 +84,14 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      token, 
-      login, 
-      register, 
-      logout, 
-      loading, 
-      isAuthenticated: !!user 
+    <AuthContext.Provider value={{
+      user,
+      token,
+      login,
+      register,
+      logout,
+      loading,
+      isAuthenticated: !!user
     }}>
       {children}
     </AuthContext.Provider>

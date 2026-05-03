@@ -20,7 +20,7 @@ const Loans = () => {
 
   const checkEligibility = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/loan/eligibility')
+      const res = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/loan/eligibility')
       setEligible(res.data.eligible)
     } catch (error) {
       console.error(error)
@@ -31,7 +31,7 @@ const Loans = () => {
 
   const fetchMyLoans = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/loan/my-loans')
+      const res = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/loan/my-loans')
       setMyLoans(res.data)
     } catch (error) {
       console.error(error)
@@ -42,7 +42,7 @@ const Loans = () => {
     e.preventDefault()
     setSubmitting(true)
     try {
-      await axios.post('http://localhost:5000/api/loan/request', formData)
+      await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/loan/request', formData)
       setSuccess(true)
       fetchMyLoans()
     } catch (error) {

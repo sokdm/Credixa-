@@ -46,7 +46,7 @@ const ChatWidget = () => {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      const newSocket = io('http://localhost:5000')
+      const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000')
       newSocket.emit('join_chat', user.id)
       
       newSocket.on('new_message', (msg) => {

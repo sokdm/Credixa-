@@ -37,7 +37,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (user?.id || user?._id) {
       const userId = user.id || user._id
-      const newSocket = io('http://localhost:5000')
+      const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000')
       newSocket.emit('join_user', userId)
       newSocket.on('notification', (notif) => {
         setNotifications(prev => [notif, ...prev])

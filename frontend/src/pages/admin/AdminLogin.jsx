@@ -5,7 +5,7 @@ import { Shield, Eye, EyeOff, Lock, Mail } from 'lucide-react'
 import axios from 'axios'
 
 // Set base URL
-axios.defaults.baseURL = 'http://localhost:5000'
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 const AdminLogin = () => {
   const [formData, setFormData] = useState({ email: '', password: '' })

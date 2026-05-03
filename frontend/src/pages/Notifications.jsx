@@ -16,9 +16,9 @@ const Notifications = () => {
 
   const fetchNotifications = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/user/notifications')
+      const res = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/user/notifications')
       setNotifications(res.data)
-      await axios.put('http://localhost:5000/api/user/notifications/read')
+      await axios.put((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/user/notifications/read')
     } catch (error) {
       console.error(error)
     } finally {
@@ -28,7 +28,7 @@ const Notifications = () => {
 
   const deleteNotification = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/user/notifications/${id}`)
+      await axios.delete(`${(import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/user/notifications/'}${id}`)
       setNotifications(prev => prev.filter(n => n._id !== id))
     } catch (error) {
       console.error(error)
@@ -37,7 +37,7 @@ const Notifications = () => {
 
   const clearAll = async () => {
     try {
-      await axios.delete('http://localhost:5000/api/user/notifications')
+      await axios.delete((import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/user/notifications')
       setNotifications([])
     } catch (error) {
       console.error(error)
