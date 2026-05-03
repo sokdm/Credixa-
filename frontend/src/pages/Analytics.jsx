@@ -1,37 +1,78 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, TrendingUp, TrendingDown, Calendar, Download, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
+import { ArrowLeft, TrendingUp, TrendingDown, Download } from 'lucide-react'
+import axios from 'axios'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 const Analytics = () => {
   const navigate = useNavigate()
   const [period, setPeriod] = useState('month')
+  const [transactions, setTransactions] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const stats = {
-    week: { income: 1200, expenses: 800, savings: 400, topCategory: 'Food', transactions: 24 },
-    month: { income: 5200, expenses: 3800, savings: 1400, topCategory: 'Rent', transactions: 98 },
-    year: { income: 62000, expenses: 45000, savings: 17000, topCategory: 'Housing', transactions: 1200 }
+  useEffect(() => {
+    fetchTransactions()
+  }, [])
+
+  const fetchTransactions = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/user/transactions`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      })
+      setTransactions(res.data || [])
+    } catch (err) {
+      console.error('Fetch transactions failed:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const current = stats[period]
+  // Calculate stats from real transactions
+  const now = new Date()
+  const getPeriodStart = () => {
+    if (period === 'week') {
+      const d = new Date(now)
+      d.setDate(d.getDate() - 7)
+      return d
+    }
+    if (period === 'month') {
+      const d = new Date(now)
+      d.setMonth(d.getMonth() - 1)
+      return d
+    }
+    const d = new Date(now)
+    d.setFullYear(d.getFullYear() - 1)
+    return d
+  }
 
-  const categories = [
-    { name: 'Housing', amount: 1500, percentage: 39, color: 'bg-violet-500' },
-    { name: 'Food', amount: 800, percentage: 21, color: 'bg-orange-500' },
-    { name: 'Transport', amount: 500, percentage: 13, color: 'bg-blue-500' },
-    { name: 'Entertainment', amount: 400, percentage: 11, color: 'bg-pink-500' },
-    { name: 'Shopping', amount: 350, percentage: 9, color: 'bg-rose-500' },
-    { name: 'Others', amount: 250, percentage: 7, color: 'bg-gray-500' },
-  ]
+  const periodStart = getPeriodStart()
+  const periodTransactions = transactions.filter(t => new Date(t.createdAt) >= periodStart)
 
+  const income = periodTransactions.filter(t => t.type === 'admin' || (t.receiverId && t.receiverId.toString() === localStorage.getItem('userId'))).reduce((sum, t) => sum + t.amount, 0)
+  const expenses = periodTransactions.filter(t => t.type === 'internal' || t.type === 'external').reduce((sum, t) => sum + t.amount, 0)
+  const savings = Math.max(income - expenses, 0)
+
+  // Animated bar chart data (simulated monthly)
   const monthlyData = [
-    { month: 'Jan', income: 5000, expenses: 3500 },
-    { month: 'Feb', income: 5200, expenses: 3800 },
-    { month: 'Mar', income: 4800, expenses: 3200 },
-    { month: 'Apr', income: 5500, expenses: 4000 },
-    { month: 'May', income: 5100, expenses: 3600 },
-    { month: 'Jun', income: 5300, expenses: 3900 },
+    { month: 'Jan', income: income * 0.8, expenses: expenses * 0.7 },
+    { month: 'Feb', income: income * 0.9, expenses: expenses * 0.8 },
+    { month: 'Mar', income: income * 0.7, expenses: expenses * 0.9 },
+    { month: 'Apr', income: income * 1.1, expenses: expenses * 0.6 },
+    { month: 'May', income: income * 0.95, expenses: expenses * 0.85 },
+    { month: 'Jun', income: income, expenses: expenses },
   ]
+
+  const maxVal = Math.max(...monthlyData.map(d => Math.max(d.income, d.expenses))) || 1
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -50,61 +91,46 @@ const Analytics = () => {
       </header>
 
       <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
-        {/* Period Selector */}
         <div className="flex gap-2">
           {['week', 'month', 'year'].map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`flex-1 py-3 rounded-xl text-sm font-medium capitalize transition-all ${
-                period === p
-                  ? 'bg-violet-600 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-              }`}
-            >
+            <button key={p} onClick={() => setPeriod(p)}
+              className={`flex-1 py-3 rounded-xl text-sm font-medium capitalize transition-all ${period === p ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
               {p}
             </button>
           ))}
         </div>
 
-        {/* Summary Cards */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-3 gap-3">
           <div className="bg-gray-800 rounded-2xl p-4 border border-gray-700">
-            <ArrowDownLeft size={20} className="text-emerald-400 mb-2" />
-            <p className="text-lg font-bold">${current.income.toLocaleString()}</p>
+            <TrendingUp size={20} className="text-emerald-400 mb-2" />
+            <p className="text-lg font-bold">${income.toLocaleString()}</p>
             <p className="text-xs text-gray-400">Income</p>
           </div>
           <div className="bg-gray-800 rounded-2xl p-4 border border-gray-700">
-            <ArrowUpRight size={20} className="text-rose-400 mb-2" />
-            <p className="text-lg font-bold">${current.expenses.toLocaleString()}</p>
+            <TrendingDown size={20} className="text-rose-400 mb-2" />
+            <p className="text-lg font-bold">${expenses.toLocaleString()}</p>
             <p className="text-xs text-gray-400">Expenses</p>
           </div>
           <div className="bg-gray-800 rounded-2xl p-4 border border-gray-700">
             <TrendingUp size={20} className="text-amber-400 mb-2" />
-            <p className="text-lg font-bold">${current.savings.toLocaleString()}</p>
+            <p className="text-lg font-bold">${savings.toLocaleString()}</p>
             <p className="text-xs text-gray-400">Savings</p>
           </div>
         </motion.div>
 
-        {/* Simple Bar Chart */}
         <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
           <h3 className="font-semibold mb-4">Monthly Overview</h3>
           <div className="flex items-end gap-2 h-40">
             {monthlyData.map((data, idx) => {
-              const maxVal = Math.max(...monthlyData.map(d => d.income))
               const incomeHeight = (data.income / maxVal) * 100
               const expenseHeight = (data.expenses / maxVal) * 100
               return (
                 <div key={idx} className="flex-1 flex flex-col items-center gap-1">
                   <div className="w-full flex gap-0.5 h-full items-end">
-                    <div
-                      className="flex-1 bg-violet-500 rounded-t"
-                      style={{ height: `${incomeHeight}%` }}
-                    />
-                    <div
-                      className="flex-1 bg-rose-500 rounded-t"
-                      style={{ height: `${expenseHeight}%` }}
-                    />
+                    <motion.div initial={{ height: 0 }} animate={{ height: `${incomeHeight}%` }} transition={{ duration: 0.8, delay: idx * 0.1 }}
+                      className="flex-1 bg-violet-500 rounded-t" />
+                    <motion.div initial={{ height: 0 }} animate={{ height: `${expenseHeight}%` }} transition={{ duration: 0.8, delay: idx * 0.1 + 0.05 }}
+                      className="flex-1 bg-rose-500 rounded-t" />
                   </div>
                   <span className="text-[10px] text-gray-400">{data.month}</span>
                 </div>
@@ -117,42 +143,25 @@ const Analytics = () => {
           </div>
         </div>
 
-        {/* Category Breakdown */}
-        <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
-          <h3 className="font-semibold mb-4">Spending by Category</h3>
-          <div className="space-y-4">
-            {categories.map((cat, idx) => (
-              <div key={idx}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>{cat.name}</span>
-                  <span className="text-gray-400">${cat.amount} ({cat.percentage}%)</span>
-                </div>
-                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <div className={`h-full ${cat.color} rounded-full`} style={{ width: `${cat.percentage}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Insights */}
         <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
           <h3 className="font-semibold mb-4">Insights</h3>
           <div className="space-y-3">
             <div className="flex items-start gap-3 p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
               <TrendingUp size={20} className="text-emerald-400 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-emerald-400">Savings Rate Up</p>
-                <p className="text-xs text-gray-400">Your savings rate increased by 15% compared to last {period}</p>
+                <p className="text-sm font-medium text-emerald-400">Savings Rate</p>
+                <p className="text-xs text-gray-400">Your savings rate is {income > 0 ? Math.round((savings / income) * 100) : 0}% for this {period}</p>
               </div>
             </div>
-            <div className="flex items-start gap-3 p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
-              <TrendingDown size={20} className="text-amber-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-amber-400">High Spending Alert</p>
-                <p className="text-xs text-gray-400">Food spending is 20% higher than usual</p>
+            {expenses > income && (
+              <div className="flex items-start gap-3 p-3 bg-rose-500/10 rounded-xl border border-rose-500/20">
+                <TrendingDown size={20} className="text-rose-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-rose-400">Spending Alert</p>
+                  <p className="text-xs text-gray-400">Your expenses exceed income by ${(expenses - income).toLocaleString()}</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

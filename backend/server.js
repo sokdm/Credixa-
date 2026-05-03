@@ -119,6 +119,10 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/loan', require('./routes/loan'));
 app.use('/api/card', require('./routes/card'));
 app.use('/api/support', require('./routes/support'));
+app.use('/api/budget', require('./routes/budget'));
+app.use('/api/savings', require('./routes/savings'));
+app.use('/api/scheduled', require('./routes/scheduled'));
+app.use('/api/beneficiary', require('./routes/beneficiary'));
 
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
