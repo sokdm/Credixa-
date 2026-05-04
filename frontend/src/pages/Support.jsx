@@ -40,11 +40,10 @@ api.interceptors.request.use((config) => {
 
 const Support = () => {
   const navigate = useNavigate();
-  
+
   // Get user DIRECTLY from token — bypass AuthContext entirely
   const [user, setUser] = useState(getUserFromToken);
   const [authChecked, setAuthChecked] = useState(false);
-  
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -64,7 +63,7 @@ const Support = () => {
         setAuthChecked(true);
         return;
       }
-      
+
       // Try to get fresh user data from server
       try {
         const res = await api.get('/api/user/profile', { timeout: 8000 });
@@ -78,7 +77,7 @@ const Support = () => {
       }
       setAuthChecked(true);
     };
-    
+
     verifyAuth();
   }, []);
 
@@ -173,10 +172,10 @@ const Support = () => {
     };
   }, [user?._id, getStorageKey]);
 
-  // SEND
+  // SEND — FIXED: Use socket if connected, otherwise fall back to REST API
   const sendMessage = useCallback(async () => {
     const text = newMessage.trim();
-    
+
     if (!text) {
       setLastError('Type a message first');
       return;
@@ -207,38 +206,46 @@ const Support = () => {
       return updated;
     });
 
+    // FIXED: Use ONLY socket if connected, else fall back to REST API
     if (socketRef.current?.connected) {
+      // Socket path — server handles DB save + real-time delivery
       socketRef.current.emit('send_message', msg);
+      setMessages(prev => {
+        const updated = prev.map(m =>
+          m.timestamp === msg.timestamp ? { ...m, status: 'saved' } : m
+        );
+        localStorage.setItem(getStorageKey(), JSON.stringify(updated));
+        return updated;
+      });
+    } else {
+      // Fallback: REST API only when socket is disconnected
+      try {
+        const res = await api.post('/api/chat/user', { text, userId: user._id });
+        setMessages(prev => {
+          const updated = prev.map(m =>
+            m.timestamp === msg.timestamp
+              ? { ...m, status: 'saved', _id: res.data._id || res.data.timestamp || m._id }
+              : m
+          );
+          localStorage.setItem(getStorageKey(), JSON.stringify(updated));
+          return updated;
+        });
+      } catch (err) {
+        const errorMsg = err.response?.data?.error || err.message;
+        const status = err.response?.status || 'network';
+        setLastError(`${errorMsg} (${status})`);
+        setMessages(prev => {
+          const updated = prev.map(m =>
+            m.timestamp === msg.timestamp ? { ...m, status: 'failed' } : m
+          );
+          localStorage.setItem(getStorageKey(), JSON.stringify(updated));
+          return updated;
+        });
+      }
     }
 
-    try {
-      const res = await api.post('/api/chat/user', { text, userId: user._id });
-      
-      setMessages(prev => {
-        const updated = prev.map(m =>
-          m.timestamp === msg.timestamp
-            ? { ...m, status: 'saved', _id: res.data._id || res.data.timestamp || m._id }
-            : m
-        );
-        localStorage.setItem(getStorageKey(), JSON.stringify(updated));
-        return updated;
-      });
-    } catch (err) {
-      const errorMsg = err.response?.data?.error || err.message;
-      const status = err.response?.status || 'network';
-      setLastError(`${errorMsg} (${status})`);
-      
-      setMessages(prev => {
-        const updated = prev.map(m =>
-          m.timestamp === msg.timestamp ? { ...m, status: 'failed' } : m
-        );
-        localStorage.setItem(getStorageKey(), JSON.stringify(updated));
-        return updated;
-      });
-    } finally {
-      setIsSending(false);
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
+    setIsSending(false);
+    setTimeout(() => inputRef.current?.focus(), 100);
   }, [newMessage, user?._id, isSending, getStorageKey]);
 
   const handleKeyDown = useCallback((e) => {
@@ -291,8 +298,8 @@ const Support = () => {
         <div className="text-center">
           <MessageCircle size={48} className="text-white/20 mx-auto mb-4" />
           <p className="text-white/60">Please log in to access support</p>
-          <button 
-            onClick={() => navigate('/login')} 
+          <button
+            onClick={() => navigate('/login')}
             className="mt-4 px-6 py-2 bg-violet-600 text-white rounded-full text-sm"
           >
             Go to Login
