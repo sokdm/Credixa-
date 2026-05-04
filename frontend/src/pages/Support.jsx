@@ -37,7 +37,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Generate unique temp ID for optimistic messages
 const generateTempId = () => `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 const Support = () => {
@@ -53,6 +52,8 @@ const Support = () => {
   const socketRef = useRef(null);
   const initializedRef = useRef(false);
   const inputRef = useRef(null);
+  // Track processed message IDs to prevent duplicates from socket
+  const processedIdsRef = useRef(new Set());
 
   useEffect(() => {
     const verifyAuth = async () => {
@@ -80,58 +81,44 @@ const Support = () => {
     return user?._id ? `support_chat_${user._id}` : 'support_chat_guest';
   }, [user?._id]);
 
-  // Load messages — FIXED: Server is source of truth, localStorage only for pending
+  // Load messages — Server is source of truth
   useEffect(() => {
     if (!user?._id || initializedRef.current) return;
     initializedRef.current = true;
 
     const key = getStorageKey();
-    const saved = localStorage.getItem(key);
-
-    // First load from server (source of truth)
+    
     api.get('/api/chat/user', { timeout: 10000 })
       .then(res => {
         const serverMessages = res.data?.messages || [];
-        
-        if (saved) {
-          try {
-            const localMsgs = JSON.parse(saved);
-            // Only keep local messages that are NOT on server (pending/failed)
-            const pendingLocal = localMsgs.filter(local => {
-              const onServer = serverMessages.some(s => 
-                s.text === local.text && 
-                Math.abs(new Date(s.timestamp) - new Date(local.timestamp)) < 5000
-              );
-              return !onServer && (local.status === 'sending' || local.status === 'failed');
-            });
-            const merged = [...serverMessages, ...pendingLocal];
-            setMessages(merged);
-            localStorage.setItem(key, JSON.stringify(merged));
-          } catch (e) {
-            setMessages(serverMessages);
-            localStorage.setItem(key, JSON.stringify(serverMessages));
-          }
-        } else {
-          setMessages(serverMessages);
-          localStorage.setItem(key, JSON.stringify(serverMessages));
-        }
+        // Reset processed IDs with server messages
+        processedIdsRef.current = new Set(
+          serverMessages.map(m => m._id?.toString()).filter(Boolean)
+        );
+        setMessages(serverMessages);
+        localStorage.setItem(key, JSON.stringify(serverMessages));
       })
       .catch(err => {
         console.error('[LOAD]', err.message);
-        // Fallback to localStorage on network error
+        const saved = localStorage.getItem(key);
         if (saved) {
           try {
             const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed)) setMessages(parsed);
+            if (Array.isArray(parsed)) {
+              processedIdsRef.current = new Set(
+                parsed.map(m => m._id?.toString()).filter(Boolean)
+              );
+              setMessages(parsed);
+            }
           } catch (e) {}
         }
       });
   }, [user?._id, getStorageKey]);
 
-  // Save messages — only save confirmed messages to prevent duplicates on reload
+  // Save confirmed messages only
   useEffect(() => {
     if (user?._id && messages.length > 0) {
-      const confirmed = messages.filter(m => m._id || m.status === 'saved' || m.status === 'failed');
+      const confirmed = messages.filter(m => m._id || m.status === 'saved');
       localStorage.setItem(getStorageKey(), JSON.stringify(confirmed));
     }
   }, [messages, user?._id, getStorageKey]);
@@ -140,9 +127,15 @@ const Support = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Socket
+  // Socket — FIXED: Proper cleanup, single listeners, deduplication
   useEffect(() => {
     if (!user?._id) return;
+
+    // Disconnect any existing socket first
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
 
     const socket = io(SOCKET_URL, {
       transports: ['polling', 'websocket'],
@@ -157,6 +150,7 @@ const Support = () => {
     socket.on('connect', () => {
       setSocketStatus('connected');
       socket.emit('join_user', user._id);
+      socket.emit('join_chat', user._id);
     });
 
     socket.on('disconnect', () => {
@@ -167,37 +161,49 @@ const Support = () => {
       setSocketStatus('error');
     });
 
-    // FIXED: Handle new_message for both user and admin messages
+    // FIXED: Deduplicate incoming messages using _id
     socket.on('new_message', (msg) => {
+      const msgId = msg._id?.toString() || msg.tempId;
+      
+      // Skip if we've already processed this message
+      if (msgId && processedIdsRef.current.has(msgId)) {
+        console.log('[DEDUP] Skipping duplicate message:', msgId);
+        return;
+      }
+      
+      // Mark as processed
+      if (msgId) processedIdsRef.current.add(msgId);
+
       setMessages(prev => {
-        // Check if this message already exists (by _id or text+timestamp match)
+        // Also check if message exists in current state (double safety)
         const exists = prev.some(m => 
-          (m._id && msg._id && m._id === msg._id) ||
-          (m.tempId && msg.tempId && m.tempId === msg.tempId) ||
-          (m.text === msg.text && Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 5000)
+          (m._id && msg._id && m._id.toString() === msg._id.toString()) ||
+          (m.tempId && msg.tempId && m.tempId === msg.tempId)
         );
-        if (exists) {
-          // Update status from pending to saved if it was our message
-          return prev.map(m => {
-            if ((m.tempId && msg.tempId && m.tempId === msg.tempId) ||
-                (m.text === msg.text && m.sender === msg.sender && Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 5000)) {
-              return { ...msg, status: 'saved' };
-            }
-            return m;
-          });
+        if (exists) return prev;
+
+        // If this was our pending message, replace it
+        if (msg.tempId) {
+          const hasPending = prev.some(m => m.tempId === msg.tempId);
+          if (hasPending) {
+            return prev.map(m => m.tempId === msg.tempId ? { ...msg, status: 'saved' } : m);
+          }
         }
-        const updated = [...prev, { ...msg, status: 'saved' }];
-        return updated;
+
+        return [...prev, { ...msg, status: 'saved' }];
       });
     });
 
     return () => {
+      console.log('[SOCKET] Cleaning up socket');
       socket.disconnect();
+      socket.off('new_message');
+      socket.off('connect');
+      socket.off('disconnect');
       socketRef.current = null;
     };
   }, [user?._id, getStorageKey]);
 
-  // SEND — FIXED: Use tempId for deduplication, proper cleanup
   const sendMessage = useCallback(async () => {
     const text = newMessage.trim();
     if (!text) {
@@ -217,7 +223,7 @@ const Support = () => {
     const tempId = generateTempId();
     const now = new Date().toISOString();
     const msg = {
-      tempId, // Add temp ID for tracking
+      tempId,
       userId: user._id,
       sender: 'user',
       text,
@@ -229,27 +235,19 @@ const Support = () => {
     setMessages(prev => [...prev, msg]);
 
     if (socketRef.current?.connected) {
-      // Include tempId so server can echo it back for matching
-      socketRef.current.emit('send_message', { ...msg, tempId });
-      
-      // Don't set saved here — wait for server echo via new_message
-      // This prevents local 'saved' vs server 'saved' mismatch
+      socketRef.current.emit('send_message', msg);
     } else {
-      // Fallback: REST API only when socket is disconnected
       try {
         const res = await api.post('/api/chat/user', { text, userId: user._id, tempId });
-        setMessages(prev => prev.map(m => 
-          m.tempId === tempId 
-            ? { ...res.data, tempId, status: 'saved' } 
-            : m
-        ));
+        const savedMsg = { ...res.data, tempId, status: 'saved' };
+        const msgId = savedMsg._id?.toString();
+        if (msgId) processedIdsRef.current.add(msgId);
+        setMessages(prev => prev.map(m => m.tempId === tempId ? savedMsg : m));
       } catch (err) {
         const errorMsg = err.response?.data?.error || err.message;
         const status = err.response?.status || 'network';
         setLastError(`${errorMsg} (${status})`);
-        setMessages(prev => prev.map(m => 
-          m.tempId === tempId ? { ...m, status: 'failed' } : m
-        ));
+        setMessages(prev => prev.map(m => m.tempId === tempId ? { ...m, status: 'failed' } : m));
       }
     }
 
@@ -273,6 +271,7 @@ const Support = () => {
   const clearChat = () => {
     if (confirm('Clear all messages?')) {
       localStorage.removeItem(getStorageKey());
+      processedIdsRef.current.clear();
       setMessages([]);
     }
   };
