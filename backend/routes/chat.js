@@ -47,12 +47,7 @@ router.post('/user', auth, async (req, res) => {
     if (io) {
       io.to(userId.toString()).emit('new_message', lastMessage);
       io.to(`user_${userId}`).emit('new_message', lastMessage);
-      io.to('admin_room').emit('new_chat', {
-        userId: userId,
-        userName: userName,
-        message: text.trim(),
-        timestamp: new Date()
-      });
+      // REMOVED: io.to('admin_room').emit('new_chat', ...) — server.js socket handler already does this
     }
 
     res.status(201).json(lastMessage);
