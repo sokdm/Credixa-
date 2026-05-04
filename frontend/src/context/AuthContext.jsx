@@ -6,6 +6,17 @@ const AuthContext = createContext(null)
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 axios.defaults.baseURL = API_URL
 
+// Decode JWT to get basic user info (client-side only, no verification needed)
+const decodeToken = (token) => {
+  try {
+    const base64 = token.split('.')[1]
+    const json = atob(base64.replace(/-/g, '+').replace(/_/g, '/'))
+    return JSON.parse(json)
+  } catch (e) {
+    return null
+  }
+}
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(null)
@@ -16,41 +27,52 @@ export const AuthProvider = ({ children }) => {
       const savedToken = localStorage.getItem('token') || localStorage.getItem('adminToken')
       
       if (savedToken) {
-        // Set token on axios FIRST
+        // Set token on axios
         axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`
         setToken(savedToken)
         
-        // Try to get user from localStorage first (instant)
+        // Try to get user from localStorage first (instant, no API call needed)
         const savedUser = localStorage.getItem('userData')
         if (savedUser) {
           try {
             const parsed = JSON.parse(savedUser)
-            setUser(parsed)
+            if (parsed && (parsed._id || parsed.id)) {
+              setUser(parsed)
+            }
           } catch (e) {}
         }
         
-        // Then fetch fresh profile from server
-        try {
-          const res = await axios.get('/api/user/profile')
-          const userData = res.data
-          setUser(userData)
-          localStorage.setItem('userData', JSON.stringify(userData))
-        } catch (error) {
-          console.error('Profile fetch failed:', error.response?.data || error.message)
-          // DON'T clear token here — user might just be offline or server busy
-          // Only clear if it's a 401 (truly invalid token)
-          if (error.response?.status === 401) {
-            localStorage.removeItem('token')
-            localStorage.removeItem('adminToken')
-            localStorage.removeItem('userData')
-            delete axios.defaults.headers.common['Authorization']
-            setToken(null)
-            setUser(null)
+        // Also decode token for fallback user data
+        const decoded = decodeToken(savedToken)
+        if (decoded && !user) {
+          const fallbackUser = {
+            _id: decoded.id || decoded._id || decoded.userId,
+            email: decoded.email,
+            fullName: decoded.fullName || decoded.name || 'User'
+          }
+          if (fallbackUser._id && !savedUser) {
+            setUser(fallbackUser)
+            localStorage.setItem('userData', JSON.stringify(fallbackUser))
           }
         }
+        
+        // Try to fetch fresh profile from server (non-blocking)
+        try {
+          const res = await axios.get('/api/user/profile', { timeout: 8000 })
+          if (res.data && (res.data._id || res.data.id)) {
+            setUser(res.data)
+            localStorage.setItem('userData', JSON.stringify(res.data))
+          }
+        } catch (error) {
+          console.log('Profile fetch failed (non-critical):', error.message)
+          // DON'T clear anything - we already have user from localStorage or token
+        }
       }
+      
+      // ALWAYS set loading false, even if everything failed
       setLoading(false)
     }
+    
     initAuth()
   }, [])
 

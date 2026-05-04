@@ -23,7 +23,7 @@ api.interceptors.request.use((config) => {
 
 const Support = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -135,7 +135,7 @@ const Support = () => {
       return;
     }
     if (!user?._id) {
-      setLastError('Not logged in. Please refresh or log in again.');
+      setLastError('Not logged in. Please log in again.');
       return;
     }
     if (isSending) return;
@@ -225,19 +225,7 @@ const Support = () => {
 
   const status = getStatusDisplay();
 
-  // LOADING
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#0b141a] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white/60">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // NOT LOGGED IN
+  // NOT LOGGED IN - Show immediately if no user
   if (!user?._id) {
     return (
       <div className="min-h-screen bg-[#0b141a] flex items-center justify-center">
