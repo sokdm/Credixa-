@@ -68,49 +68,45 @@ const Support = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Socket setup - for real-time updates only, NOT required for sending
+  // Socket setup - for real-time ONLY, not required for sending
   useEffect(() => {
     if (!user?._id) return;
 
     const socket = io(SOCKET_URL, {
-      transports: ['polling', 'websocket'],
+      transports: ['polling', 'websocket'],  // polling first for mobile/cross-origin
       timeout: 20000,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      forceNew: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
       autoConnect: true
     });
 
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('[SUPPORT] Connected:', socket.id);
+      console.log('[SUPPORT] Socket connected:', socket.id);
       setSocketStatus('connected');
       socket.emit('join_user', user._id);
       socket.emit('join_chat', user._id);
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('[SUPPORT] Disconnected:', reason);
+      console.log('[SUPPORT] Socket disconnected:', reason);
       setSocketStatus('disconnected');
     });
 
     socket.on('connect_error', (err) => {
-      console.log('[SUPPORT] Connect error:', err.message);
+      console.log('[SUPPORT] Socket connect_error:', err.message);
       setSocketStatus('error');
+      // Don't keep trying forever - let it rest
+      setTimeout(() => socket.disconnect(), 5000);
     });
 
     socket.on('reconnect', (attemptNumber) => {
-      console.log('[SUPPORT] Reconnected after', attemptNumber, 'attempts');
+      console.log('[SUPPORT] Socket reconnected after', attemptNumber);
       setSocketStatus('connected');
       socket.emit('join_user', user._id);
       socket.emit('join_chat', user._id);
-    });
-
-    socket.on('reconnect_attempt', (attemptNumber) => {
-      console.log('[SUPPORT] Reconnect attempt:', attemptNumber);
-      setSocketStatus('connecting');
     });
 
     socket.on('new_message', (msg) => {
@@ -128,30 +124,21 @@ const Support = () => {
       }
     });
 
-    // Keep socket alive on mobile
-    const interval = setInterval(() => {
-      if (socket.connected) {
-        socket.emit('ping');
-      }
-    }, 15000);
-
     return () => {
-      clearInterval(interval);
       socket.disconnect();
       socketRef.current = null;
     };
   }, [user?._id, getStorageKey]);
 
-  // THE SEND FUNCTION - Works with or without socket, with or without connection
+  // THE SEND FUNCTION - REST API is PRIMARY, socket is BONUS
   const sendMessage = useCallback(async (e) => {
-    // Handle both form submit and button click
     if (e && e.preventDefault) e.preventDefault();
     if (e && e.stopPropagation) e.stopPropagation();
 
     const text = newMessage.trim();
     if (!text || !user?._id || isSending) return;
 
-    // Clear input immediately for better UX
+    // Clear input immediately for UX
     setNewMessage('');
     setIsSending(true);
 
@@ -172,16 +159,12 @@ const Support = () => {
       return updated;
     });
 
-    // Try socket first (if connected)
+    // Try socket (fire-and-forget, don't wait)
     if (socketRef.current?.connected) {
-      try {
-        socketRef.current.emit('send_message', msg);
-      } catch (err) {
-        console.log('[SUPPORT] Socket emit failed, will use REST');
-      }
+      socketRef.current.emit('send_message', msg);
     }
 
-    // ALWAYS save via REST API - this is the reliable path
+    // PRIMARY: Always save via REST API
     try {
       const res = await axios.post(`${API_URL}/api/chat/user`, {
         text: text,
@@ -193,11 +176,10 @@ const Support = () => {
 
       console.log('[SUPPORT] Message saved:', res.data);
 
-      // Update status to saved
       setMessages(prev => {
         const updated = prev.map(m =>
           m.timestamp === msg.timestamp
-            ? { ...m, status: 'saved', _id: res.data._id || m._id }
+            ? { ...m, status: 'saved', _id: res.data._id || res.data.timestamp || m._id }
             : m
         );
         localStorage.setItem(getStorageKey(), JSON.stringify(updated));
@@ -215,7 +197,6 @@ const Support = () => {
       });
     } finally {
       setIsSending(false);
-      // Refocus input for continuous typing
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [newMessage, user?._id, isSending, getStorageKey]);
@@ -223,7 +204,7 @@ const Support = () => {
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage(e);
+      sendMessage();
     }
   }, [sendMessage]);
 
@@ -247,7 +228,7 @@ const Support = () => {
       case 'disconnected':
         return { text: 'Offline - Messages saved', color: 'text-orange-400', icon: WifiOff };
       case 'error':
-        return { text: 'Connection error', color: 'text-orange-400', icon: WifiOff };
+        return { text: 'Offline mode', color: 'text-orange-400', icon: WifiOff };
       default:
         return { text: 'Connecting...', color: 'text-yellow-400', icon: Clock };
     }
@@ -283,7 +264,7 @@ const Support = () => {
         <div className="flex-1 min-w-0">
           <h2 className="font-semibold text-white text-sm">Credixa Support</h2>
           <p className={`text-xs flex items-center gap-1.5 ${status.color}`}>
-            <span className={`w-2 h-2 rounded-full ${socketStatus === 'connected' ? 'bg-green-400' : socketStatus === 'disconnected' ? 'bg-orange-400' : 'bg-yellow-400 animate-pulse'}`}></span>
+            <span className={`w-2 h-2 rounded-full ${socketStatus === 'connected' ? 'bg-green-400' : socketStatus === 'disconnected' || socketStatus === 'error' ? 'bg-orange-400' : 'bg-yellow-400 animate-pulse'}`}></span>
             {StatusIcon && <StatusIcon size={12} />}
             {status.text}
           </p>
@@ -349,7 +330,7 @@ const Support = () => {
         </div>
       </div>
 
-      {/* Input Form - Bulletproof for mobile */}
+      {/* Input Form */}
       <form
         onSubmit={sendMessage}
         className="bg-[#1f2c34] px-3 py-2.5 flex items-center gap-2 border-t border-white/5"

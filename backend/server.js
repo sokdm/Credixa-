@@ -12,15 +12,22 @@ require('dotenv').config();
 const app = express();
 const httpServer = createServer(app);
 
-const CLIENT_URL = process.env.CLIENT_URL || "*";
+// ALLOW BOTH FRONTEND URLS
+const ALLOWED_ORIGINS = [
+  process.env.CLIENT_URL,
+  'https://credixa-web.onrender.com',
+  'https://credixa-api.onrender.com',
+  'http://localhost:3000',
+  'http://localhost:5173'
+].filter(Boolean);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: CLIENT_URL,
+    origin: ALLOWED_ORIGINS,
     methods: ["GET", "POST"],
     credentials: true
   },
-  transports: ['websocket', 'polling'],
+  transports: ['polling', 'websocket'],
   pingTimeout: 60000,
   pingInterval: 25000,
   allowEIO3: true
@@ -28,7 +35,10 @@ const io = new Server(httpServer, {
 
 app.set('trust proxy', 1);
 app.use(helmet());
-app.use(cors({ origin: CLIENT_URL, credentials: true }));
+app.use(cors({ 
+  origin: ALLOWED_ORIGINS, 
+  credentials: true 
+}));
 app.use(express.json({ limit: '10mb' }));
 
 const limiter = rateLimit({
@@ -163,46 +173,33 @@ app.use('/api/savings', require('./routes/savings'));
 app.use('/api/scheduled', require('./routes/scheduled'));
 app.use('/api/beneficiary', require('./routes/beneficiary'));
 
-// SPA CATCH-ALL ROUTE - MUST BE LAST
-// Try multiple possible paths for the frontend dist folder
+// SERVE FRONTEND STATIC FILES (for unified deployment option)
 const possibleDistPaths = [
-  path.join(__dirname, '../frontend/dist'),           // Local dev: backend/../frontend/dist
-  path.join(__dirname, '../../frontend/dist'),       // Render: backend/../../frontend/dist  
-  path.join(__dirname, '../../../frontend/dist'),    // Deeper nesting
-  path.join(__dirname, 'dist'),                      // If dist is copied into backend
-  path.join(process.cwd(), 'frontend/dist'),          // From working directory
-  path.join(process.cwd(), 'dist'),                   // From working directory/dist
+  path.join(__dirname, 'dist'),
+  path.join(__dirname, '../frontend/dist'),
+  path.join(__dirname, '../../frontend/dist'),
 ];
 
 let distPath = null;
 for (const testPath of possibleDistPaths) {
-  if (fs.existsSync(testPath)) {
-    const indexPath = path.join(testPath, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      distPath = testPath;
-      console.log(`[SERVER] Found frontend dist at: ${distPath}`);
-      break;
-    }
+  const indexPath = path.join(testPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    distPath = testPath;
+    console.log(`[SERVER] Serving frontend from: ${distPath}`);
+    break;
   }
 }
 
 if (distPath) {
-  // Serve static files from dist
   app.use(express.static(distPath));
-  
-  // Catch-all: serve index.html for all non-API routes
   app.get('*', (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 } else {
-  console.log('[SERVER] WARNING: No frontend dist found. API-only mode.');
-  console.log('[SERVER] Searched paths:', possibleDistPaths);
-  
-  // Fallback: just return a message for root
+  console.log('[SERVER] API-only mode. Frontend not served from backend.');
   app.get('*', (req, res) => {
     res.status(404).json({ 
-      error: 'Frontend not built. Please build the frontend first.',
-      hint: 'Run: cd frontend && npm run build'
+      error: 'Frontend not built. Build and deploy separately or copy dist to backend/dist'
     });
   });
 }
