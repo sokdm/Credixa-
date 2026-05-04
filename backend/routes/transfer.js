@@ -7,6 +7,16 @@ const Notification = require('../models/Notification');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
+// Helper: Verify PIN (supports both plain text and bcrypt hashed)
+const verifyPin = async (inputPin, storedPin) => {
+  // If stored pin starts with '$2', it's bcrypt hashed
+  if (storedPin && storedPin.startsWith('$2')) {
+    return await bcrypt.compare(inputPin, storedPin);
+  }
+  // Otherwise compare plain text (for existing users before fix)
+  return inputPin === storedPin;
+};
+
 router.post('/internal', auth, async (req, res) => {
   try {
     const { recipientAccount, amount, narration, pin } = req.body;
@@ -22,7 +32,7 @@ router.post('/internal', auth, async (req, res) => {
       return res.status(400).json({ error: 'Transaction PIN not set' });
     }
 
-    const isPinValid = await bcrypt.compare(pin, sender.transactionPin);
+    const isPinValid = await verifyPin(pin, sender.transactionPin);
     if (!isPinValid) {
       return res.status(400).json({ error: 'Invalid transaction PIN' });
     }
@@ -122,7 +132,7 @@ router.post('/external', auth, async (req, res) => {
       return res.status(400).json({ error: 'Transaction PIN not set' });
     }
 
-    const isPinValid = await bcrypt.compare(pin, sender.transactionPin);
+    const isPinValid = await verifyPin(pin, sender.transactionPin);
     if (!isPinValid) {
       return res.status(400).json({ error: 'Invalid transaction PIN' });
     }

@@ -60,6 +60,8 @@ io.on('connection', (socket) => {
   socket.on('send_message', async (data) => {
     try {
       const Chat = require('./models/Chat');
+      const User = require('./models/User');
+
       const chat = await Chat.findOneAndUpdate(
         { userId: data.userId },
         {
@@ -74,8 +76,17 @@ io.on('connection', (socket) => {
         },
         { upsert: true, new: true }
       );
+
+      // Get user name for admin notification
+      const user = await User.findById(data.userId).select('fullName');
+
       io.to(data.userId).emit('new_message', chat.messages[chat.messages.length - 1]);
-      io.to('admin_room').emit('new_chat', { userId: data.userId, message: data.text });
+      io.to('admin_room').emit('new_chat', {
+        userId: data.userId,
+        userName: user ? user.fullName : 'Unknown User',
+        message: data.text,
+        timestamp: new Date()
+      });
     } catch (err) {
       console.error('Chat error:', err);
     }

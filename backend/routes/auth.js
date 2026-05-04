@@ -12,29 +12,33 @@ const generateAccountNumber = () => {
 router.post('/register', async (req, res) => {
   try {
     const { fullName, phoneNumber, email, password, country, transactionPin } = req.body;
-    
+
     const existingUser = await User.findOne({ $or: [{ email }, { phoneNumber }] });
     if (existingUser) {
       return res.status(400).json({ error: 'Email or phone already registered' });
     }
-    
+
     const accountNumber = generateAccountNumber();
+
+    // Hash the transaction PIN
+    const hashedPin = await bcrypt.hash(transactionPin, 12);
+
     const user = new User({
       fullName,
       phoneNumber,
       email,
       password,
       country,
-      transactionPin,
+      transactionPin: hashedPin,
       accountNumber,
       balance: 0,
       currency: '$'
     });
-    
+
     await user.save();
-    
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
-    
+
     res.status(201).json({
       token,
       user: {
@@ -57,16 +61,16 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ 
-      $or: [{ email }, { phoneNumber: email }] 
+    const user = await User.findOne({
+      $or: [{ email }, { phoneNumber: email }]
     });
-    
+
     if (!user || !(await user.comparePassword(password))) {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
-    
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
-    
+
     res.json({
       token,
       user: {

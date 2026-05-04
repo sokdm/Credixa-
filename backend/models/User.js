@@ -27,4 +27,8 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
+userSchema.methods.comparePin = async function(candidatePin) {
+  return await bcrypt.compare(candidatePin, this.transactionPin);
+};
+
 module.exports = mongoose.model('User', userSchema);
