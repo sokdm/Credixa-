@@ -19,7 +19,7 @@ const io = new Server(httpServer, {
   }
 });
 
-// FIX: Trust proxy for Render deployment (required for rate-limit behind proxy)
+// FIX: Trust proxy for Render deployment
 app.set('trust proxy', 1);
 
 app.use(helmet());
@@ -29,7 +29,7 @@ app.use(express.json({ limit: '10mb' }));
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  validate: { trustProxy: false }  // FIX: Prevent ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+  validate: { trustProxy: false }
 });
 app.use('/api/', limiter);
 
@@ -41,23 +41,25 @@ app.get('/', (req, res) => res.json({ status: 'ok', service: 'credixa-api' }));
 app.get('/health', (req, res) => res.json({ status: 'healthy' }));
 
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  console.log(`[SOCKET] User connected: ${socket.id}`);
 
   socket.on('join_user', (userId) => {
     socket.join(`user_${userId}`);
-    console.log(`User ${userId} joined their room`);
+    console.log(`[SOCKET] User ${userId} joined room: user_${userId}`);
   });
 
   socket.on('join_admin', () => {
     socket.join('admin_room');
-    console.log('Admin joined admin room');
+    console.log('[SOCKET] Admin joined admin_room');
   });
 
   socket.on('join_chat', (userId) => {
     socket.join(userId);
+    console.log(`[SOCKET] Socket joined chat room: ${userId}`);
   });
 
   socket.on('send_message', async (data) => {
+    console.log(`[SOCKET] send_message received from user: ${data.userId}, sender: ${data.sender}`);
     try {
       const Chat = require('./models/Chat');
       const User = require('./models/User');
@@ -77,22 +79,34 @@ io.on('connection', (socket) => {
         { upsert: true, new: true }
       );
 
+      console.log(`[SOCKET] Chat saved for user: ${data.userId}, total messages: ${chat.messages.length}`);
+
       // Get user name for admin notification
       const user = await User.findById(data.userId).select('fullName');
+      console.log(`[SOCKET] User lookup result: ${user ? user.fullName : 'NOT FOUND'}`);
 
-      io.to(data.userId).emit('new_message', chat.messages[chat.messages.length - 1]);
+      const lastMessage = chat.messages[chat.messages.length - 1];
+      
+      // Emit to user's personal room
+      io.to(data.userId).emit('new_message', lastMessage);
+      console.log(`[SOCKET] Emitted new_message to user room: ${data.userId}`);
+
+      // Emit to admin room with user name
       io.to('admin_room').emit('new_chat', {
         userId: data.userId,
         userName: user ? user.fullName : 'Unknown User',
         message: data.text,
         timestamp: new Date()
       });
+      console.log(`[SOCKET] Emitted new_chat to admin_room`);
+
     } catch (err) {
-      console.error('Chat error:', err);
+      console.error('[SOCKET] Chat error:', err);
     }
   });
 
   socket.on('admin_reply', async (data) => {
+    console.log(`[SOCKET] admin_reply received for user: ${data.userId}`);
     try {
       const Chat = require('./models/Chat');
       const chat = await Chat.findOneAndUpdate(
@@ -109,18 +123,22 @@ io.on('connection', (socket) => {
         },
         { new: true }
       );
-      io.to(data.userId).emit('new_message', chat.messages[chat.messages.length - 1]);
+      
+      const lastMessage = chat.messages[chat.messages.length - 1];
+      io.to(data.userId).emit('new_message', lastMessage);
+      console.log(`[SOCKET] Admin reply emitted to user: ${data.userId}`);
     } catch (err) {
-      console.error('Admin reply error:', err);
+      console.error('[SOCKET] Admin reply error:', err);
     }
   });
 
   socket.on('send_notification', (data) => {
+    console.log(`[SOCKET] send_notification to user: ${data.userId}`);
     io.to(`user_${data.userId}`).emit('notification', data.notification);
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    console.log(`[SOCKET] User disconnected: ${socket.id}`);
   });
 });
 

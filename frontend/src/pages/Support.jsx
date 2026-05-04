@@ -12,8 +12,12 @@ const SOCKET_URL = API_URL;
 const Support = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  // Use user-specific localStorage keys so messages don't leak between accounts
+  const getStorageKey = (key) => user?._id ? `support_${key}_${user._id}` : `support_${key}_guest`;
+
   const [messages, setMessages] = useState(() => {
-    const saved = localStorage.getItem('support_messages');
+    const saved = localStorage.getItem(getStorageKey('messages'));
     return saved ? JSON.parse(saved) : [];
   });
   const [newMessage, setNewMessage] = useState('');
@@ -21,10 +25,12 @@ const Support = () => {
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
 
-  // Persist messages to localStorage
+  // Persist messages to localStorage with user-specific key
   useEffect(() => {
-    localStorage.setItem('support_messages', JSON.stringify(messages));
-  }, [messages]);
+    if (user?._id) {
+      localStorage.setItem(getStorageKey('messages'), JSON.stringify(messages));
+    }
+  }, [messages, user?._id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,6 +39,8 @@ const Support = () => {
   // Socket setup
   useEffect(() => {
     if (!user?._id) return;
+
+    console.log(`[SUPPORT] Setting up socket for user: ${user._id}`);
 
     const newSocket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
@@ -44,22 +52,25 @@ const Support = () => {
     socketRef.current = newSocket;
 
     newSocket.on('connect', () => {
-      console.log('Socket connected:', newSocket.id);
+      console.log(`[SUPPORT] Socket connected: ${newSocket.id}`);
       setSocketConnected(true);
       newSocket.emit('join_user', user._id);
       newSocket.emit('join_chat', user._id);
+      console.log(`[SUPPORT] Emitted join_user and join_chat for: ${user._id}`);
     });
 
     newSocket.on('connect_error', (err) => {
-      console.log('Socket error:', err.message);
+      console.log(`[SUPPORT] Socket error: ${err.message}`);
       setSocketConnected(false);
     });
 
     newSocket.on('disconnect', () => {
+      console.log(`[SUPPORT] Socket disconnected`);
       setSocketConnected(false);
     });
 
     newSocket.on('new_message', (msg) => {
+      console.log(`[SUPPORT] Received new_message:`, msg);
       setMessages(prev => {
         const exists = prev.some(m =>
           m.timestamp === msg.timestamp && m.text === msg.text
@@ -90,12 +101,17 @@ const Support = () => {
       read: false
     };
 
+    console.log(`[SUPPORT] Sending message:`, msg);
+
     // Optimistic update
     setMessages(prev => [...prev, msg]);
 
     // Emit via socket
     if (socketRef.current && socketConnected) {
       socketRef.current.emit('send_message', msg);
+      console.log(`[SUPPORT] Message emitted via socket`);
+    } else {
+      console.log(`[SUPPORT] Socket not connected, skipping socket emit`);
     }
 
     // Persist via API
@@ -104,8 +120,9 @@ const Support = () => {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         timeout: 5000
       });
+      console.log(`[SUPPORT] Message saved via API`);
     } catch (err) {
-      console.log('Message save failed, sent via socket only');
+      console.log(`[SUPPORT] Message save API failed:`, err.message);
     }
   }, [newMessage, user?._id, socketConnected]);
 
@@ -116,7 +133,7 @@ const Support = () => {
   };
 
   const clearChat = () => {
-    localStorage.removeItem('support_messages');
+    localStorage.removeItem(getStorageKey('messages'));
     setMessages([]);
   };
 

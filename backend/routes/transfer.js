@@ -7,33 +7,35 @@ const Notification = require('../models/Notification');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
-// Helper: Verify PIN (supports both plain text and bcrypt hashed)
-const verifyPin = async (inputPin, storedPin) => {
-  // If stored pin starts with '$2', it's bcrypt hashed
-  if (storedPin && storedPin.startsWith('$2')) {
-    return await bcrypt.compare(inputPin, storedPin);
-  }
-  // Otherwise compare plain text (for existing users before fix)
-  return inputPin === storedPin;
-};
-
 router.post('/internal', auth, async (req, res) => {
   try {
     const { recipientAccount, amount, narration, pin } = req.body;
+    console.log(`[TRANSFER] Internal transfer attempt by user: ${req.user._id}, amount: ${amount}`);
 
     const sender = await User.findById(req.user._id);
-    if (!sender) return res.status(404).json({ error: 'Sender not found' });
+    if (!sender) {
+      console.log(`[TRANSFER] Sender not found: ${req.user._id}`);
+      return res.status(404).json({ error: 'Sender not found' });
+    }
+
+    console.log(`[TRANSFER] Sender found: ${sender.email}, balance: ${sender.balance}, PIN exists: ${!!sender.transactionPin}`);
 
     if (sender.isLocked) {
+      console.log(`[TRANSFER] Account locked: ${sender._id}`);
       return res.status(403).json({ error: 'Account locked. Contact support.' });
     }
 
     if (!sender.transactionPin) {
+      console.log(`[TRANSFER] No transaction PIN set for user: ${sender._id}`);
       return res.status(400).json({ error: 'Transaction PIN not set' });
     }
 
-    const isPinValid = await verifyPin(pin, sender.transactionPin);
+    console.log(`[TRANSFER] Stored PIN starts with '$2': ${sender.transactionPin.startsWith('$2')}`);
+    const isPinValid = await bcrypt.compare(pin, sender.transactionPin);
+    console.log(`[TRANSFER] PIN validation result: ${isPinValid}`);
+
     if (!isPinValid) {
+      console.log(`[TRANSFER] Invalid PIN for user: ${sender._id}`);
       return res.status(400).json({ error: 'Invalid transaction PIN' });
     }
 
@@ -43,6 +45,7 @@ router.post('/internal', auth, async (req, res) => {
     }
 
     if (sender.balance < transferAmount) {
+      console.log(`[TRANSFER] Insufficient balance: ${sender.balance} < ${transferAmount}`);
       return res.status(400).json({ error: 'Insufficient balance' });
     }
 
@@ -95,6 +98,7 @@ router.post('/internal', auth, async (req, res) => {
       message: `You received ${receiver.currency}${transferAmount.toLocaleString()} from ${sender.fullName}`
     });
 
+    console.log(`[TRANSFER] Internal transfer successful: ${reference}`);
     res.json({
       success: true,
       transaction: {
@@ -112,7 +116,7 @@ router.post('/internal', auth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Internal transfer error:', error);
+    console.error('[TRANSFER] Internal transfer error:', error);
     res.status(500).json({ error: error.message || 'Transfer failed' });
   }
 });
@@ -120,9 +124,15 @@ router.post('/internal', auth, async (req, res) => {
 router.post('/external', auth, async (req, res) => {
   try {
     const { bankName, accountNumber, accountName, amount, narration, pin } = req.body;
+    console.log(`[TRANSFER] External transfer attempt by user: ${req.user._id}, amount: ${amount}`);
 
     const sender = await User.findById(req.user._id);
-    if (!sender) return res.status(404).json({ error: 'Sender not found' });
+    if (!sender) {
+      console.log(`[TRANSFER] Sender not found: ${req.user._id}`);
+      return res.status(404).json({ error: 'Sender not found' });
+    }
+
+    console.log(`[TRANSFER] Sender found: ${sender.email}, PIN exists: ${!!sender.transactionPin}`);
 
     if (sender.isLocked) {
       return res.status(403).json({ error: 'Account locked. Contact support.' });
@@ -132,8 +142,12 @@ router.post('/external', auth, async (req, res) => {
       return res.status(400).json({ error: 'Transaction PIN not set' });
     }
 
-    const isPinValid = await verifyPin(pin, sender.transactionPin);
+    console.log(`[TRANSFER] Stored PIN starts with '$2': ${sender.transactionPin.startsWith('$2')}`);
+    const isPinValid = await bcrypt.compare(pin, sender.transactionPin);
+    console.log(`[TRANSFER] PIN validation result: ${isPinValid}`);
+
     if (!isPinValid) {
+      console.log(`[TRANSFER] Invalid PIN for user: ${sender._id}`);
       return res.status(400).json({ error: 'Invalid transaction PIN' });
     }
 
@@ -177,6 +191,7 @@ router.post('/external', auth, async (req, res) => {
       message: `You sent ${sender.currency}${transferAmount.toLocaleString()} to ${accountName} at ${bankName}`
     });
 
+    console.log(`[TRANSFER] External transfer successful: ${reference}`);
     res.json({
       success: true,
       transaction: {
@@ -194,7 +209,7 @@ router.post('/external', auth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('External transfer error:', error);
+    console.error('[TRANSFER] External transfer error:', error);
     res.status(500).json({ error: error.message || 'External transfer failed' });
   }
 });

@@ -12,16 +12,20 @@ const generateAccountNumber = () => {
 router.post('/register', async (req, res) => {
   try {
     const { fullName, phoneNumber, email, password, country, transactionPin } = req.body;
+    console.log(`[AUTH] Registration attempt: ${email}, phone: ${phoneNumber}`);
 
     const existingUser = await User.findOne({ $or: [{ email }, { phoneNumber }] });
     if (existingUser) {
+      console.log(`[AUTH] User already exists: ${email}`);
       return res.status(400).json({ error: 'Email or phone already registered' });
     }
 
     const accountNumber = generateAccountNumber();
+    console.log(`[AUTH] Generated account number: ${accountNumber}`);
 
     // Hash the transaction PIN
     const hashedPin = await bcrypt.hash(transactionPin, 12);
+    console.log(`[AUTH] PIN hashed successfully, starts with: ${hashedPin.substring(0, 10)}...`);
 
     const user = new User({
       fullName,
@@ -36,6 +40,7 @@ router.post('/register', async (req, res) => {
     });
 
     await user.save();
+    console.log(`[AUTH] User saved successfully: ${user._id}`);
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
@@ -54,6 +59,7 @@ router.post('/register', async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('[AUTH] Registration error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -61,14 +67,18 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log(`[AUTH] Login attempt: ${email}`);
+
     const user = await User.findOne({
       $or: [{ email }, { phoneNumber: email }]
     });
 
     if (!user || !(await user.comparePassword(password))) {
+      console.log(`[AUTH] Invalid credentials for: ${email}`);
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
+    console.log(`[AUTH] Login successful: ${user._id}`);
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
     res.json({
@@ -87,6 +97,7 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('[AUTH] Login error:', error);
     res.status(500).json({ error: error.message });
   }
 });
