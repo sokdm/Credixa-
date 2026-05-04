@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
@@ -163,10 +164,48 @@ app.use('/api/scheduled', require('./routes/scheduled'));
 app.use('/api/beneficiary', require('./routes/beneficiary'));
 
 // SPA CATCH-ALL ROUTE - MUST BE LAST
-// Serves index.html for all non-API routes so React Router works on refresh
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
-});
+// Try multiple possible paths for the frontend dist folder
+const possibleDistPaths = [
+  path.join(__dirname, '../frontend/dist'),           // Local dev: backend/../frontend/dist
+  path.join(__dirname, '../../frontend/dist'),       // Render: backend/../../frontend/dist  
+  path.join(__dirname, '../../../frontend/dist'),    // Deeper nesting
+  path.join(__dirname, 'dist'),                      // If dist is copied into backend
+  path.join(process.cwd(), 'frontend/dist'),          // From working directory
+  path.join(process.cwd(), 'dist'),                   // From working directory/dist
+];
+
+let distPath = null;
+for (const testPath of possibleDistPaths) {
+  if (fs.existsSync(testPath)) {
+    const indexPath = path.join(testPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      distPath = testPath;
+      console.log(`[SERVER] Found frontend dist at: ${distPath}`);
+      break;
+    }
+  }
+}
+
+if (distPath) {
+  // Serve static files from dist
+  app.use(express.static(distPath));
+  
+  // Catch-all: serve index.html for all non-API routes
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  console.log('[SERVER] WARNING: No frontend dist found. API-only mode.');
+  console.log('[SERVER] Searched paths:', possibleDistPaths);
+  
+  // Fallback: just return a message for root
+  app.get('*', (req, res) => {
+    res.status(404).json({ 
+      error: 'Frontend not built. Please build the frontend first.',
+      hint: 'Run: cd frontend && npm run build'
+    });
+  });
+}
 
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));

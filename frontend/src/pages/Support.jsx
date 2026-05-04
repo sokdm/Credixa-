@@ -19,7 +19,7 @@ const Support = () => {
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
   const initializedRef = useRef(false);
-  const sendFormRef = useRef(null);
+  const inputRef = useRef(null);
 
   const getStorageKey = useCallback(() => {
     return user?._id ? `support_chat_${user._id}` : 'support_chat_guest';
@@ -68,12 +68,12 @@ const Support = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Socket setup
+  // Socket setup - for real-time updates only, NOT required for sending
   useEffect(() => {
     if (!user?._id) return;
 
     const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       timeout: 20000,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
@@ -142,14 +142,16 @@ const Support = () => {
     };
   }, [user?._id, getStorageKey]);
 
-  // THE SEND FUNCTION
+  // THE SEND FUNCTION - Works with or without socket, with or without connection
   const sendMessage = useCallback(async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    // Handle both form submit and button click
+    if (e && e.preventDefault) e.preventDefault();
+    if (e && e.stopPropagation) e.stopPropagation();
 
     const text = newMessage.trim();
     if (!text || !user?._id || isSending) return;
 
+    // Clear input immediately for better UX
     setNewMessage('');
     setIsSending(true);
 
@@ -170,12 +172,16 @@ const Support = () => {
       return updated;
     });
 
-    // Send via socket if connected
+    // Try socket first (if connected)
     if (socketRef.current?.connected) {
-      socketRef.current.emit('send_message', msg);
+      try {
+        socketRef.current.emit('send_message', msg);
+      } catch (err) {
+        console.log('[SUPPORT] Socket emit failed, will use REST');
+      }
     }
 
-    // ALWAYS save via REST API
+    // ALWAYS save via REST API - this is the reliable path
     try {
       const res = await axios.post(`${API_URL}/api/chat/user`, {
         text: text,
@@ -187,6 +193,7 @@ const Support = () => {
 
       console.log('[SUPPORT] Message saved:', res.data);
 
+      // Update status to saved
       setMessages(prev => {
         const updated = prev.map(m =>
           m.timestamp === msg.timestamp
@@ -208,8 +215,17 @@ const Support = () => {
       });
     } finally {
       setIsSending(false);
+      // Refocus input for continuous typing
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [newMessage, user?._id, isSending, getStorageKey]);
+
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(e);
+    }
+  }, [sendMessage]);
 
   const formatTime = (date) => {
     return new Date(date).toLocaleTimeString('en-US', {
@@ -333,26 +349,22 @@ const Support = () => {
         </div>
       </div>
 
-      {/* Input Form */}
+      {/* Input Form - Bulletproof for mobile */}
       <form
-        ref={sendFormRef}
         onSubmit={sendMessage}
         className="bg-[#1f2c34] px-3 py-2.5 flex items-center gap-2 border-t border-white/5"
       >
         <div className="flex-1 bg-[#2a3942] rounded-full px-4 py-2.5">
           <input
+            ref={inputRef}
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
             className="flex-1 bg-transparent text-white placeholder-white/35 outline-none text-sm w-full"
             disabled={isSending}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendFormRef.current?.requestSubmit();
-              }
-            }}
+            onKeyDown={handleKeyDown}
+            enterKeyHint="send"
           />
         </div>
         <motion.button
@@ -360,7 +372,8 @@ const Support = () => {
           whileTap={{ scale: 0.9 }}
           type="submit"
           disabled={!newMessage.trim() || isSending}
-          className="w-10 h-10 bg-violet-600 rounded-full flex items-center justify-center text-white disabled:opacity-40 shadow-lg active:bg-violet-700"
+          className="w-10 h-10 bg-violet-600 rounded-full flex items-center justify-center text-white disabled:opacity-40 shadow-lg active:bg-violet-700 touch-manipulation"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
         >
           <Send size={18} />
         </motion.button>
