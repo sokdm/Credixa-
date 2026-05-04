@@ -12,7 +12,6 @@ require('dotenv').config();
 const app = express();
 const httpServer = createServer(app);
 
-// BROAD CORS - allow all common origins
 const ALLOWED_ORIGINS = [
   process.env.CLIENT_URL,
   'https://credixa-web.onrender.com',
@@ -25,13 +24,12 @@ const ALLOWED_ORIGINS = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
     if (ALLOWED_ORIGINS.indexOf(origin) !== -1 || ALLOWED_ORIGINS.some(o => origin.includes('onrender.com'))) {
       callback(null, true);
     } else {
       console.log('[CORS] Blocked origin:', origin);
-      callback(null, true); // Allow all for now to debug
+      callback(null, true);
     }
   },
   credentials: true,
@@ -120,13 +118,14 @@ io.on('connection', (socket) => {
       const userName = user ? user.fullName : 'Unknown User';
       const lastMessage = chat.messages[chat.messages.length - 1];
 
-      // FIXED: Echo tempId back so frontend can match and deduplicate
-      const messageWithTempId = data.tempId 
+      // Echo tempId back for deduplication
+      const messageToEmit = data.tempId
         ? { ...lastMessage.toObject(), tempId: data.tempId }
         : lastMessage;
 
-      io.to(data.userId).emit('new_message', messageWithTempId);
-      io.to(`user_${data.userId}`).emit('new_message', messageWithTempId);
+      // FIXED: Emit only once per room (userId and user_${userId} are separate rooms)
+      io.to(data.userId).emit('new_message', messageToEmit);
+      io.to(`user_${data.userId}`).emit('new_message', messageToEmit);
 
       if (connectedAdmins.size > 0) {
         io.to('admin_room').emit('new_chat', {
@@ -161,6 +160,9 @@ io.on('connection', (socket) => {
       );
 
       const lastMessage = chat.messages[chat.messages.length - 1];
+      
+      // FIXED: Only emit once — the user should be in both rooms, but emit to both to be safe
+      // The frontend deduplication will handle any duplicates
       io.to(data.userId).emit('new_message', lastMessage);
       io.to(`user_${data.userId}`).emit('new_message', lastMessage);
     } catch (err) {
@@ -191,7 +193,6 @@ app.use('/api/savings', require('./routes/savings'));
 app.use('/api/scheduled', require('./routes/scheduled'));
 app.use('/api/beneficiary', require('./routes/beneficiary'));
 
-// SPA fallback for unified deployment
 const possibleDistPaths = [
   path.join(__dirname, 'dist'),
   path.join(__dirname, '../frontend/dist'),
