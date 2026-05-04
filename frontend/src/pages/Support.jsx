@@ -8,7 +8,6 @@ import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL || 'https://credixa-api.onrender.com';
 const SOCKET_URL = API_URL;
 
-// Decode JWT to get user ID
 const getUserFromToken = () => {
   try {
     const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
@@ -38,10 +37,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Generate unique temp ID for optimistic messages
+const generateTempId = () => `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
 const Support = () => {
   const navigate = useNavigate();
-
-  // Get user DIRECTLY from token — bypass AuthContext entirely
   const [user, setUser] = useState(getUserFromToken);
   const [authChecked, setAuthChecked] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -54,7 +54,6 @@ const Support = () => {
   const initializedRef = useRef(false);
   const inputRef = useRef(null);
 
-  // Verify token is still valid on mount
   useEffect(() => {
     const verifyAuth = async () => {
       const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
@@ -63,8 +62,6 @@ const Support = () => {
         setAuthChecked(true);
         return;
       }
-
-      // Try to get fresh user data from server
       try {
         const res = await api.get('/api/user/profile', { timeout: 8000 });
         if (res.data?._id || res.data?.id) {
@@ -72,12 +69,10 @@ const Support = () => {
           localStorage.setItem('userData', JSON.stringify(res.data));
         }
       } catch (err) {
-        // Server failed but token exists — keep using decoded user
         console.log('Profile fetch failed, using token user:', err.message);
       }
       setAuthChecked(true);
     };
-
     verifyAuth();
   }, []);
 
@@ -85,44 +80,62 @@ const Support = () => {
     return user?._id ? `support_chat_${user._id}` : 'support_chat_guest';
   }, [user?._id]);
 
-  // Load messages
+  // Load messages — FIXED: Server is source of truth, localStorage only for pending
   useEffect(() => {
     if (!user?._id || initializedRef.current) return;
     initializedRef.current = true;
 
     const key = getStorageKey();
     const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) setMessages(parsed);
-      } catch (e) {}
-    }
 
+    // First load from server (source of truth)
     api.get('/api/chat/user', { timeout: 10000 })
       .then(res => {
-        if (res.data?.messages?.length > 0) {
-          setMessages(prev => {
-            const combined = [...prev, ...res.data.messages];
-            const unique = combined.filter((m, i, a) =>
-              i === a.findIndex(t => t.timestamp === m.timestamp && t.text === m.text)
-            );
-            localStorage.setItem(key, JSON.stringify(unique));
-            return unique;
-          });
+        const serverMessages = res.data?.messages || [];
+        
+        if (saved) {
+          try {
+            const localMsgs = JSON.parse(saved);
+            // Only keep local messages that are NOT on server (pending/failed)
+            const pendingLocal = localMsgs.filter(local => {
+              const onServer = serverMessages.some(s => 
+                s.text === local.text && 
+                Math.abs(new Date(s.timestamp) - new Date(local.timestamp)) < 5000
+              );
+              return !onServer && (local.status === 'sending' || local.status === 'failed');
+            });
+            const merged = [...serverMessages, ...pendingLocal];
+            setMessages(merged);
+            localStorage.setItem(key, JSON.stringify(merged));
+          } catch (e) {
+            setMessages(serverMessages);
+            localStorage.setItem(key, JSON.stringify(serverMessages));
+          }
+        } else {
+          setMessages(serverMessages);
+          localStorage.setItem(key, JSON.stringify(serverMessages));
         }
       })
-      .catch(err => console.error('[LOAD]', err.message));
+      .catch(err => {
+        console.error('[LOAD]', err.message);
+        // Fallback to localStorage on network error
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) setMessages(parsed);
+          } catch (e) {}
+        }
+      });
   }, [user?._id, getStorageKey]);
 
-  // Save messages
+  // Save messages — only save confirmed messages to prevent duplicates on reload
   useEffect(() => {
     if (user?._id && messages.length > 0) {
-      localStorage.setItem(getStorageKey(), JSON.stringify(messages));
+      const confirmed = messages.filter(m => m._id || m.status === 'saved' || m.status === 'failed');
+      localStorage.setItem(getStorageKey(), JSON.stringify(confirmed));
     }
   }, [messages, user?._id, getStorageKey]);
 
-  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -146,7 +159,7 @@ const Support = () => {
       socket.emit('join_user', user._id);
     });
 
-    socket.on('disconnect', (reason) => {
+    socket.on('disconnect', () => {
       setSocketStatus('disconnected');
     });
 
@@ -154,16 +167,28 @@ const Support = () => {
       setSocketStatus('error');
     });
 
+    // FIXED: Handle new_message for both user and admin messages
     socket.on('new_message', (msg) => {
-      if (msg.sender === 'admin') {
-        setMessages(prev => {
-          const exists = prev.some(m => m.timestamp === msg.timestamp && m.text === msg.text);
-          if (exists) return prev;
-          const updated = [...prev, msg];
-          localStorage.setItem(getStorageKey(), JSON.stringify(updated));
-          return updated;
-        });
-      }
+      setMessages(prev => {
+        // Check if this message already exists (by _id or text+timestamp match)
+        const exists = prev.some(m => 
+          (m._id && msg._id && m._id === msg._id) ||
+          (m.tempId && msg.tempId && m.tempId === msg.tempId) ||
+          (m.text === msg.text && Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 5000)
+        );
+        if (exists) {
+          // Update status from pending to saved if it was our message
+          return prev.map(m => {
+            if ((m.tempId && msg.tempId && m.tempId === msg.tempId) ||
+                (m.text === msg.text && m.sender === msg.sender && Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 5000)) {
+              return { ...msg, status: 'saved' };
+            }
+            return m;
+          });
+        }
+        const updated = [...prev, { ...msg, status: 'saved' }];
+        return updated;
+      });
     });
 
     return () => {
@@ -172,10 +197,9 @@ const Support = () => {
     };
   }, [user?._id, getStorageKey]);
 
-  // SEND — FIXED: Use socket if connected, otherwise fall back to REST API
+  // SEND — FIXED: Use tempId for deduplication, proper cleanup
   const sendMessage = useCallback(async () => {
     const text = newMessage.trim();
-
     if (!text) {
       setLastError('Type a message first');
       return;
@@ -190,8 +214,10 @@ const Support = () => {
     setIsSending(true);
     setLastError(null);
 
+    const tempId = generateTempId();
     const now = new Date().toISOString();
     const msg = {
+      tempId, // Add temp ID for tracking
       userId: user._id,
       sender: 'user',
       text,
@@ -200,53 +226,36 @@ const Support = () => {
       status: 'sending'
     };
 
-    setMessages(prev => {
-      const updated = [...prev, msg];
-      localStorage.setItem(getStorageKey(), JSON.stringify(updated));
-      return updated;
-    });
+    setMessages(prev => [...prev, msg]);
 
-    // FIXED: Use ONLY socket if connected, else fall back to REST API
     if (socketRef.current?.connected) {
-      // Socket path — server handles DB save + real-time delivery
-      socketRef.current.emit('send_message', msg);
-      setMessages(prev => {
-        const updated = prev.map(m =>
-          m.timestamp === msg.timestamp ? { ...m, status: 'saved' } : m
-        );
-        localStorage.setItem(getStorageKey(), JSON.stringify(updated));
-        return updated;
-      });
+      // Include tempId so server can echo it back for matching
+      socketRef.current.emit('send_message', { ...msg, tempId });
+      
+      // Don't set saved here — wait for server echo via new_message
+      // This prevents local 'saved' vs server 'saved' mismatch
     } else {
       // Fallback: REST API only when socket is disconnected
       try {
-        const res = await api.post('/api/chat/user', { text, userId: user._id });
-        setMessages(prev => {
-          const updated = prev.map(m =>
-            m.timestamp === msg.timestamp
-              ? { ...m, status: 'saved', _id: res.data._id || res.data.timestamp || m._id }
-              : m
-          );
-          localStorage.setItem(getStorageKey(), JSON.stringify(updated));
-          return updated;
-        });
+        const res = await api.post('/api/chat/user', { text, userId: user._id, tempId });
+        setMessages(prev => prev.map(m => 
+          m.tempId === tempId 
+            ? { ...res.data, tempId, status: 'saved' } 
+            : m
+        ));
       } catch (err) {
         const errorMsg = err.response?.data?.error || err.message;
         const status = err.response?.status || 'network';
         setLastError(`${errorMsg} (${status})`);
-        setMessages(prev => {
-          const updated = prev.map(m =>
-            m.timestamp === msg.timestamp ? { ...m, status: 'failed' } : m
-          );
-          localStorage.setItem(getStorageKey(), JSON.stringify(updated));
-          return updated;
-        });
+        setMessages(prev => prev.map(m => 
+          m.tempId === tempId ? { ...m, status: 'failed' } : m
+        ));
       }
     }
 
     setIsSending(false);
     setTimeout(() => inputRef.current?.focus(), 100);
-  }, [newMessage, user?._id, isSending, getStorageKey]);
+  }, [newMessage, user?._id, isSending]);
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -279,7 +288,6 @@ const Support = () => {
 
   const status = getStatusDisplay();
 
-  // LOADING
   if (!authChecked) {
     return (
       <div className="min-h-screen bg-[#0b141a] flex items-center justify-center">
@@ -291,7 +299,6 @@ const Support = () => {
     );
   }
 
-  // NOT LOGGED IN
   if (!user?._id) {
     return (
       <div className="min-h-screen bg-[#0b141a] flex items-center justify-center">
@@ -311,7 +318,6 @@ const Support = () => {
 
   return (
     <div className="min-h-screen bg-[#0b141a] flex flex-col">
-      {/* Header */}
       <div className="bg-[#1f2c34] px-4 py-3 flex items-center gap-3 sticky top-0 z-20 border-b border-white/5">
         <button onClick={() => navigate(-1)} className="text-white/70 hover:text-white p-1">
           <ChevronLeft size={24} />
@@ -331,7 +337,6 @@ const Support = () => {
         </button>
       </div>
 
-      {/* Error */}
       {lastError && (
         <div className="bg-red-500/20 border-b border-red-500/30 px-4 py-2 flex items-center gap-2">
           <AlertCircle size={14} className="text-red-400" />
@@ -340,7 +345,6 @@ const Support = () => {
         </div>
       )}
 
-      {/* Chat */}
       <div className="flex-1 overflow-y-auto p-3" style={{backgroundColor:'#0b141a'}}>
         <div className="max-w-2xl mx-auto space-y-1">
           <div className="flex justify-center mb-4">
@@ -357,7 +361,7 @@ const Support = () => {
           <AnimatePresence>
             {messages.map((msg, idx) => (
               <motion.div
-                key={`${msg._id || msg.timestamp}-${idx}`}
+                key={msg._id || msg.tempId || `${msg.timestamp}-${idx}`}
                 initial={{ opacity: 0, y: 8, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.2 }}
@@ -390,7 +394,6 @@ const Support = () => {
         </div>
       </div>
 
-      {/* Input */}
       <form
         onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
         className="bg-[#1f2c34] px-3 py-2.5 flex items-center gap-2 border-t border-white/5"
