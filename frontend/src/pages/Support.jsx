@@ -1,13 +1,30 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ChevronLeft, MessageCircle, CheckCheck, Clock, WifiOff, Bot, AlertCircle } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://credixa-api.onrender.com';
 const SOCKET_URL = API_URL;
+
+// Decode JWT to get user ID
+const getUserFromToken = () => {
+  try {
+    const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+    if (!token) return null;
+    const base64 = token.split('.')[1];
+    const json = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(json);
+    return {
+      _id: payload.id || payload._id || payload.userId,
+      email: payload.email,
+      fullName: payload.fullName || payload.name
+    };
+  } catch (e) {
+    return null;
+  }
+};
 
 const api = axios.create({
   baseURL: API_URL,
@@ -23,7 +40,10 @@ api.interceptors.request.use((config) => {
 
 const Support = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  
+  // Get user DIRECTLY from token — bypass AuthContext entirely
+  const [user, setUser] = useState(getUserFromToken);
+  const [authChecked, setAuthChecked] = useState(false);
   
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -34,6 +54,33 @@ const Support = () => {
   const socketRef = useRef(null);
   const initializedRef = useRef(false);
   const inputRef = useRef(null);
+
+  // Verify token is still valid on mount
+  useEffect(() => {
+    const verifyAuth = async () => {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      if (!token) {
+        setUser(null);
+        setAuthChecked(true);
+        return;
+      }
+      
+      // Try to get fresh user data from server
+      try {
+        const res = await api.get('/api/user/profile', { timeout: 8000 });
+        if (res.data?._id || res.data?.id) {
+          setUser(res.data);
+          localStorage.setItem('userData', JSON.stringify(res.data));
+        }
+      } catch (err) {
+        // Server failed but token exists — keep using decoded user
+        console.log('Profile fetch failed, using token user:', err.message);
+      }
+      setAuthChecked(true);
+    };
+    
+    verifyAuth();
+  }, []);
 
   const getStorageKey = useCallback(() => {
     return user?._id ? `support_chat_${user._id}` : 'support_chat_guest';
@@ -135,7 +182,7 @@ const Support = () => {
       return;
     }
     if (!user?._id) {
-      setLastError('Not logged in. Please log in again.');
+      setLastError('Not logged in');
       return;
     }
     if (isSending) return;
@@ -225,7 +272,19 @@ const Support = () => {
 
   const status = getStatusDisplay();
 
-  // NOT LOGGED IN - Show immediately if no user
+  // LOADING
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-[#0b141a] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white/60">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // NOT LOGGED IN
   if (!user?._id) {
     return (
       <div className="min-h-screen bg-[#0b141a] flex items-center justify-center">
