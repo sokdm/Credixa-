@@ -120,8 +120,13 @@ io.on('connection', (socket) => {
       const userName = user ? user.fullName : 'Unknown User';
       const lastMessage = chat.messages[chat.messages.length - 1];
 
-      io.to(data.userId).emit('new_message', lastMessage);
-      io.to(`user_${data.userId}`).emit('new_message', lastMessage);
+      // FIXED: Echo tempId back so frontend can match and deduplicate
+      const messageWithTempId = data.tempId 
+        ? { ...lastMessage.toObject(), tempId: data.tempId }
+        : lastMessage;
+
+      io.to(data.userId).emit('new_message', messageWithTempId);
+      io.to(`user_${data.userId}`).emit('new_message', messageWithTempId);
 
       if (connectedAdmins.size > 0) {
         io.to('admin_room').emit('new_chat', {
