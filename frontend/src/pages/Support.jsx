@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ChevronLeft, MoreVertical, Check, CheckCheck, MessageCircle, Wifi, WifiOff, Bot } from 'lucide-react';
+import { Send, ChevronLeft, MoreVertical, Check, CheckCheck, MessageCircle, Wifi, WifiOff, Bot, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
@@ -55,11 +55,13 @@ const Support = () => {
     if (!user?._id) return;
 
     const newSocket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-      timeout: 10000,
-      reconnectionAttempts: 10,
+      transports: ['polling', 'websocket'],
+      timeout: 20000,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000
+      reconnectionDelayMax: 5000,
+      randomizationFactor: 0.5,
+      forceNew: true
     });
 
     socketRef.current = newSocket;
@@ -97,6 +99,10 @@ const Support = () => {
       setConnectionStatus('connecting');
     });
 
+    newSocket.on('reconnect_error', (err) => {
+      console.log(`[SUPPORT] Reconnect error: ${err.message}`);
+    });
+
     newSocket.on('new_message', (msg) => {
       console.log(`[SUPPORT] Received new_message:`, msg);
       setMessages(prev => {
@@ -127,22 +133,32 @@ const Support = () => {
       sender: 'user',
       text,
       timestamp: new Date().toISOString(),
-      read: false
+      read: false,
+      status: 'pending'
     };
 
     setMessages(prev => [...prev, msg]);
 
     if (socketRef.current && socketConnected) {
       socketRef.current.emit('send_message', msg);
+      setMessages(prev => prev.map(m => 
+        m.timestamp === msg.timestamp ? { ...m, status: 'sent' } : m
+      ));
     }
 
     try {
       await axios.post(`${API_URL}/api/chat/user`, msg, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        timeout: 10000
+        timeout: 15000
       });
+      setMessages(prev => prev.map(m => 
+        m.timestamp === msg.timestamp ? { ...m, status: 'saved' } : m
+      ));
     } catch (err) {
       console.log(`[SUPPORT] Message save API failed:`, err.message);
+      setMessages(prev => prev.map(m => 
+        m.timestamp === msg.timestamp ? { ...m, status: 'offline' } : m
+      ));
     } finally {
       setIsSending(false);
     }
@@ -165,12 +181,12 @@ const Support = () => {
       case 'connected':
         return { text: 'Online', color: 'text-green-400', dot: 'bg-green-400', icon: Wifi };
       case 'connecting':
-        return { text: 'Connecting...', color: 'text-yellow-400', dot: 'bg-yellow-400 animate-pulse', icon: Wifi };
+        return { text: 'Connecting...', color: 'text-yellow-400', dot: 'bg-yellow-400 animate-pulse', icon: Clock };
       case 'disconnected':
       case 'error':
-        return { text: 'Offline', color: 'text-red-400', dot: 'bg-red-400', icon: WifiOff };
+        return { text: 'Offline - Messages saved', color: 'text-orange-400', dot: 'bg-orange-400', icon: WifiOff };
       default:
-        return { text: 'Connecting...', color: 'text-yellow-400', dot: 'bg-yellow-400 animate-pulse', icon: Wifi };
+        return { text: 'Connecting...', color: 'text-yellow-400', dot: 'bg-yellow-400 animate-pulse', icon: Clock };
     }
   };
 
@@ -196,7 +212,6 @@ const Support = () => {
 
   return (
     <div className="min-h-screen bg-[#0b141a] flex flex-col">
-      {/* Header */}
       <div className="bg-[#1f2c34] px-4 py-3 flex items-center gap-3 sticky top-0 z-20 border-b border-white/5">
         <button
           onClick={() => navigate(-1)}
@@ -223,7 +238,6 @@ const Support = () => {
         </div>
       </div>
 
-      {/* Chat Area */}
       <div
         className="flex-1 overflow-y-auto p-3"
         style={{
@@ -264,15 +278,19 @@ const Support = () => {
                     ? 'bg-[#005c4b] text-white rounded-tr-sm'
                     : 'bg-[#1f2c34] text-white rounded-tl-sm'
                 }`}>
-                  <p className="text-[13px] leading-relaxed pr-14">{msg.text}</p>
+                  <p className="text-[13px] leading-relaxed pr-16">{msg.text}</p>
                   <div className={`absolute bottom-1 right-2 flex items-center gap-1 text-[10px] ${
                     msg.sender === 'user' ? 'text-white/50' : 'text-white/35'
                   }`}>
                     <span>{formatTime(msg.timestamp)}</span>
                     {msg.sender === 'user' && (
-                      msg.read
-                        ? <CheckCheck size={13} className="text-sky-400" />
-                        : <Check size={13} />
+                      <>
+                        {msg.status === 'pending' && <Clock size={12} className="text-yellow-400" />}
+                        {msg.status === 'sent' && <Check size={12} />}
+                        {msg.status === 'saved' && <CheckCheck size={12} className="text-sky-400" />}
+                        {msg.status === 'offline' && <WifiOff size={12} className="text-orange-400" />}
+                        {!msg.status && <Check size={12} />}
+                      </>
                     )}
                   </div>
                 </div>
@@ -283,7 +301,6 @@ const Support = () => {
         </div>
       </div>
 
-      {/* Input Area */}
       <form onSubmit={sendMessage} className="bg-[#1f2c34] px-3 py-2.5 flex items-center gap-2 border-t border-white/5">
         <div className="flex-1 bg-[#2a3942] rounded-full px-4 py-2.5 flex items-center">
           <input

@@ -84,11 +84,12 @@ const AdminDashboard = () => {
     if (!token) { navigate('/admin/login'); return; }
 
     const newSocket = io(API_URL, {
-      transports: ['websocket', 'polling'],
-      timeout: 10000,
-      reconnectionAttempts: 10,
+      transports: ['polling', 'websocket'],
+      timeout: 20000,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000
+      reconnectionDelayMax: 5000,
+      forceNew: true
     });
 
     socketRef.current = newSocket;
@@ -493,7 +494,6 @@ const AdminDashboard = () => {
                   </div>
                 </div>
                 <div className="flex gap-0 lg:gap-6 h-full">
-                  {/* Chat List */}
                   <div className={`w-full lg:w-80 bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl overflow-hidden flex flex-col ${chatOpen ? 'hidden lg:flex' : 'flex'}`}>
                     <div className="p-4 border-b border-white/10">
                       <h3 className="font-semibold text-sm">Conversations</h3>
@@ -527,7 +527,6 @@ const AdminDashboard = () => {
                     </div>
                   </div>
 
-                  {/* Chat Window */}
                   <div className={`flex-1 bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl overflow-hidden flex flex-col ${chatOpen ? 'fixed inset-0 z-50 lg:static lg:z-auto bg-[#0a0a0f]' : 'hidden lg:flex'}`}>
                     {selectedChat ? (
                       <>

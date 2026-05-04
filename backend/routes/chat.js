@@ -13,6 +13,45 @@ router.get('/user', auth, async (req, res) => {
   }
 });
 
+// User send message via REST (works when socket is offline)
+router.post('/user', auth, async (req, res) => {
+  try {
+    const { text, userId } = req.body;
+    if (!text?.trim()) return res.status(400).json({ error: 'Message required' });
+
+    const chat = await Chat.findOneAndUpdate(
+      { userId: req.user._id },
+      {
+        $push: {
+          messages: {
+            sender: 'user',
+            text: text.trim(),
+            timestamp: new Date(),
+            read: false
+          }
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    const io = req.app.get('io');
+    const lastMessage = chat.messages[chat.messages.length - 1];
+    
+    io.to(req.user._id.toString()).emit('new_message', lastMessage);
+    io.to(`user_${req.user._id}`).emit('new_message', lastMessage);
+    io.to('admin_room').emit('new_chat', {
+      userId: req.user._id,
+      userName: req.user.fullName,
+      message: text.trim(),
+      timestamp: new Date()
+    });
+
+    res.status(201).json(lastMessage);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get all chats (admin)
 router.get('/all', adminAuth, async (req, res) => {
   try {

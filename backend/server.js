@@ -16,7 +16,12 @@ const io = new Server(httpServer, {
   cors: {
     origin: CLIENT_URL,
     methods: ["GET", "POST"]
-  }
+  },
+  transports: ['polling', 'websocket'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  allowUpgrades: true,
+  upgradeTimeout: 10000
 });
 
 app.set('trust proxy', 1);
@@ -39,7 +44,6 @@ mongoose.connect(process.env.MONGODB_URI)
 app.get('/', (req, res) => res.json({ status: 'ok', service: 'credixa-api' }));
 app.get('/health', (req, res) => res.json({ status: 'healthy' }));
 
-// Track connected admins
 const connectedAdmins = new Set();
 
 io.on('connection', (socket) => {
@@ -91,12 +95,10 @@ io.on('connection', (socket) => {
 
       const lastMessage = chat.messages[chat.messages.length - 1];
 
-      // Emit to user's personal room
       io.to(data.userId).emit('new_message', lastMessage);
       io.to(`user_${data.userId}`).emit('new_message', lastMessage);
       console.log(`[SOCKET] Emitted new_message to user rooms`);
 
-      // Emit to ALL admin rooms
       if (connectedAdmins.size > 0) {
         io.to('admin_room').emit('new_chat', {
           userId: data.userId,
@@ -106,7 +108,7 @@ io.on('connection', (socket) => {
         });
         console.log(`[SOCKET] Emitted new_chat to admin_room (${connectedAdmins.size} admins online)`);
       } else {
-        console.log(`[SOCKET] No admins online, message queued`);
+        console.log(`[SOCKET] No admins online, message queued for later`);
       }
 
     } catch (err) {
@@ -146,12 +148,11 @@ io.on('connection', (socket) => {
     io.to(`user_${data.userId}`).emit('notification', data.notification);
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', (reason) => {
+    console.log(`[SOCKET] Disconnected: ${socket.id}, reason: ${reason}`);
     if (connectedAdmins.has(socket.id)) {
       connectedAdmins.delete(socket.id);
       console.log(`[SOCKET] Admin disconnected. Remaining admins: ${connectedAdmins.size}`);
-    } else {
-      console.log(`[SOCKET] User disconnected: ${socket.id}`);
     }
   });
 });
