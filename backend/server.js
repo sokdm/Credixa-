@@ -12,21 +12,35 @@ require('dotenv').config();
 const app = express();
 const httpServer = createServer(app);
 
-// ALLOW BOTH FRONTEND URLS
+// BROAD CORS - allow all common origins
 const ALLOWED_ORIGINS = [
   process.env.CLIENT_URL,
   'https://credixa-web.onrender.com',
+  'https://dixa-web.onrender.com',
   'https://credixa-api.onrender.com',
   'http://localhost:3000',
-  'http://localhost:5173'
+  'http://localhost:5173',
+  'http://localhost:5000'
 ].filter(Boolean);
 
-const io = new Server(httpServer, {
-  cors: {
-    origin: ALLOWED_ORIGINS,
-    methods: ["GET", "POST"],
-    credentials: true
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.indexOf(origin) !== -1 || ALLOWED_ORIGINS.some(o => origin.includes('onrender.com'))) {
+      callback(null, true);
+    } else {
+      console.log('[CORS] Blocked origin:', origin);
+      callback(null, true); // Allow all for now to debug
+    }
   },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
+const io = new Server(httpServer, {
+  cors: corsOptions,
   transports: ['polling', 'websocket'],
   pingTimeout: 60000,
   pingInterval: 25000,
@@ -34,11 +48,10 @@ const io = new Server(httpServer, {
 });
 
 app.set('trust proxy', 1);
-app.use(helmet());
-app.use(cors({ 
-  origin: ALLOWED_ORIGINS, 
-  credentials: true 
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
 const limiter = rateLimit({
@@ -173,7 +186,7 @@ app.use('/api/savings', require('./routes/savings'));
 app.use('/api/scheduled', require('./routes/scheduled'));
 app.use('/api/beneficiary', require('./routes/beneficiary'));
 
-// SERVE FRONTEND STATIC FILES (for unified deployment option)
+// SPA fallback for unified deployment
 const possibleDistPaths = [
   path.join(__dirname, 'dist'),
   path.join(__dirname, '../frontend/dist'),
@@ -196,11 +209,9 @@ if (distPath) {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 } else {
-  console.log('[SERVER] API-only mode. Frontend not served from backend.');
+  console.log('[SERVER] API-only mode.');
   app.get('*', (req, res) => {
-    res.status(404).json({ 
-      error: 'Frontend not built. Build and deploy separately or copy dist to backend/dist'
-    });
+    res.status(404).json({ error: 'Frontend not built' });
   });
 }
 

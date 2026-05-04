@@ -6,21 +6,26 @@ const router = express.Router();
 // Get user chat
 router.get('/user', auth, async (req, res) => {
   try {
-    const chat = await Chat.findOne({ userId: req.user._id });
+    const userId = req.user._id || req.user.id;
+    const chat = await Chat.findOne({ userId });
     res.json(chat || { messages: [], problemType: null });
   } catch (error) {
+    console.error('[CHAT GET ERROR]', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// User send message - ALWAYS WORKS via REST
+// User send message
 router.post('/user', auth, async (req, res) => {
   try {
     const { text } = req.body;
     if (!text?.trim()) return res.status(400).json({ error: 'Message required' });
 
+    const userId = req.user._id || req.user.id;
+    const userName = req.user.fullName || req.user.name || 'User';
+
     const chat = await Chat.findOneAndUpdate(
-      { userId: req.user._id },
+      { userId },
       {
         $push: {
           messages: {
@@ -29,7 +34,8 @@ router.post('/user', auth, async (req, res) => {
             timestamp: new Date(),
             read: false
           }
-        }
+        },
+        $setOnInsert: { userId }
       },
       { upsert: true, new: true }
     );
@@ -39,11 +45,11 @@ router.post('/user', auth, async (req, res) => {
     // Emit to socket if available
     const io = req.app.get('io');
     if (io) {
-      io.to(req.user._id.toString()).emit('new_message', lastMessage);
-      io.to(`user_${req.user._id}`).emit('new_message', lastMessage);
+      io.to(userId.toString()).emit('new_message', lastMessage);
+      io.to(`user_${userId}`).emit('new_message', lastMessage);
       io.to('admin_room').emit('new_chat', {
-        userId: req.user._id,
-        userName: req.user.fullName,
+        userId: userId,
+        userName: userName,
         message: text.trim(),
         timestamp: new Date()
       });
@@ -51,7 +57,7 @@ router.post('/user', auth, async (req, res) => {
 
     res.status(201).json(lastMessage);
   } catch (error) {
-    console.error('[CHAT] Error saving message:', error);
+    console.error('[CHAT POST ERROR]', error);
     res.status(500).json({ error: error.message });
   }
 });
