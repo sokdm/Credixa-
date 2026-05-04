@@ -30,8 +30,8 @@ const Transfer = () => {
 
   const [foundUser, setFoundUser] = useState(null)
   const [searching, setSearching] = useState(false)
+  const [selectedRecipient, setSelectedRecipient] = useState(null)
 
-  // FIXED: Call correct backend endpoint /transfer/lookup-account/
   const searchUser = useCallback(async (accountNumber) => {
     if (!accountNumber || accountNumber.length < 5) {
       setFoundUser(null)
@@ -51,14 +51,15 @@ const Transfer = () => {
   }, [])
 
   useEffect(() => {
-    if (transferType === 'internal' && formData.recipientAccount) {
+    if (transferType === 'internal' && formData.recipientAccount && !selectedRecipient) {
       const timer = setTimeout(() => searchUser(formData.recipientAccount), 500)
       return () => clearTimeout(timer)
     }
-  }, [formData.recipientAccount, transferType, searchUser])
+  }, [formData.recipientAccount, transferType, searchUser, selectedRecipient])
 
   const selectFoundUser = (u) => {
     setFormData({ ...formData, recipientAccount: u.accountNumber })
+    setSelectedRecipient(u)
     setFoundUser(null)
   }
 
@@ -124,6 +125,7 @@ const Transfer = () => {
   const resetTransfer = () => {
     setStep(1)
     setReceipt(null)
+    setSelectedRecipient(null)
     setFormData({
       recipientAccount: '',
       bankName: '',
@@ -167,6 +169,7 @@ const Transfer = () => {
               foundUser={foundUser}
               searching={searching}
               selectFoundUser={selectFoundUser}
+              selectedRecipient={selectedRecipient}
               goToPin={goToPin}
               setStep={setStep}
               error={error}
@@ -177,6 +180,7 @@ const Transfer = () => {
             <Step3PIN
               transferType={transferType}
               formData={formData}
+              selectedRecipient={selectedRecipient}
               setFormData={setFormData}
               handleSubmit={handleSubmit}
               setStep={setStep}

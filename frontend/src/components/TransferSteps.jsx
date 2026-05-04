@@ -51,7 +51,7 @@ export const Step1SelectType = ({ transferType, setTransferType, setStep }) => (
 
 export const Step2Details = ({
   transferType, formData, setFormData, foundUser, searching,
-  selectFoundUser, goToPin, setStep, error
+  selectFoundUser, selectedRecipient, goToPin, setStep, error
 }) => (
   <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
     <h2 className="text-2xl font-bold mb-2">
@@ -75,18 +75,48 @@ export const Step2Details = ({
               type="text"
               required
               value={formData.recipientAccount}
-              onChange={(e) => setFormData({...formData, recipientAccount: e.target.value})}
-              className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-violet-500"
+              onChange={(e) => {
+                setFormData({...formData, recipientAccount: e.target.value})
+              }}
+              disabled={!!selectedRecipient}
+              className={`w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-violet-500 ${
+                selectedRecipient ? 'opacity-60 cursor-not-allowed' : ''
+              }`}
               placeholder="Enter account number"
             />
-            {searching && (
+            {searching && !selectedRecipient && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
                 <div className="w-5 h-5 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
               </div>
             )}
           </div>
 
-          {foundUser && (
+          {selectedRecipient && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-3 p-4 bg-violet-500/10 border border-violet-500/30 rounded-xl flex items-center gap-3"
+            >
+              <div className="w-10 h-10 bg-violet-500/20 rounded-full flex items-center justify-center">
+                <UserCheck className="text-violet-400" size={20} />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-sm">{selectedRecipient.fullName}</p>
+                <p className="text-white/50 text-xs">{selectedRecipient.accountNumber}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData({ ...formData, recipientAccount: '' })
+                }}
+                className="text-violet-400 text-xs font-medium hover:text-violet-300"
+              >
+                Change
+              </button>
+            </motion.div>
+          )}
+
+          {foundUser && !selectedRecipient && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -104,7 +134,7 @@ export const Step2Details = ({
             </motion.div>
           )}
 
-          {formData.recipientAccount && !foundUser && !searching && formData.recipientAccount.length >= 5 && (
+          {formData.recipientAccount && !foundUser && !searching && !selectedRecipient && formData.recipientAccount.length >= 5 && (
             <p className="mt-2 text-red-400 text-xs">No user found with this account number</p>
           )}
         </div>
@@ -193,7 +223,7 @@ export const Step2Details = ({
 )
 
 export const Step3PIN = ({
-  transferType, formData, setFormData, handleSubmit,
+  transferType, formData, selectedRecipient, setFormData, handleSubmit,
   setStep, loading, error
 }) => (
   <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
@@ -216,8 +246,10 @@ export const Step3PIN = ({
           <div className="flex justify-between py-2 border-b border-white/5">
             <span className="text-white/50 text-sm">To</span>
             <div className="text-right">
-              <span className="text-sm block">{formData.recipientAccount}</span>
-              {/* Show name if we have it from foundUser - you'd need to pass it down or store it */}
+              {selectedRecipient && (
+                <span className="text-sm font-medium block">{selectedRecipient.fullName}</span>
+              )}
+              <span className="text-xs text-white/50 block">{formData.recipientAccount}</span>
             </div>
           </div>
         ) : (
