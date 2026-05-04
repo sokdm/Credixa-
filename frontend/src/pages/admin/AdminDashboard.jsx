@@ -76,6 +76,8 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
+  // FIXED: Track processed message IDs to prevent duplicates
+  const processedIdsRef = useRef(new Set());
 
   const getToken = () => localStorage.getItem('token');
 
@@ -120,8 +122,18 @@ const AdminDashboard = () => {
       fetchChats();
     });
 
+    // FIXED: Deduplicate new_message with processedIdsRef
     newSocket.on('new_message', (msg) => {
       console.log('Admin received new_message:', msg);
+      const msgId = msg._id?.toString();
+      
+      // Skip if already processed
+      if (msgId && processedIdsRef.current.has(msgId)) {
+        console.log('[DEDUP] Skipping duplicate message:', msgId);
+        return;
+      }
+      if (msgId) processedIdsRef.current.add(msgId);
+
       if (selectedChat) {
         const chatUserId = selectedChat.userId?._id || selectedChat.userId;
         if (msg.sender === 'user') {
@@ -228,12 +240,19 @@ const AdminDashboard = () => {
     setSelectedChat(chat);
     setChatOpen(true);
     setMessages([]);
+    // FIXED: Reset processed IDs when opening new chat
+    processedIdsRef.current.clear();
     try {
       const userId = chat.userId?._id || chat.userId;
       const res = await axios.get(`${API_URL}/api/chat/${userId}`, {
         headers: { Authorization: `Bearer ${getToken()}` }
       });
-      setMessages(res.data.messages || []);
+      const serverMessages = res.data.messages || [];
+      // Seed processed IDs with server messages
+      serverMessages.forEach(m => {
+        if (m._id) processedIdsRef.current.add(m._id.toString());
+      });
+      setMessages(serverMessages);
       await axios.put(`${API_URL}/api/chat/read/${userId}`, {}, {
         headers: { Authorization: `Bearer ${getToken()}` }
       });
@@ -241,6 +260,7 @@ const AdminDashboard = () => {
     } catch (err) { handleApiError(err, 'Open chat'); }
   };
 
+  // FIXED: Send reply — socket only when connected, REST fallback when offline
   const sendReply = async (e) => {
     e.preventDefault();
     if (!replyText.trim() || !selectedChat) return;
@@ -248,26 +268,44 @@ const AdminDashboard = () => {
     setReplyText('');
 
     const userId = selectedChat.userId?._id || selectedChat.userId;
-
+    const tempId = `admin_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     const optimisticMsg = {
-      _id: Date.now(),
+      tempId,
       sender: 'admin',
       text: text,
-      timestamp: new Date(),
-      read: false
+      timestamp: new Date().toISOString(),
+      read: false,
+      status: 'sending'
     };
     setMessages(prev => [...prev, optimisticMsg]);
 
-    try {
-      await axios.post(`${API_URL}/api/chat/reply/${userId}`,
-        { text },
-        { headers: { Authorization: `Bearer ${getToken()}` } }
-      );
-
-      if (socketRef.current && socketConnected) {
-        socketRef.current.emit('admin_reply', { userId: userId, text: text });
+    // FIXED: Use socket only when connected, else REST fallback
+    if (socketRef.current && socketConnected) {
+      socketRef.current.emit('admin_reply', { userId, text, tempId });
+      // Mark as saved since socket will echo back
+      setMessages(prev => prev.map(m => 
+        m.tempId === tempId ? { ...m, status: 'saved' } : m
+      ));
+    } else {
+      // Fallback to REST only when socket is offline
+      try {
+        const res = await axios.post(`${API_URL}/api/chat/reply/${userId}`,
+          { text, tempId },
+          { headers: { Authorization: `Bearer ${getToken()}` } }
+        );
+        const savedMsg = res.data.messages[res.data.messages.length - 1];
+        if (savedMsg._id) processedIdsRef.current.add(savedMsg._id.toString());
+        setMessages(prev => prev.map(m => 
+          m.tempId === tempId ? { ...savedMsg, status: 'saved' } : m
+        ));
+      } catch (err) { 
+        handleApiError(err, 'Send reply');
+        setMessages(prev => prev.map(m => 
+          m.tempId === tempId ? { ...m, status: 'failed' } : m
+        ));
       }
-    } catch (err) { handleApiError(err, 'Send reply'); }
+    }
   };
 
   const filteredUsers = users.filter(u =>
@@ -477,7 +515,6 @@ const AdminDashboard = () => {
                 </div>
               </motion.div>
             )}
-
             {activeTab === 'support' && (
               <motion.div key="support" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="h-[calc(100vh-8rem)] lg:h-[calc(100vh-6rem)]">
                 <div className="flex items-center justify-between mb-4 lg:mb-6">
@@ -545,7 +582,7 @@ const AdminDashboard = () => {
 
                         <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-3">
                           {messages.map((msg, idx) => (
-                            <motion.div key={`${msg._id || idx}-${msg.sender}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                            <motion.div key={`${msg._id || msg.tempId || idx}-${msg.sender}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                               className={`flex ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
                               {msg.sender === 'user' && (
                                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center mr-2 mt-1 flex-shrink-0">
