@@ -6,8 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import axios from 'axios';
 
-const API_URL = 'https://credixa-api.onrender.com';
-const SOCKET_URL = API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'https://credixa-api.onrender.com';
 
 const Support = () => {
   const navigate = useNavigate();
@@ -22,52 +21,81 @@ const Support = () => {
   const [isSending, setIsSending] = useState(false);
 
   const getStorageKey = useCallback(() => {
-    return user?._id ? `support_messages_${user._id}` : 'support_messages_guest';
+    return user?._id ? `support_chat_${user._id}` : 'support_chat_guest';
   }, [user?._id]);
 
+  // Load messages from localStorage + API on mount
   useEffect(() => {
-    if (user?._id && !initialized) {
+    if (!user?._id || initialized) return;
+
+    const loadMessages = async () => {
+      // First load from localStorage for instant display
       const key = getStorageKey();
       const saved = localStorage.getItem(key);
+      let localMessages = [];
       if (saved) {
         try {
-          const parsed = JSON.parse(saved);
-          setMessages(parsed);
+          localMessages = JSON.parse(saved);
+          setMessages(localMessages);
         } catch (e) {
           console.log('[SUPPORT] Failed to parse saved messages');
         }
       }
+
+      // Then fetch from server to sync
+      try {
+        const res = await axios.get(`${API_URL}/api/chat/user`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          timeout: 10000
+        });
+        if (res.data && res.data.messages) {
+          const serverMessages = res.data.messages;
+          setMessages(serverMessages);
+          localStorage.setItem(key, JSON.stringify(serverMessages));
+        }
+      } catch (err) {
+        console.log('[SUPPORT] Failed to fetch messages from server:', err.message);
+        // Keep localStorage messages if server fails
+      }
       setInitialized(true);
-    }
+    };
+
+    loadMessages();
   }, [user?._id, initialized, getStorageKey]);
 
+  // Save to localStorage whenever messages change
   useEffect(() => {
     if (user?._id && initialized && messages.length > 0) {
       localStorage.setItem(getStorageKey(), JSON.stringify(messages));
     }
   }, [messages, user?._id, initialized, getStorageKey]);
 
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Socket setup - completely separate from message sending
   useEffect(() => {
     if (!user?._id) return;
 
-    const newSocket = io(SOCKET_URL, {
+    console.log('[SUPPORT] Setting up socket...');
+
+    const newSocket = io(API_URL, {
       transports: ['polling', 'websocket'],
       timeout: 20000,
       reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
       randomizationFactor: 0.5,
-      forceNew: true
+      forceNew: true,
+      autoConnect: true
     });
 
     socketRef.current = newSocket;
 
     newSocket.on('connect', () => {
-      console.log(`[SUPPORT] Socket connected: ${newSocket.id}`);
+      console.log(`[SUPPORT] Socket CONNECTED: ${newSocket.id}`);
       setSocketConnected(true);
       setConnectionStatus('connected');
       newSocket.emit('join_user', user._id);
@@ -75,19 +103,23 @@ const Support = () => {
     });
 
     newSocket.on('connect_error', (err) => {
-      console.log(`[SUPPORT] Socket error: ${err.message}`);
+      console.log(`[SUPPORT] Socket connect_error: ${err.message}`);
       setSocketConnected(false);
       setConnectionStatus('error');
     });
 
     newSocket.on('disconnect', (reason) => {
-      console.log(`[SUPPORT] Socket disconnected: ${reason}`);
+      console.log(`[SUPPORT] Socket DISCONNECTED: ${reason}`);
       setSocketConnected(false);
-      setConnectionStatus('disconnected');
+      if (reason === 'io client disconnect') {
+        setConnectionStatus('disconnected');
+      } else {
+        setConnectionStatus('connecting');
+      }
     });
 
     newSocket.on('reconnect', (attemptNumber) => {
-      console.log(`[SUPPORT] Socket reconnected after ${attemptNumber} attempts`);
+      console.log(`[SUPPORT] Socket RECONNECTED after ${attemptNumber} attempts`);
       setSocketConnected(true);
       setConnectionStatus('connected');
       newSocket.emit('join_user', user._id);
@@ -107,62 +139,111 @@ const Support = () => {
       console.log(`[SUPPORT] Received new_message:`, msg);
       setMessages(prev => {
         const exists = prev.some(m =>
-          m.timestamp === msg.timestamp && m.text === msg.text
+          (m._id && m._id === msg._id) ||
+          (m.timestamp === msg.timestamp && m.text === msg.text)
         );
         if (exists) return prev;
-        return [...prev, msg];
+        const updated = [...prev, msg];
+        localStorage.setItem(getStorageKey(), JSON.stringify(updated));
+        return updated;
       });
     });
 
+    // Prevent socket from closing on page hide (mobile background)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && newSocket.disconnected) {
+        console.log('[SUPPORT] Page visible, reconnecting socket...');
+        newSocket.connect();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      console.log('[SUPPORT] Cleaning up socket...');
+      newSocket.removeAllListeners();
       newSocket.close();
       socketRef.current = null;
     };
-  }, [user?._id]);
+  }, [user?._id, getStorageKey]);
 
+  // THE MAIN SEND FUNCTION - Works with or without socket
   const sendMessage = useCallback(async (e) => {
     e.preventDefault();
     const text = newMessage.trim();
-    if (!text || !user?._id) return;
+    if (!text || !user?._id || isSending) return;
 
     setNewMessage('');
     setIsSending(true);
 
+    const now = new Date().toISOString();
     const msg = {
       userId: user._id,
       sender: 'user',
       text,
-      timestamp: new Date().toISOString(),
+      timestamp: now,
       read: false,
-      status: 'pending'
+      status: 'sending'
     };
 
-    setMessages(prev => [...prev, msg]);
+    // 1. Immediately add to UI
+    setMessages(prev => {
+      const updated = [...prev, msg];
+      localStorage.setItem(getStorageKey(), JSON.stringify(updated));
+      return updated;
+    });
 
+    // 2. Try socket first (real-time)
+    let socketSuccess = false;
     if (socketRef.current && socketConnected) {
-      socketRef.current.emit('send_message', msg);
-      setMessages(prev => prev.map(m => 
-        m.timestamp === msg.timestamp ? { ...m, status: 'sent' } : m
-      ));
+      try {
+        socketRef.current.emit('send_message', msg);
+        socketSuccess = true;
+        console.log('[SUPPORT] Message sent via socket');
+      } catch (err) {
+        console.log('[SUPPORT] Socket emit failed:', err.message);
+      }
     }
 
+    // 3. ALWAYS save via REST API (guaranteed delivery)
     try {
-      await axios.post(`${API_URL}/api/chat/user`, msg, {
+      const res = await axios.post(`${API_URL}/api/chat/user`, {
+        text: text,
+        userId: user._id
+      }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         timeout: 15000
       });
-      setMessages(prev => prev.map(m => 
-        m.timestamp === msg.timestamp ? { ...m, status: 'saved' } : m
-      ));
+
+      console.log('[SUPPORT] Message saved via API');
+
+      // Update message status to saved
+      setMessages(prev => {
+        const updated = prev.map(m =>
+          m.timestamp === msg.timestamp
+            ? { ...m, status: 'saved', _id: res.data._id || m._id }
+            : m
+        );
+        localStorage.setItem(getStorageKey(), JSON.stringify(updated));
+        return updated;
+      });
+
     } catch (err) {
-      console.log(`[SUPPORT] Message save API failed:`, err.message);
-      setMessages(prev => prev.map(m => 
-        m.timestamp === msg.timestamp ? { ...m, status: 'offline' } : m
-      ));
+      console.error('[SUPPORT] API save failed:', err.message);
+      // Mark as failed but keep in UI
+      setMessages(prev => {
+        const updated = prev.map(m =>
+          m.timestamp === msg.timestamp
+            ? { ...m, status: 'failed' }
+            : m
+        );
+        localStorage.setItem(getStorageKey(), JSON.stringify(updated));
+        return updated;
+      });
     } finally {
       setIsSending(false);
     }
-  }, [newMessage, user?._id, socketConnected]);
+  }, [newMessage, user?._id, isSending, socketConnected, getStorageKey]);
 
   const formatTime = (date) => {
     return new Date(date).toLocaleTimeString('en-US', {
@@ -183,8 +264,9 @@ const Support = () => {
       case 'connecting':
         return { text: 'Connecting...', color: 'text-yellow-400', dot: 'bg-yellow-400 animate-pulse', icon: Clock };
       case 'disconnected':
-      case 'error':
         return { text: 'Offline - Messages saved', color: 'text-orange-400', dot: 'bg-orange-400', icon: WifiOff };
+      case 'error':
+        return { text: 'Connection error - Messages saved', color: 'text-orange-400', dot: 'bg-orange-400', icon: WifiOff };
       default:
         return { text: 'Connecting...', color: 'text-yellow-400', dot: 'bg-yellow-400 animate-pulse', icon: Clock };
     }
@@ -212,6 +294,7 @@ const Support = () => {
 
   return (
     <div className="min-h-screen bg-[#0b141a] flex flex-col">
+      {/* Header */}
       <div className="bg-[#1f2c34] px-4 py-3 flex items-center gap-3 sticky top-0 z-20 border-b border-white/5">
         <button
           onClick={() => navigate(-1)}
@@ -238,6 +321,7 @@ const Support = () => {
         </div>
       </div>
 
+      {/* Chat Area */}
       <div
         className="flex-1 overflow-y-auto p-3"
         style={{
@@ -285,10 +369,9 @@ const Support = () => {
                     <span>{formatTime(msg.timestamp)}</span>
                     {msg.sender === 'user' && (
                       <>
-                        {msg.status === 'pending' && <Clock size={12} className="text-yellow-400" />}
-                        {msg.status === 'sent' && <Check size={12} />}
+                        {msg.status === 'sending' && <Clock size={12} className="text-yellow-400 animate-spin" />}
                         {msg.status === 'saved' && <CheckCheck size={12} className="text-sky-400" />}
-                        {msg.status === 'offline' && <WifiOff size={12} className="text-orange-400" />}
+                        {msg.status === 'failed' && <WifiOff size={12} className="text-red-400" />}
                         {!msg.status && <Check size={12} />}
                       </>
                     )}
@@ -301,6 +384,7 @@ const Support = () => {
         </div>
       </div>
 
+      {/* Input Area - ALWAYS ENABLED */}
       <form onSubmit={sendMessage} className="bg-[#1f2c34] px-3 py-2.5 flex items-center gap-2 border-t border-white/5">
         <div className="flex-1 bg-[#2a3942] rounded-full px-4 py-2.5 flex items-center">
           <input

@@ -13,10 +13,10 @@ router.get('/user', auth, async (req, res) => {
   }
 });
 
-// User send message via REST (works when socket is offline)
+// User send message - ALWAYS WORKS via REST
 router.post('/user', auth, async (req, res) => {
   try {
-    const { text, userId } = req.body;
+    const { text } = req.body;
     if (!text?.trim()) return res.status(400).json({ error: 'Message required' });
 
     const chat = await Chat.findOneAndUpdate(
@@ -34,20 +34,24 @@ router.post('/user', auth, async (req, res) => {
       { upsert: true, new: true }
     );
 
-    const io = req.app.get('io');
     const lastMessage = chat.messages[chat.messages.length - 1];
-    
-    io.to(req.user._id.toString()).emit('new_message', lastMessage);
-    io.to(`user_${req.user._id}`).emit('new_message', lastMessage);
-    io.to('admin_room').emit('new_chat', {
-      userId: req.user._id,
-      userName: req.user.fullName,
-      message: text.trim(),
-      timestamp: new Date()
-    });
+
+    // Emit to socket if available
+    const io = req.app.get('io');
+    if (io) {
+      io.to(req.user._id.toString()).emit('new_message', lastMessage);
+      io.to(`user_${req.user._id}`).emit('new_message', lastMessage);
+      io.to('admin_room').emit('new_chat', {
+        userId: req.user._id,
+        userName: req.user.fullName,
+        message: text.trim(),
+        timestamp: new Date()
+      });
+    }
 
     res.status(201).json(lastMessage);
   } catch (error) {
+    console.error('[CHAT] Error saving message:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -110,8 +114,10 @@ router.post('/reply/:userId', adminAuth, async (req, res) => {
 
     const io = req.app.get('io');
     const lastMessage = chat.messages[chat.messages.length - 1];
-    io.to(req.params.userId).emit('new_message', lastMessage);
-    io.to(`user_${req.params.userId}`).emit('new_message', lastMessage);
+    if (io) {
+      io.to(req.params.userId).emit('new_message', lastMessage);
+      io.to(`user_${req.params.userId}`).emit('new_message', lastMessage);
+    }
 
     res.json(chat);
   } catch (error) {
