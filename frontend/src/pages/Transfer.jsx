@@ -31,6 +31,7 @@ const Transfer = () => {
   const [foundUser, setFoundUser] = useState(null)
   const [searching, setSearching] = useState(false)
 
+  // FIXED: Call correct backend endpoint /transfer/lookup-account/
   const searchUser = useCallback(async (accountNumber) => {
     if (!accountNumber || accountNumber.length < 5) {
       setFoundUser(null)
@@ -38,7 +39,7 @@ const Transfer = () => {
     }
     setSearching(true)
     try {
-      const res = await axios.get(`${API_URL}/users/lookup/${accountNumber}`, {
+      const res = await axios.get(`${API_URL}/transfer/lookup-account/${accountNumber}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       })
       setFoundUser(res.data)
@@ -65,12 +66,12 @@ const Transfer = () => {
     e.preventDefault()
     setError('')
     setLoading(true)
-    
+
     try {
-      const endpoint = transferType === 'internal' 
-        ? `${API_URL}/transfer/internal` 
+      const endpoint = transferType === 'internal'
+        ? `${API_URL}/transfer/internal`
         : `${API_URL}/transfer/external`
-      
+
       const payload = transferType === 'internal'
         ? {
             recipientAccount: formData.recipientAccount,
@@ -91,7 +92,7 @@ const Transfer = () => {
       const res = await axios.post(endpoint, payload, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       })
-      
+
       console.log(`[TRANSFER] Success:`, res.data)
       setReceipt(res.data.transaction)
       setStep(4)
@@ -151,10 +152,10 @@ const Transfer = () => {
 
         <AnimatePresence mode="wait">
           {step === 1 && (
-            <Step1SelectType 
-              transferType={transferType} 
-              setTransferType={setTransferType} 
-              setStep={setStep} 
+            <Step1SelectType
+              transferType={transferType}
+              setTransferType={setTransferType}
+              setStep={setStep}
             />
           )}
 

@@ -49,9 +49,9 @@ export const Step1SelectType = ({ transferType, setTransferType, setStep }) => (
   </motion.div>
 )
 
-export const Step2Details = ({ 
-  transferType, formData, setFormData, foundUser, searching, 
-  selectFoundUser, goToPin, setStep, error 
+export const Step2Details = ({
+  transferType, formData, setFormData, foundUser, searching,
+  selectFoundUser, goToPin, setStep, error
 }) => (
   <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
     <h2 className="text-2xl font-bold mb-2">
@@ -71,13 +71,13 @@ export const Step2Details = ({
           <label className="block text-sm font-medium mb-2 text-white/70">Recipient Account Number</label>
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
-            <input 
-              type="text" 
-              required 
+            <input
+              type="text"
+              required
               value={formData.recipientAccount}
               onChange={(e) => setFormData({...formData, recipientAccount: e.target.value})}
               className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-violet-500"
-              placeholder="Enter account number" 
+              placeholder="Enter account number"
             />
             {searching && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
@@ -87,8 +87,8 @@ export const Step2Details = ({
           </div>
 
           {foundUser && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }} 
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               onClick={() => selectFoundUser(foundUser)}
               className="mt-3 p-4 bg-white/10 border border-violet-500/30 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-white/15 transition-colors"
@@ -112,35 +112,35 @@ export const Step2Details = ({
         <>
           <div>
             <label className="block text-sm font-medium mb-2 text-white/70">Bank Name</label>
-            <input 
-              type="text" 
-              required 
+            <input
+              type="text"
+              required
               value={formData.bankName}
               onChange={(e) => setFormData({...formData, bankName: e.target.value})}
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-violet-500"
-              placeholder="Enter bank name" 
+              placeholder="Enter bank name"
             />
           </div>
           <div>
             <label className="block text-sm font-medium mb-2 text-white/70">Account Number</label>
-            <input 
-              type="text" 
-              required 
+            <input
+              type="text"
+              required
               value={formData.accountNumber}
               onChange={(e) => setFormData({...formData, accountNumber: e.target.value})}
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-violet-500"
-              placeholder="Enter account number" 
+              placeholder="Enter account number"
             />
           </div>
           <div>
             <label className="block text-sm font-medium mb-2 text-white/70">Account Name</label>
-            <input 
-              type="text" 
-              required 
+            <input
+              type="text"
+              required
               value={formData.accountName}
               onChange={(e) => setFormData({...formData, accountName: e.target.value})}
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-violet-500"
-              placeholder="Enter account holder name" 
+              placeholder="Enter account holder name"
             />
           </div>
         </>
@@ -150,38 +150,38 @@ export const Step2Details = ({
         <label className="block text-sm font-medium mb-2 text-white/70">Amount</label>
         <div className="relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 font-semibold">$</span>
-          <input 
-            type="number" 
-            required 
-            min="1" 
+          <input
+            type="number"
+            required
+            min="1"
             value={formData.amount}
             onChange={(e) => setFormData({...formData, amount: e.target.value})}
             className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-violet-500"
-            placeholder="0.00" 
+            placeholder="0.00"
           />
         </div>
       </div>
 
       <div>
         <label className="block text-sm font-medium mb-2 text-white/70">Narration (Optional)</label>
-        <input 
-          type="text" 
+        <input
+          type="text"
           value={formData.narration}
           onChange={(e) => setFormData({...formData, narration: e.target.value})}
           className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-violet-500"
-          placeholder="What's this for?" 
+          placeholder="What's this for?"
         />
       </div>
 
       <div className="flex gap-3 pt-2">
-        <button 
-          type="button" 
+        <button
+          type="button"
           onClick={() => setStep(1)}
           className="flex-1 py-4 border-2 border-white/20 rounded-xl font-semibold hover:bg-white/5"
         >
           Back
         </button>
-        <button 
+        <button
           type="submit"
           className="flex-1 py-4 bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl text-white font-bold"
         >
@@ -192,9 +192,9 @@ export const Step2Details = ({
   </motion.div>
 )
 
-export const Step3PIN = ({ 
-  transferType, formData, setFormData, handleSubmit, 
-  setStep, loading, error 
+export const Step3PIN = ({
+  transferType, formData, setFormData, handleSubmit,
+  setStep, loading, error
 }) => (
   <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
     <h2 className="text-2xl font-bold mb-2">Enter PIN</h2>
@@ -215,7 +215,10 @@ export const Step3PIN = ({
         {transferType === 'internal' ? (
           <div className="flex justify-between py-2 border-b border-white/5">
             <span className="text-white/50 text-sm">To</span>
-            <span className="text-sm">{formData.recipientAccount}</span>
+            <div className="text-right">
+              <span className="text-sm block">{formData.recipientAccount}</span>
+              {/* Show name if we have it from foundUser - you'd need to pass it down or store it */}
+            </div>
           </div>
         ) : (
           <>
@@ -244,27 +247,27 @@ export const Step3PIN = ({
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label className="block text-sm font-medium mb-2 text-white/70">Transaction PIN</label>
-          <input 
-            type="password" 
-            required 
-            maxLength={4} 
+          <input
+            type="password"
+            required
+            maxLength={4}
             value={formData.pin}
             onChange={(e) => setFormData({...formData, pin: e.target.value.replace(/\D/g, '')})}
             className="w-full px-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white text-center text-2xl tracking-[1em] focus:outline-none focus:border-violet-500"
-            placeholder="••••" 
+            placeholder="••••"
           />
         </div>
 
         <div className="flex gap-3">
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={() => setStep(2)}
             className="flex-1 py-4 border-2 border-white/20 rounded-xl font-semibold hover:bg-white/5"
           >
             Back
           </button>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading}
             className="flex-1 py-4 bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl text-white font-bold disabled:opacity-50"
           >
