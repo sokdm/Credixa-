@@ -19,6 +19,7 @@ const Support = () => {
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
   const initializedRef = useRef(false);
+  const sendFormRef = useRef(null);
 
   const getStorageKey = useCallback(() => {
     return user?._id ? `support_chat_${user._id}` : 'support_chat_guest';
@@ -38,7 +39,6 @@ const Support = () => {
       } catch (e) {}
     }
 
-    // Fetch from server to sync
     axios.get(`${API_URL}/api/chat/user`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       timeout: 10000
@@ -46,8 +46,7 @@ const Support = () => {
       if (res.data?.messages?.length > 0) {
         setMessages(prev => {
           const combined = [...prev, ...res.data.messages];
-          // Remove duplicates
-          const unique = combined.filter((m, i, a) => 
+          const unique = combined.filter((m, i, a) =>
             i === a.findIndex(t => t.timestamp === m.timestamp && t.text === m.text)
           );
           localStorage.setItem(key, JSON.stringify(unique));
@@ -69,18 +68,18 @@ const Support = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Socket setup - ONLY for receiving admin replies, NOT required for sending
+  // Socket setup
   useEffect(() => {
     if (!user?._id) return;
 
-    // Create socket with polling first (works better on mobile/Render)
     const socket = io(SOCKET_URL, {
-      transports: ['polling', 'websocket'],
+      transports: ['websocket', 'polling'],
       timeout: 20000,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 3000,
-      reconnectionDelayMax: 10000,
-      forceNew: true
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      forceNew: true,
+      autoConnect: true
     });
 
     socketRef.current = socket;
@@ -102,18 +101,23 @@ const Support = () => {
       setSocketStatus('error');
     });
 
-    socket.on('reconnect', () => {
-      console.log('[SUPPORT] Reconnected');
+    socket.on('reconnect', (attemptNumber) => {
+      console.log('[SUPPORT] Reconnected after', attemptNumber, 'attempts');
       setSocketStatus('connected');
       socket.emit('join_user', user._id);
       socket.emit('join_chat', user._id);
+    });
+
+    socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log('[SUPPORT] Reconnect attempt:', attemptNumber);
+      setSocketStatus('connecting');
     });
 
     socket.on('new_message', (msg) => {
       console.log('[SUPPORT] New message received:', msg);
       if (msg.sender === 'admin') {
         setMessages(prev => {
-          const exists = prev.some(m => 
+          const exists = prev.some(m =>
             m.timestamp === msg.timestamp && m.text === msg.text
           );
           if (exists) return prev;
@@ -129,7 +133,7 @@ const Support = () => {
       if (socket.connected) {
         socket.emit('ping');
       }
-    }, 20000);
+    }, 15000);
 
     return () => {
       clearInterval(interval);
@@ -138,9 +142,11 @@ const Support = () => {
     };
   }, [user?._id, getStorageKey]);
 
-  // THE SEND FUNCTION - Works with or without socket
+  // THE SEND FUNCTION
   const sendMessage = useCallback(async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+
     const text = newMessage.trim();
     if (!text || !user?._id || isSending) return;
 
@@ -181,10 +187,9 @@ const Support = () => {
 
       console.log('[SUPPORT] Message saved:', res.data);
 
-      // Update status to saved
       setMessages(prev => {
-        const updated = prev.map(m => 
-          m.timestamp === msg.timestamp 
+        const updated = prev.map(m =>
+          m.timestamp === msg.timestamp
             ? { ...m, status: 'saved', _id: res.data._id || m._id }
             : m
         );
@@ -195,7 +200,7 @@ const Support = () => {
     } catch (err) {
       console.error('[SUPPORT] Save failed:', err.message);
       setMessages(prev => {
-        const updated = prev.map(m => 
+        const updated = prev.map(m =>
           m.timestamp === msg.timestamp ? { ...m, status: 'failed' } : m
         );
         localStorage.setItem(getStorageKey(), JSON.stringify(updated));
@@ -328,8 +333,12 @@ const Support = () => {
         </div>
       </div>
 
-      {/* Input - ALWAYS WORKS */}
-      <form onSubmit={sendMessage} className="bg-[#1f2c34] px-3 py-2.5 flex items-center gap-2 border-t border-white/5">
+      {/* Input Form */}
+      <form
+        ref={sendFormRef}
+        onSubmit={sendMessage}
+        className="bg-[#1f2c34] px-3 py-2.5 flex items-center gap-2 border-t border-white/5"
+      >
         <div className="flex-1 bg-[#2a3942] rounded-full px-4 py-2.5">
           <input
             type="text"
@@ -338,7 +347,12 @@ const Support = () => {
             placeholder="Type a message..."
             className="flex-1 bg-transparent text-white placeholder-white/35 outline-none text-sm w-full"
             disabled={isSending}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage(e)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendFormRef.current?.requestSubmit();
+              }
+            }}
           />
         </div>
         <motion.button
@@ -346,7 +360,7 @@ const Support = () => {
           whileTap={{ scale: 0.9 }}
           type="submit"
           disabled={!newMessage.trim() || isSending}
-          className="w-10 h-10 bg-violet-600 rounded-full flex items-center justify-center text-white disabled:opacity-40 shadow-lg"
+          className="w-10 h-10 bg-violet-600 rounded-full flex items-center justify-center text-white disabled:opacity-40 shadow-lg active:bg-violet-700"
         >
           <Send size={18} />
         </motion.button>

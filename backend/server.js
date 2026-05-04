@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -15,16 +16,18 @@ const CLIENT_URL = process.env.CLIENT_URL || "*";
 const io = new Server(httpServer, {
   cors: {
     origin: CLIENT_URL,
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   },
-  transports: ['polling', 'websocket'],
+  transports: ['websocket', 'polling'],
   pingTimeout: 60000,
-  pingInterval: 25000
+  pingInterval: 25000,
+  allowEIO3: true
 });
 
 app.set('trust proxy', 1);
 app.use(helmet());
-app.use(cors({ origin: CLIENT_URL }));
+app.use(cors({ origin: CLIENT_URL, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 
 const limiter = rateLimit({
@@ -46,7 +49,6 @@ const connectedAdmins = new Set();
 io.on('connection', (socket) => {
   console.log(`[SOCKET] Connection established: ${socket.id}`);
 
-  // Keep connection alive
   socket.on('ping', () => {
     socket.emit('pong');
   });
@@ -159,6 +161,12 @@ app.use('/api/budget', require('./routes/budget'));
 app.use('/api/savings', require('./routes/savings'));
 app.use('/api/scheduled', require('./routes/scheduled'));
 app.use('/api/beneficiary', require('./routes/beneficiary'));
+
+// SPA CATCH-ALL ROUTE - MUST BE LAST
+// Serves index.html for all non-API routes so React Router works on refresh
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+});
 
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
