@@ -9,33 +9,27 @@ import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL || 'https://credixa-api.onrender.com';
 const SOCKET_URL = API_URL;
 
-// Create axios instance with defaults
 const api = axios.create({
   baseURL: API_URL,
   timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  headers: { 'Content-Type': 'application/json' }
 });
 
-// Add auth header to every request
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
 const Support = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [socketStatus, setSocketStatus] = useState('connecting');
   const [lastError, setLastError] = useState(null);
-  const [debugInfo, setDebugInfo] = useState('');
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
   const initializedRef = useRef(false);
@@ -72,9 +66,7 @@ const Support = () => {
           });
         }
       })
-      .catch(err => {
-        console.error('[LOAD ERROR]', err.message);
-      });
+      .catch(err => console.error('[LOAD]', err.message));
   }, [user?._id, getStorageKey]);
 
   // Save messages
@@ -104,18 +96,15 @@ const Support = () => {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('[SOCKET] Connected:', socket.id);
       setSocketStatus('connected');
       socket.emit('join_user', user._id);
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('[SOCKET] Disconnected:', reason);
       setSocketStatus('disconnected');
     });
 
-    socket.on('connect_error', (err) => {
-      console.log('[SOCKET] Error:', err.message);
+    socket.on('connect_error', () => {
       setSocketStatus('error');
     });
 
@@ -137,27 +126,19 @@ const Support = () => {
     };
   }, [user?._id, getStorageKey]);
 
-  // SEND MESSAGE
+  // SEND
   const sendMessage = useCallback(async () => {
     const text = newMessage.trim();
     
-    console.log('[SEND] Start. Text:', text, 'User:', user?._id);
-    setDebugInfo(`Sending: "${text}"...`);
-    
     if (!text) {
-      setLastError('Please type a message');
-      setDebugInfo('Error: No text');
+      setLastError('Type a message first');
       return;
     }
     if (!user?._id) {
-      setLastError('Not logged in');
-      setDebugInfo('Error: No user');
+      setLastError('Not logged in. Please refresh or log in again.');
       return;
     }
-    if (isSending) {
-      setDebugInfo('Error: Already sending');
-      return;
-    }
+    if (isSending) return;
 
     setNewMessage('');
     setIsSending(true);
@@ -173,31 +154,19 @@ const Support = () => {
       status: 'sending'
     };
 
-    // Add to UI immediately
     setMessages(prev => {
       const updated = [...prev, msg];
       localStorage.setItem(getStorageKey(), JSON.stringify(updated));
       return updated;
     });
 
-    // Socket attempt
     if (socketRef.current?.connected) {
       socketRef.current.emit('send_message', msg);
     }
 
-    // REST API
     try {
-      console.log('[SEND] POST /api/chat/user');
-      setDebugInfo('POST /api/chat/user...');
+      const res = await api.post('/api/chat/user', { text, userId: user._id });
       
-      const res = await api.post('/api/chat/user', {
-        text: text,
-        userId: user._id
-      });
-
-      console.log('[SEND] Success:', res.data);
-      setDebugInfo(`Success! Status: ${res.status}`);
-
       setMessages(prev => {
         const updated = prev.map(m =>
           m.timestamp === msg.timestamp
@@ -207,13 +176,10 @@ const Support = () => {
         localStorage.setItem(getStorageKey(), JSON.stringify(updated));
         return updated;
       });
-
     } catch (err) {
-      console.error('[SEND] FAILED:', err);
       const errorMsg = err.response?.data?.error || err.message;
       const status = err.response?.status || 'network';
-      setLastError(`Send failed: ${errorMsg} (${status})`);
-      setDebugInfo(`Failed: ${errorMsg} (${status})`);
+      setLastError(`${errorMsg} (${status})`);
       
       setMessages(prev => {
         const updated = prev.map(m =>
@@ -259,13 +225,29 @@ const Support = () => {
 
   const status = getStatusDisplay();
 
-  if (!user) {
+  // LOADING
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0b141a] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white/60">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // NOT LOGGED IN
+  if (!user?._id) {
     return (
       <div className="min-h-screen bg-[#0b141a] flex items-center justify-center">
         <div className="text-center">
           <MessageCircle size={48} className="text-white/20 mx-auto mb-4" />
-          <p className="text-white/60">Please log in</p>
-          <button onClick={() => navigate('/login')} className="mt-4 px-6 py-2 bg-violet-600 text-white rounded-full text-sm">
+          <p className="text-white/60">Please log in to access support</p>
+          <button 
+            onClick={() => navigate('/login')} 
+            className="mt-4 px-6 py-2 bg-violet-600 text-white rounded-full text-sm"
+          >
             Go to Login
           </button>
         </div>
@@ -295,14 +277,7 @@ const Support = () => {
         </button>
       </div>
 
-      {/* Debug Info */}
-      {debugInfo && (
-        <div className="bg-blue-500/10 border-b border-blue-500/20 px-4 py-1">
-          <p className="text-blue-300 text-[10px] font-mono">{debugInfo}</p>
-        </div>
-      )}
-
-      {/* Error Banner */}
+      {/* Error */}
       {lastError && (
         <div className="bg-red-500/20 border-b border-red-500/30 px-4 py-2 flex items-center gap-2">
           <AlertCircle size={14} className="text-red-400" />
@@ -311,7 +286,7 @@ const Support = () => {
         </div>
       )}
 
-      {/* Chat Area */}
+      {/* Chat */}
       <div className="flex-1 overflow-y-auto p-3" style={{backgroundColor:'#0b141a'}}>
         <div className="max-w-2xl mx-auto space-y-1">
           <div className="flex justify-center mb-4">

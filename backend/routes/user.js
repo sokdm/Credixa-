@@ -5,6 +5,17 @@ const Notification = require('../models/Notification');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
+// Get user profile (for auth context)
+router.get('/profile', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Lookup user by account number (for internal transfers)
 router.get('/lookup/:accountNumber', auth, async (req, res) => {
   try {

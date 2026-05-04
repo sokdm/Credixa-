@@ -3,7 +3,8 @@ import axios from 'axios'
 
 const AuthContext = createContext(null)
 
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+axios.defaults.baseURL = API_URL
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
@@ -13,17 +14,39 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       const savedToken = localStorage.getItem('token') || localStorage.getItem('adminToken')
+      
       if (savedToken) {
+        // Set token on axios FIRST
         axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`
+        setToken(savedToken)
+        
+        // Try to get user from localStorage first (instant)
+        const savedUser = localStorage.getItem('userData')
+        if (savedUser) {
+          try {
+            const parsed = JSON.parse(savedUser)
+            setUser(parsed)
+          } catch (e) {}
+        }
+        
+        // Then fetch fresh profile from server
         try {
           const res = await axios.get('/api/user/profile')
-          setUser(res.data)
-          setToken(savedToken)
+          const userData = res.data
+          setUser(userData)
+          localStorage.setItem('userData', JSON.stringify(userData))
         } catch (error) {
-          console.error('Auth init failed:', error.response?.data || error.message)
-          localStorage.removeItem('token')
-          localStorage.removeItem('adminToken')
-          delete axios.defaults.headers.common['Authorization']
+          console.error('Profile fetch failed:', error.response?.data || error.message)
+          // DON'T clear token here — user might just be offline or server busy
+          // Only clear if it's a 401 (truly invalid token)
+          if (error.response?.status === 401) {
+            localStorage.removeItem('token')
+            localStorage.removeItem('adminToken')
+            localStorage.removeItem('userData')
+            delete axios.defaults.headers.common['Authorization']
+            setToken(null)
+            setUser(null)
+          }
         }
       }
       setLoading(false)
@@ -35,16 +58,17 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.post('/api/auth/login', { email, password })
       const { token: newToken, user: userData } = res.data
-
+      
       localStorage.setItem('token', newToken)
+      localStorage.setItem('userData', JSON.stringify(userData))
       if (userData.isAdmin) {
         localStorage.setItem('adminToken', newToken)
       }
-
+      
       setToken(newToken)
       setUser(userData)
       axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
-
+      
       return { success: true, user: userData }
     } catch (error) {
       console.error('Login error:', error.response?.data || error.message)
@@ -59,12 +83,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.post('/api/auth/register', userData)
       const { token: newToken, user: newUser } = res.data
-
+      
       localStorage.setItem('token', newToken)
+      localStorage.setItem('userData', JSON.stringify(newUser))
       setToken(newToken)
       setUser(newUser)
       axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
-
+      
       return { success: true, user: newUser }
     } catch (error) {
       console.error('Register error:', error.response?.data || error.message)
@@ -78,6 +103,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('adminToken')
+    localStorage.removeItem('userData')
     setToken(null)
     setUser(null)
     delete axios.defaults.headers.common['Authorization']
