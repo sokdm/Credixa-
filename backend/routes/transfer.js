@@ -10,7 +10,7 @@ const router = express.Router();
 router.post('/internal', auth, async (req, res) => {
   try {
     const { recipientAccount, amount, narration, pin } = req.body;
-    console.log(`[TRANSFER] Internal transfer attempt by user: ${req.user._id}, amount: ${amount}`);
+    console.log(`[TRANSFER] Internal transfer attempt by user: ${req.user._id}, amount: ${amount}, pin provided: ${!!pin}`);
 
     const sender = await User.findById(req.user._id);
     if (!sender) {
@@ -18,7 +18,7 @@ router.post('/internal', auth, async (req, res) => {
       return res.status(404).json({ error: 'Sender not found' });
     }
 
-    console.log(`[TRANSFER] Sender found: ${sender.email}, balance: ${sender.balance}, PIN exists: ${!!sender.transactionPin}`);
+    console.log(`[TRANSFER] Sender: ${sender.email}, balance: ${sender.balance}, has PIN: ${!!sender.transactionPin}`);
 
     if (sender.isLocked) {
       console.log(`[TRANSFER] Account locked: ${sender._id}`);
@@ -30,8 +30,18 @@ router.post('/internal', auth, async (req, res) => {
       return res.status(400).json({ error: 'Transaction PIN not set' });
     }
 
-    console.log(`[TRANSFER] Stored PIN starts with '$2': ${sender.transactionPin.startsWith('$2')}`);
-    const isPinValid = await bcrypt.compare(pin, sender.transactionPin);
+    // Check if PIN is hashed
+    const isHashed = sender.transactionPin.startsWith('$2');
+    console.log(`[TRANSFER] PIN is hashed: ${isHashed}`);
+
+    let isPinValid;
+    if (isHashed) {
+      isPinValid = await bcrypt.compare(pin, sender.transactionPin);
+    } else {
+      // Fallback for old accounts with plain text PINs
+      isPinValid = pin === sender.transactionPin;
+    }
+    
     console.log(`[TRANSFER] PIN validation result: ${isPinValid}`);
 
     if (!isPinValid) {
@@ -132,7 +142,7 @@ router.post('/external', auth, async (req, res) => {
       return res.status(404).json({ error: 'Sender not found' });
     }
 
-    console.log(`[TRANSFER] Sender found: ${sender.email}, PIN exists: ${!!sender.transactionPin}`);
+    console.log(`[TRANSFER] Sender: ${sender.email}, has PIN: ${!!sender.transactionPin}`);
 
     if (sender.isLocked) {
       return res.status(403).json({ error: 'Account locked. Contact support.' });
@@ -142,12 +152,17 @@ router.post('/external', auth, async (req, res) => {
       return res.status(400).json({ error: 'Transaction PIN not set' });
     }
 
-    console.log(`[TRANSFER] Stored PIN starts with '$2': ${sender.transactionPin.startsWith('$2')}`);
-    const isPinValid = await bcrypt.compare(pin, sender.transactionPin);
+    const isHashed = sender.transactionPin.startsWith('$2');
+    let isPinValid;
+    if (isHashed) {
+      isPinValid = await bcrypt.compare(pin, sender.transactionPin);
+    } else {
+      isPinValid = pin === sender.transactionPin;
+    }
+    
     console.log(`[TRANSFER] PIN validation result: ${isPinValid}`);
 
     if (!isPinValid) {
-      console.log(`[TRANSFER] Invalid PIN for user: ${sender._id}`);
       return res.status(400).json({ error: 'Invalid transaction PIN' });
     }
 

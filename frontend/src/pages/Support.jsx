@@ -6,31 +6,49 @@ import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = 'https://credixa-api.onrender.com';
 const SOCKET_URL = API_URL;
 
 const Support = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  // Use user-specific localStorage keys so messages don't leak between accounts
-  const getStorageKey = (key) => user?._id ? `support_${key}_${user._id}` : `support_${key}_guest`;
-
-  const [messages, setMessages] = useState(() => {
-    const saved = localStorage.getItem(getStorageKey('messages'));
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [socketConnected, setSocketConnected] = useState(false);
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
+  const [initialized, setInitialized] = useState(false);
 
-  // Persist messages to localStorage with user-specific key
+  // Get storage key based on user ID
+  const getStorageKey = useCallback(() => {
+    return user?._id ? `support_messages_${user._id}` : 'support_messages_guest';
+  }, [user?._id]);
+
+  // Load messages from localStorage when user is available
   useEffect(() => {
-    if (user?._id) {
-      localStorage.setItem(getStorageKey('messages'), JSON.stringify(messages));
+    if (user?._id && !initialized) {
+      const key = getStorageKey();
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setMessages(parsed);
+          console.log(`[SUPPORT] Loaded ${parsed.length} messages from storage`);
+        } catch (e) {
+          console.log('[SUPPORT] Failed to parse saved messages');
+        }
+      }
+      setInitialized(true);
     }
-  }, [messages, user?._id]);
+  }, [user?._id, initialized, getStorageKey]);
+
+  // Persist messages to localStorage
+  useEffect(() => {
+    if (user?._id && initialized && messages.length > 0) {
+      localStorage.setItem(getStorageKey(), JSON.stringify(messages));
+      console.log(`[SUPPORT] Saved ${messages.length} messages to storage`);
+    }
+  }, [messages, user?._id, initialized, getStorageKey]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -89,7 +107,7 @@ const Support = () => {
   const sendMessage = useCallback(async (e) => {
     e.preventDefault();
     const text = newMessage.trim();
-    if (!text) return;
+    if (!text || !user?._id) return;
 
     setNewMessage('');
 
@@ -133,8 +151,10 @@ const Support = () => {
   };
 
   const clearChat = () => {
-    localStorage.removeItem(getStorageKey('messages'));
+    const key = getStorageKey();
+    localStorage.removeItem(key);
     setMessages([]);
+    console.log(`[SUPPORT] Chat cleared`);
   };
 
   if (!user) {

@@ -19,7 +19,6 @@ const io = new Server(httpServer, {
   }
 });
 
-// FIX: Trust proxy for Render deployment
 app.set('trust proxy', 1);
 
 app.use(helmet());
@@ -40,26 +39,32 @@ mongoose.connect(process.env.MONGODB_URI)
 app.get('/', (req, res) => res.json({ status: 'ok', service: 'credixa-api' }));
 app.get('/health', (req, res) => res.json({ status: 'healthy' }));
 
+// Track connected admins
+const connectedAdmins = new Set();
+
 io.on('connection', (socket) => {
-  console.log(`[SOCKET] User connected: ${socket.id}`);
+  console.log(`[SOCKET] Connection established: ${socket.id}`);
 
   socket.on('join_user', (userId) => {
-    socket.join(`user_${userId}`);
-    console.log(`[SOCKET] User ${userId} joined room: user_${userId}`);
+    const room = `user_${userId}`;
+    socket.join(room);
+    console.log(`[SOCKET] User ${userId} joined room: ${room}`);
   });
 
   socket.on('join_admin', () => {
     socket.join('admin_room');
-    console.log('[SOCKET] Admin joined admin_room');
+    connectedAdmins.add(socket.id);
+    console.log(`[SOCKET] Admin joined admin_room. Total admins: ${connectedAdmins.size}`);
   });
 
   socket.on('join_chat', (userId) => {
     socket.join(userId);
-    console.log(`[SOCKET] Socket joined chat room: ${userId}`);
+    socket.join(`user_${userId}`);
+    console.log(`[SOCKET] Socket joined chat rooms: ${userId}, user_${userId}`);
   });
 
   socket.on('send_message', async (data) => {
-    console.log(`[SOCKET] send_message received from user: ${data.userId}, sender: ${data.sender}`);
+    console.log(`[SOCKET] send_message received: userId=${data.userId}, text="${data.text.substring(0, 30)}..."`);
     try {
       const Chat = require('./models/Chat');
       const User = require('./models/User');
@@ -79,26 +84,30 @@ io.on('connection', (socket) => {
         { upsert: true, new: true }
       );
 
-      console.log(`[SOCKET] Chat saved for user: ${data.userId}, total messages: ${chat.messages.length}`);
+      console.log(`[SOCKET] Chat saved for user: ${data.userId}`);
 
-      // Get user name for admin notification
       const user = await User.findById(data.userId).select('fullName');
-      console.log(`[SOCKET] User lookup result: ${user ? user.fullName : 'NOT FOUND'}`);
+      const userName = user ? user.fullName : 'Unknown User';
 
       const lastMessage = chat.messages[chat.messages.length - 1];
       
       // Emit to user's personal room
       io.to(data.userId).emit('new_message', lastMessage);
-      console.log(`[SOCKET] Emitted new_message to user room: ${data.userId}`);
+      io.to(`user_${data.userId}`).emit('new_message', lastMessage);
+      console.log(`[SOCKET] Emitted new_message to user rooms`);
 
-      // Emit to admin room with user name
-      io.to('admin_room').emit('new_chat', {
-        userId: data.userId,
-        userName: user ? user.fullName : 'Unknown User',
-        message: data.text,
-        timestamp: new Date()
-      });
-      console.log(`[SOCKET] Emitted new_chat to admin_room`);
+      // Emit to ALL admin rooms
+      if (connectedAdmins.size > 0) {
+        io.to('admin_room').emit('new_chat', {
+          userId: data.userId,
+          userName: userName,
+          message: data.text,
+          timestamp: new Date()
+        });
+        console.log(`[SOCKET] Emitted new_chat to admin_room (${connectedAdmins.size} admins online)`);
+      } else {
+        console.log(`[SOCKET] No admins online, message queued`);
+      }
 
     } catch (err) {
       console.error('[SOCKET] Chat error:', err);
@@ -123,9 +132,10 @@ io.on('connection', (socket) => {
         },
         { new: true }
       );
-      
+
       const lastMessage = chat.messages[chat.messages.length - 1];
       io.to(data.userId).emit('new_message', lastMessage);
+      io.to(`user_${data.userId}`).emit('new_message', lastMessage);
       console.log(`[SOCKET] Admin reply emitted to user: ${data.userId}`);
     } catch (err) {
       console.error('[SOCKET] Admin reply error:', err);
@@ -133,12 +143,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_notification', (data) => {
-    console.log(`[SOCKET] send_notification to user: ${data.userId}`);
     io.to(`user_${data.userId}`).emit('notification', data.notification);
   });
 
   socket.on('disconnect', () => {
-    console.log(`[SOCKET] User disconnected: ${socket.id}`);
+    if (connectedAdmins.has(socket.id)) {
+      connectedAdmins.delete(socket.id);
+      console.log(`[SOCKET] Admin disconnected. Remaining admins: ${connectedAdmins.size}`);
+    } else {
+      console.log(`[SOCKET] User disconnected: ${socket.id}`);
+    }
   });
 });
 

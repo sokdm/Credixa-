@@ -7,7 +7,7 @@ import axios from 'axios'
 import { StepIndicator, Step1SelectType, Step2Details, Step3PIN } from '../components/TransferSteps'
 import TransferReceipt from '../components/TransferReceipt'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_URL = 'https://credixa-api.onrender.com/api'
 
 const Transfer = () => {
   const navigate = useNavigate()
