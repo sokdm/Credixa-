@@ -7,45 +7,53 @@ const Notification = require('../models/Notification');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
+// NEW: Lookup user by account number before transfer
+router.get('/lookup-account/:accountNumber', auth, async (req, res) => {
+  try {
+    const cleanAccount = req.params.accountNumber.trim().replace(/\s/g, '');
+    const user = await User.findOne({ accountNumber: cleanAccount }).select('fullName accountNumber');
+    
+    if (!user) {
+      return res.status(404).json({ error: 'No user found with this account number' });
+    }
+    
+    res.json({
+      found: true,
+      fullName: user.fullName,
+      accountNumber: user.accountNumber
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/internal', auth, async (req, res) => {
   try {
     const { recipientAccount, amount, narration, pin } = req.body;
-    console.log(`[TRANSFER] Internal transfer attempt by user: ${req.user._id}, amount: ${amount}, pin provided: ${!!pin}`);
+    console.log(`[TRANSFER] Internal transfer attempt by user: ${req.user._id}, recipient: ${recipientAccount}, amount: ${amount}`);
 
     const sender = await User.findById(req.user._id);
     if (!sender) {
-      console.log(`[TRANSFER] Sender not found: ${req.user._id}`);
       return res.status(404).json({ error: 'Sender not found' });
     }
 
-    console.log(`[TRANSFER] Sender: ${sender.email}, balance: ${sender.balance}, has PIN: ${!!sender.transactionPin}`);
-
     if (sender.isLocked) {
-      console.log(`[TRANSFER] Account locked: ${sender._id}`);
       return res.status(403).json({ error: 'Account locked. Contact support.' });
     }
 
     if (!sender.transactionPin) {
-      console.log(`[TRANSFER] No transaction PIN set for user: ${sender._id}`);
       return res.status(400).json({ error: 'Transaction PIN not set' });
     }
 
-    // Check if PIN is hashed
     const isHashed = sender.transactionPin.startsWith('$2');
-    console.log(`[TRANSFER] PIN is hashed: ${isHashed}`);
-
     let isPinValid;
     if (isHashed) {
       isPinValid = await bcrypt.compare(pin, sender.transactionPin);
     } else {
-      // Fallback for old accounts with plain text PINs
       isPinValid = pin === sender.transactionPin;
     }
-    
-    console.log(`[TRANSFER] PIN validation result: ${isPinValid}`);
 
     if (!isPinValid) {
-      console.log(`[TRANSFER] Invalid PIN for user: ${sender._id}`);
       return res.status(400).json({ error: 'Invalid transaction PIN' });
     }
 
@@ -55,16 +63,23 @@ router.post('/internal', auth, async (req, res) => {
     }
 
     if (sender.balance < transferAmount) {
-      console.log(`[TRANSFER] Insufficient balance: ${sender.balance} < ${transferAmount}`);
       return res.status(400).json({ error: 'Insufficient balance' });
     }
 
-    const receiver = await User.findOne({ accountNumber: recipientAccount });
+    // FIXED: Clean and search account number
+    const cleanAccount = recipientAccount.toString().trim().replace(/\s/g, '');
+    console.log(`[TRANSFER] Searching for account: "${cleanAccount}"`);
+
+    let receiver = await User.findOne({ accountNumber: cleanAccount });
+    
     if (!receiver) {
-      return res.status(404).json({ error: 'Recipient not found' });
+      console.log(`[TRANSFER] Recipient not found for account: "${cleanAccount}"`);
+      return res.status(404).json({ error: 'No user found with this account number' });
     }
 
-    if (sender.accountNumber === recipientAccount) {
+    console.log(`[TRANSFER] Found receiver: ${receiver.fullName}, account: ${receiver.accountNumber}`);
+
+    if (sender._id.toString() === receiver._id.toString()) {
       return res.status(400).json({ error: 'Cannot transfer to yourself' });
     }
 
@@ -108,7 +123,6 @@ router.post('/internal', auth, async (req, res) => {
       message: `You received ${receiver.currency}${transferAmount.toLocaleString()} from ${sender.fullName}`
     });
 
-    console.log(`[TRANSFER] Internal transfer successful: ${reference}`);
     res.json({
       success: true,
       transaction: {
@@ -134,15 +148,11 @@ router.post('/internal', auth, async (req, res) => {
 router.post('/external', auth, async (req, res) => {
   try {
     const { bankName, accountNumber, accountName, amount, narration, pin } = req.body;
-    console.log(`[TRANSFER] External transfer attempt by user: ${req.user._id}, amount: ${amount}`);
-
+    
     const sender = await User.findById(req.user._id);
     if (!sender) {
-      console.log(`[TRANSFER] Sender not found: ${req.user._id}`);
       return res.status(404).json({ error: 'Sender not found' });
     }
-
-    console.log(`[TRANSFER] Sender: ${sender.email}, has PIN: ${!!sender.transactionPin}`);
 
     if (sender.isLocked) {
       return res.status(403).json({ error: 'Account locked. Contact support.' });
@@ -159,8 +169,6 @@ router.post('/external', auth, async (req, res) => {
     } else {
       isPinValid = pin === sender.transactionPin;
     }
-    
-    console.log(`[TRANSFER] PIN validation result: ${isPinValid}`);
 
     if (!isPinValid) {
       return res.status(400).json({ error: 'Invalid transaction PIN' });
@@ -206,7 +214,6 @@ router.post('/external', auth, async (req, res) => {
       message: `You sent ${sender.currency}${transferAmount.toLocaleString()} to ${accountName} at ${bankName}`
     });
 
-    console.log(`[TRANSFER] External transfer successful: ${reference}`);
     res.json({
       success: true,
       transaction: {
