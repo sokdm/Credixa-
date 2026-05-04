@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, MessageSquare, ArrowLeftRight,
   Lock, Unlock, Send, Search, ChevronLeft, LogOut,
   TrendingUp, DollarSign, UserCheck, Menu, CheckCircle,
-  Download, AlertCircle
+  Download, AlertCircle, Bot, Wifi, WifiOff
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import io from 'socket.io-client';
@@ -65,7 +65,6 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [transferData, setTransferData] = useState({ userId: '', amount: '', description: '', senderName: '' });
   const [transferReceipt, setTransferReceipt] = useState(null);
-  const [socket, setSocket] = useState(null);
   const [socketConnected, setSocketConnected] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -76,6 +75,7 @@ const AdminDashboard = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const socketRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
   const getToken = () => localStorage.getItem('token');
 
@@ -86,11 +86,12 @@ const AdminDashboard = () => {
     const newSocket = io(API_URL, {
       transports: ['websocket', 'polling'],
       timeout: 10000,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000
     });
 
     socketRef.current = newSocket;
-    setSocket(newSocket);
 
     newSocket.on('connect', () => {
       console.log('Admin socket connected');
@@ -107,16 +108,38 @@ const AdminDashboard = () => {
       setSocketConnected(false);
     });
 
-    newSocket.on('new_chat', () => fetchChats());
+    newSocket.on('reconnect', () => {
+      console.log('Admin socket reconnected');
+      setSocketConnected(true);
+      newSocket.emit('join_admin');
+    });
+
+    newSocket.on('new_chat', (data) => {
+      console.log('Admin received new_chat:', data);
+      fetchChats();
+    });
+
     newSocket.on('new_message', (msg) => {
-      if (selectedChat && msg.chatId === selectedChat._id && msg.sender === 'user') {
-        setMessages(prev => [...prev, msg]);
+      console.log('Admin received new_message:', msg);
+      if (selectedChat) {
+        const chatUserId = selectedChat.userId?._id || selectedChat.userId;
+        if (msg.sender === 'user') {
+          setMessages(prev => {
+            const exists = prev.some(m => m.timestamp === msg.timestamp && m.text === msg.text);
+            if (exists) return prev;
+            return [...prev, msg];
+          });
+        }
       }
       fetchChats();
     });
 
     return () => newSocket.close();
   }, [navigate, selectedChat]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   useEffect(() => {
     if (activeTab === 'overview') fetchStats();
@@ -205,11 +228,12 @@ const AdminDashboard = () => {
     setChatOpen(true);
     setMessages([]);
     try {
-      const res = await axios.get(`${API_URL}/api/chat/${chat.userId._id || chat.userId}`, {
+      const userId = chat.userId?._id || chat.userId;
+      const res = await axios.get(`${API_URL}/api/chat/${userId}`, {
         headers: { Authorization: `Bearer ${getToken()}` }
       });
       setMessages(res.data.messages || []);
-      await axios.put(`${API_URL}/api/chat/read/${chat.userId._id || chat.userId}`, {}, {
+      await axios.put(`${API_URL}/api/chat/read/${userId}`, {}, {
         headers: { Authorization: `Bearer ${getToken()}` }
       });
       fetchChats();
@@ -221,20 +245,26 @@ const AdminDashboard = () => {
     if (!replyText.trim() || !selectedChat) return;
     const text = replyText.trim();
     setReplyText('');
+
+    const userId = selectedChat.userId?._id || selectedChat.userId;
+
+    const optimisticMsg = {
+      _id: Date.now(),
+      sender: 'admin',
+      text: text,
+      timestamp: new Date(),
+      read: false
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+
     try {
-      await axios.post(`${API_URL}/api/chat/reply/${selectedChat.userId._id || selectedChat.userId}`,
+      await axios.post(`${API_URL}/api/chat/reply/${userId}`,
         { text },
         { headers: { Authorization: `Bearer ${getToken()}` } }
       );
-      setMessages(prev => [...prev, {
-        _id: Date.now(),
-        sender: 'admin',
-        text: text,
-        timestamp: new Date(),
-        read: false
-      }]);
+
       if (socketRef.current && socketConnected) {
-        socketRef.current.emit('admin_reply', { userId: selectedChat.userId._id || selectedChat.userId, text: text });
+        socketRef.current.emit('admin_reply', { userId: userId, text: text });
       }
     } catch (err) { handleApiError(err, 'Send reply'); }
   };
@@ -346,6 +376,16 @@ const AdminDashboard = () => {
             </div>
             <span className="font-semibold">Credixa Admin</span>
           </div>
+          <div className="ml-auto flex items-center gap-1.5">
+            {socketConnected ? (
+              <Wifi size={14} className="text-green-400" />
+            ) : (
+              <WifiOff size={14} className="text-red-400" />
+            )}
+            <span className={`text-xs ${socketConnected ? 'text-green-400' : 'text-red-400'}`}>
+              {socketConnected ? 'Online' : 'Offline'}
+            </span>
+          </div>
         </div>
 
         <div className="p-4 lg:p-8">
@@ -359,10 +399,23 @@ const AdminDashboard = () => {
               <p className="text-red-400 text-sm">{apiError}</p>
             </motion.div>
           )}
+
           <AnimatePresence mode="wait">
             {activeTab === 'overview' && (
               <motion.div key="overview" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-                <h2 className="text-2xl lg:text-3xl font-bold mb-6">Dashboard Overview</h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl lg:text-3xl font-bold">Dashboard Overview</h2>
+                  <div className="hidden lg:flex items-center gap-1.5">
+                    {socketConnected ? (
+                      <Wifi size={14} className="text-green-400" />
+                    ) : (
+                      <WifiOff size={14} className="text-red-400" />
+                    )}
+                    <span className={`text-xs ${socketConnected ? 'text-green-400' : 'text-red-400'}`}>
+                      {socketConnected ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
                   <StatCard icon={Users} label="Total Users" value={stats.totalUsers || 0} color="bg-blue-500" delay={0} />
                   <StatCard icon={TrendingUp} label="Transfers" value={stats.totalTransfers || 0} color="bg-green-500" delay={0.1} />
@@ -426,8 +479,21 @@ const AdminDashboard = () => {
 
             {activeTab === 'support' && (
               <motion.div key="support" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="h-[calc(100vh-8rem)] lg:h-[calc(100vh-6rem)]">
-                <h2 className="text-2xl lg:text-3xl font-bold mb-4 lg:mb-6">Support Messages</h2>
+                <div className="flex items-center justify-between mb-4 lg:mb-6">
+                  <h2 className="text-2xl lg:text-3xl font-bold">Support Messages</h2>
+                  <div className="flex items-center gap-1.5">
+                    {socketConnected ? (
+                      <Wifi size={14} className="text-green-400" />
+                    ) : (
+                      <WifiOff size={14} className="text-red-400" />
+                    )}
+                    <span className={`text-xs ${socketConnected ? 'text-green-400' : 'text-red-400'}`}>
+                      {socketConnected ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
+                </div>
                 <div className="flex gap-0 lg:gap-6 h-full">
+                  {/* Chat List */}
                   <div className={`w-full lg:w-80 bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl overflow-hidden flex flex-col ${chatOpen ? 'hidden lg:flex' : 'flex'}`}>
                     <div className="p-4 border-b border-white/10">
                       <h3 className="font-semibold text-sm">Conversations</h3>
@@ -461,6 +527,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
 
+                  {/* Chat Window */}
                   <div className={`flex-1 bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl overflow-hidden flex flex-col ${chatOpen ? 'fixed inset-0 z-50 lg:static lg:z-auto bg-[#0a0a0f]' : 'hidden lg:flex'}`}>
                     {selectedChat ? (
                       <>
@@ -481,22 +548,45 @@ const AdminDashboard = () => {
                           {messages.map((msg, idx) => (
                             <motion.div key={`${msg._id || idx}-${msg.sender}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                               className={`flex ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                              <div className={`max-w-[85%] lg:max-w-[70%] px-3 py-2 lg:px-4 lg:py-3 rounded-2xl text-sm lg:text-base ${msg.sender === 'admin' ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-br-sm' : 'bg-white/10 text-white rounded-bl-sm'}`}>
+                              {msg.sender === 'user' && (
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center mr-2 mt-1 flex-shrink-0">
+                                  <span className="text-white text-xs font-bold">
+                                    {selectedChat.userId?.fullName?.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                              )}
+                              <div className={`max-w-[85%] lg:max-w-[70%] px-3 py-2 lg:px-4 lg:py-3 rounded-2xl text-sm lg:text-base shadow-sm ${
+                                msg.sender === 'admin'
+                                  ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-br-sm'
+                                  : 'bg-white/10 text-white rounded-bl-sm'
+                              }`}>
                                 <p>{msg.text}</p>
                                 <div className={`flex items-center gap-1 mt-1 text-xs ${msg.sender === 'admin' ? 'text-white/60' : 'text-white/40'}`}>
                                   <span>{formatTime(msg.timestamp)}</span>
-                                  {msg.sender === 'admin' && <span>{msg.read ? '✓✓' : '✓'}</span>}
+                                  {msg.sender === 'admin' && (
+                                    <div className="flex items-center gap-0.5 ml-1">
+                                      <Bot size={12} />
+                                      <span>{msg.read ? '✓✓' : '✓'}</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
+                              {msg.sender === 'admin' && (
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-purple-700 flex items-center justify-center ml-2 mt-1 flex-shrink-0 shadow-md">
+                                  <Bot size={14} className="text-white" />
+                                </div>
+                              )}
                             </motion.div>
                           ))}
+                          <div ref={messagesEndRef} />
                         </div>
 
                         <form onSubmit={sendReply} className="p-3 lg:p-4 border-t border-white/10 flex gap-2 bg-[#0f0f1a]/80 backdrop-blur-lg">
                           <input type="text" value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type a message..."
                             className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-violet-500 text-sm" />
-                          <motion.button whileTap={{ scale: 0.95 }} type="submit" className="px-4 lg:px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl text-white">
+                          <motion.button whileTap={{ scale: 0.95 }} type="submit" className="px-4 lg:px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl text-white flex items-center gap-2">
                             <Send size={18} />
+                            <span className="hidden lg:inline text-sm">Send</span>
                           </motion.button>
                         </form>
                       </>
@@ -522,6 +612,7 @@ const AdminDashboard = () => {
                     {error}
                   </div>
                 )}
+
                 {!transferReceipt ? (
                   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
                     <form onSubmit={handleTransfer} className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 lg:p-8 space-y-4 lg:space-y-6">

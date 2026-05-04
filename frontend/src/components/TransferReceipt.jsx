@@ -1,98 +1,98 @@
 import { motion } from 'framer-motion'
-import { CheckCircle, Download, ArrowLeft } from 'lucide-react'
+import { CheckCircle, Download, ArrowLeft, Copy, Calendar, Clock, User, Building2, Hash, FileText, CreditCard } from 'lucide-react'
+import { useState } from 'react'
 
 const TransferReceipt = ({ receipt, transferType, onDownload, onNewTransfer }) => {
+  const [copied, setCopied] = useState(false)
+
   const formatDateTime = (isoString) => {
     const date = new Date(isoString)
     return {
-      date: date.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+      date: date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       }),
-      time: date.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit', 
-        hour12: true 
+      time: date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
       }),
-      shortDate: date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      shortDate: date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
       }),
-      shortTime: date.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: true 
+      shortTime: date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
       })
     }
   }
 
   const dt = formatDateTime(receipt.date)
 
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const generateTransactionId = () => {
+    const prefix = 'TXN'
+    const timestamp = Date.now().toString(36).toUpperCase()
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase()
+    return `${prefix}-${timestamp}-${random}`
+  }
+
+  const transactionId = receipt.transactionId || generateTransactionId()
+
   const downloadReceipt = () => {
     if (!receipt) return
-    
+
     const content = `
 ╔══════════════════════════════════════════════════════════════════╗
+║                    CREDIXA DIGITAL BANKING                       ║
 ║                                                                  ║
-║              🏦 CREDIXA DIGITAL BANKING 🏦                       ║
-║                                                                  ║
-║           OFFICIAL TRANSACTION RECEIPT                           ║
-║                                                                  ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  REFERENCE NUMBER                                                ║
-║  ${receipt.reference.padEnd(62)} ║
+║              OFFICIAL TRANSACTION RECEIPT                        ║
 ║                                                                  ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  TRANSACTION DETAILS                                             ║
+║  TRANSACTION ID    : ${transactionId.padEnd(47)} ║
+║  REFERENCE NUMBER  : ${receipt.reference.padEnd(47)} ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  Status:           ${'COMPLETED ✓'.padEnd(47)} ║
-║  Type:             ${(transferType === 'internal' ? 'Internal Transfer' : 'External Transfer').padEnd(47)} ║
-║  Transaction ID:   ${receipt.reference.padEnd(47)} ║
-║  Date:             ${dt.date.padEnd(47)} ║
-║  Time:             ${dt.time.padEnd(47)} ║
-║  Processing Time:  ${'Instant'.padEnd(47)} ║
-║                                                                  ║
+║  STATUS            : SUCCESSFUL                                  ║
+║  TYPE              : ${(transferType === 'internal' ? 'Internal Transfer' : 'External Transfer').padEnd(47)} ║
+║  DATE              : ${dt.date.padEnd(47)} ║
+║  TIME              : ${dt.time.padEnd(47)} ║
+║  PROCESSING TIME   : Instant                                     ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  SENDER INFORMATION                                              ║
+║  FROM                                                            ║
+║  Name:      ${receipt.senderName.padEnd(51)} ║
+║  Account:   ${receipt.senderAccountNumber.padEnd(51)} ║
+║  Bank:      Credixa Banking                                      ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  Name:             ${receipt.senderName.padEnd(47)} ║
-║  Account Number:   ${receipt.senderAccountNumber.padEnd(47)} ║
-║  Bank:             ${'Credixa Banking'.padEnd(47)} ║
-║                                                                  ║
+║  TO                                                              ║
+║  Name:      ${receipt.receiverName.padEnd(51)} ║
+║  Account:   ${(receipt.receiverAccountNumber || 'N/A').padEnd(51)} ║
+║  Bank:      ${(receipt.bankName || 'Credixa Banking').padEnd(51)} ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  RECIPIENT INFORMATION                                           ║
-╠══════════════════════════════════════════════════════════════════╣
-║  Name:             ${receipt.receiverName.padEnd(47)} ║
-║  Account Number:   ${(receipt.receiverAccountNumber || 'N/A').padEnd(47)} ║
-║  Bank:             ${(receipt.bankName || 'Credixa Banking').padEnd(47)} ║
-║                                                                  ║
-╠══════════════════════════════════════════════════════════════════╣
-║  AMOUNT                                                          ║
-╠══════════════════════════════════════════════════════════════════╣
+║  AMOUNT TRANSFERRED                                              ║
 ║                                                                  ║
 ║         ${(receipt.currency + receipt.amount.toLocaleString()).padStart(35)}                    ║
 ║                                                                  ║
-║  Amount in Words:                                                ║
-║  ${receipt.currency.padEnd(62)} ║
-║                                                                  ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  ADDITIONAL INFORMATION                                          ║
-╠══════════════════════════════════════════════════════════════════╣
-║  Narration:        ${(receipt.narration || 'N/A').padEnd(47)} ║
-║  Channel:          ${'Mobile App'.padEnd(47)} ║
-║  Session ID:       ${receipt.reference.padEnd(47)} ║
-║                                                                  ║
+║  NARRATION       : ${(receipt.narration || 'N/A').padEnd(49)} ║
+║  CHANNEL         : Mobile App                                    ║
+║  SESSION ID      : ${receipt.reference.padEnd(49)} ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║                                                                  ║
 ║  This is an official receipt generated by Credixa Banking.       ║
 ║  Keep this receipt for your records.                             ║
 ║                                                                  ║
-║  For support, contact: support@credixa.com                       ║
+║  For support: credixasupport@gmail.com                           ║
 ║  Generated: ${dt.shortDate} ${dt.shortTime.padEnd(37)} ║
 ║                                                                  ║
 ╚══════════════════════════════════════════════════════════════════╝
@@ -108,111 +108,173 @@ const TransferReceipt = ({ receipt, transferType, onDownload, onNewTransfer }) =
   }
 
   return (
-    <motion.div key="step4" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-      <div className="text-center mb-6">
-        <div className="w-16 h-16 mx-auto mb-4 bg-green-500/20 rounded-full flex items-center justify-center">
+    <motion.div
+      key="step4"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3 }}
+      className="w-full max-w-md mx-auto"
+    >
+      {/* Success Header */}
+      <div className="text-center mb-5">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 200, damping: 15 }}
+          className="w-16 h-16 mx-auto mb-3 bg-green-500/20 rounded-full flex items-center justify-center border-2 border-green-500/30"
+        >
           <CheckCircle className="text-green-400" size={32} />
-        </div>
-        <h2 className="text-2xl font-bold text-green-400">Transfer Successful!</h2>
-        <p className="text-white/50 text-sm mt-1">Transaction completed securely</p>
+        </motion.div>
+        <h2 className="text-xl font-bold text-green-400">Transfer Successful!</h2>
+        <p className="text-white/50 text-xs mt-1">Transaction completed securely</p>
       </div>
 
-      <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-violet-600/20 to-purple-600/20 p-4 text-center border-b border-white/10">
-          <div className="w-10 h-10 mx-auto mb-2 bg-gradient-to-br from-violet-500 to-pink-500 rounded-lg flex items-center justify-center">
+      {/* Receipt Card */}
+      <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+        {/* Bank Header */}
+        <div className="bg-gradient-to-r from-violet-900/40 to-purple-900/40 px-4 py-4 text-center border-b border-white/10">
+          <div className="w-10 h-10 mx-auto mb-2 bg-gradient-to-br from-violet-500 to-pink-500 rounded-lg flex items-center justify-center shadow-lg">
             <span className="text-white font-bold text-lg">C</span>
           </div>
-          <h3 className="font-bold">CREDIXA BANKING</h3>
-          <p className="text-white/50 text-xs">Official Transaction Receipt</p>
+          <h3 className="font-bold text-sm tracking-wider">CREDIXA BANKING</h3>
+          <p className="text-white/40 text-[10px] uppercase tracking-widest mt-0.5">Official Transaction Receipt</p>
         </div>
 
-        <div className="p-4 space-y-3">
-          {/* Reference */}
-          <div className="bg-white/5 rounded-lg p-3">
-            <p className="text-white/40 text-xs uppercase tracking-wider">Reference Number</p>
-            <p className="font-mono font-semibold text-sm text-violet-400">{receipt.reference}</p>
+        <div className="p-4 space-y-2.5">
+          {/* Transaction ID */}
+          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Hash size={14} className="text-violet-400" />
+                <p className="text-white/40 text-[10px] uppercase tracking-wider">Transaction ID</p>
+              </div>
+              <button
+                onClick={() => copyToClipboard(transactionId)}
+                className="text-violet-400 hover:text-violet-300 transition-colors"
+              >
+                {copied ? <CheckCircle size={14} /> : <Copy size={14} />}
+              </button>
+            </div>
+            <p className="font-mono font-semibold text-xs text-violet-300 mt-1">{transactionId}</p>
           </div>
 
-          {/* Status & Type */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white/5 rounded-lg p-3">
-              <p className="text-white/40 text-xs uppercase tracking-wider">Status</p>
-              <p className="text-green-400 font-bold text-sm flex items-center gap-1">
-                <CheckCircle size={14} /> SUCCESSFUL
+          {/* Reference Number */}
+          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+            <div className="flex items-center gap-2 mb-1">
+              <FileText size={14} className="text-violet-400" />
+              <p className="text-white/40 text-[10px] uppercase tracking-wider">Reference Number</p>
+            </div>
+            <p className="font-mono font-semibold text-xs text-violet-300">{receipt.reference}</p>
+          </div>
+
+          {/* Status & Type - 2 columns */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <CheckCircle size={12} className="text-green-400" />
+                <p className="text-white/40 text-[10px] uppercase tracking-wider">Status</p>
+              </div>
+              <p className="text-green-400 font-bold text-xs flex items-center gap-1">
+                SUCCESSFUL
               </p>
             </div>
-            <div className="bg-white/5 rounded-lg p-3">
-              <p className="text-white/40 text-xs uppercase tracking-wider">Type</p>
-              <p className="text-sm">{transferType === 'internal' ? 'Internal Transfer' : 'External Transfer'}</p>
+            <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <ArrowLeft size={12} className="text-violet-400" />
+                <p className="text-white/40 text-[10px] uppercase tracking-wider">Type</p>
+              </div>
+              <p className="text-xs text-white/90">{transferType === 'internal' ? 'Internal' : 'External'}</p>
             </div>
           </div>
 
-          {/* Date & Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white/5 rounded-lg p-3">
-              <p className="text-white/40 text-xs uppercase tracking-wider">Date</p>
-              <p className="text-sm">{dt.date}</p>
+          {/* Date & Time - 2 columns */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Calendar size={12} className="text-violet-400" />
+                <p className="text-white/40 text-[10px] uppercase tracking-wider">Date</p>
+              </div>
+              <p className="text-xs text-white/90">{dt.shortDate}</p>
             </div>
-            <div className="bg-white/5 rounded-lg p-3">
-              <p className="text-white/40 text-xs uppercase tracking-wider">Time</p>
-              <p className="text-sm">{dt.time}</p>
+            <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Clock size={12} className="text-violet-400" />
+                <p className="text-white/40 text-[10px] uppercase tracking-wider">Time</p>
+              </div>
+              <p className="text-xs text-white/90">{dt.shortTime}</p>
             </div>
           </div>
 
-          {/* Sender */}
-          <div className="bg-white/5 rounded-lg p-3">
-            <p className="text-white/40 text-xs uppercase tracking-wider mb-2">From</p>
-            <p className="font-semibold text-sm">{receipt.senderName}</p>
-            <p className="text-xs text-white/50">{receipt.senderAccountNumber}</p>
-            <p className="text-xs text-white/50">Credixa Banking</p>
+          {/* From */}
+          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+            <div className="flex items-center gap-1.5 mb-2">
+              <User size={12} className="text-violet-400" />
+              <p className="text-white/40 text-[10px] uppercase tracking-wider">From</p>
+            </div>
+            <p className="font-semibold text-sm text-white">{receipt.senderName}</p>
+            <p className="text-[11px] text-white/50 font-mono">{receipt.senderAccountNumber}</p>
+            <p className="text-[11px] text-white/40">Credixa Banking</p>
           </div>
 
-          {/* Recipient */}
-          <div className="bg-white/5 rounded-lg p-3">
-            <p className="text-white/40 text-xs uppercase tracking-wider mb-2">To</p>
-            <p className="font-semibold text-sm">{receipt.receiverName}</p>
-            <p className="text-xs text-white/50">{receipt.receiverAccountNumber || 'N/A'}</p>
-            <p className="text-xs text-white/50">{receipt.bankName || 'Credixa Banking'}</p>
+          {/* To */}
+          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+            <div className="flex items-center gap-1.5 mb-2">
+              <User size={12} className="text-pink-400" />
+              <p className="text-white/40 text-[10px] uppercase tracking-wider">To</p>
+            </div>
+            <p className="font-semibold text-sm text-white">{receipt.receiverName}</p>
+            <p className="text-[11px] text-white/50 font-mono">{receipt.receiverAccountNumber || 'N/A'}</p>
+            <p className="text-[11px] text-white/40">{receipt.bankName || 'Credixa Banking'}</p>
           </div>
 
-          {/* Amount */}
-          <div className="bg-gradient-to-r from-violet-600/10 to-purple-600/10 rounded-xl p-4 text-center border border-violet-500/20">
-            <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Amount Transferred</p>
-            <p className="text-3xl font-bold text-white">{receipt.currency}{receipt.amount.toLocaleString()}</p>
+          {/* Amount - Highlighted */}
+          <div className="bg-gradient-to-r from-violet-900/30 to-purple-900/30 rounded-xl p-4 text-center border border-violet-500/20">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <CreditCard size={14} className="text-violet-400" />
+              <p className="text-white/40 text-[10px] uppercase tracking-wider">Amount Transferred</p>
+            </div>
+            <p className="text-2xl font-bold text-white">{receipt.currency}{receipt.amount.toLocaleString()}</p>
           </div>
 
           {/* Narration */}
           {receipt.narration && (
-            <div className="bg-white/5 rounded-lg p-3">
-              <p className="text-white/40 text-xs uppercase tracking-wider">Narration</p>
-              <p className="text-sm">{receipt.narration}</p>
+            <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <FileText size={12} className="text-violet-400" />
+                <p className="text-white/40 text-[10px] uppercase tracking-wider">Narration</p>
+              </div>
+              <p className="text-xs text-white/80">{receipt.narration}</p>
             </div>
           )}
 
-          {/* Session Info */}
-          <div className="bg-white/5 rounded-lg p-3">
-            <p className="text-white/40 text-xs uppercase tracking-wider">Session ID</p>
-            <p className="font-mono text-xs text-white/60">{receipt.reference}</p>
+          {/* Session ID */}
+          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Hash size={12} className="text-violet-400" />
+              <p className="text-white/40 text-[10px] uppercase tracking-wider">Session ID</p>
+            </div>
+            <p className="font-mono text-[11px] text-white/50">{receipt.reference}</p>
           </div>
         </div>
 
-        <div className="p-3 border-t border-white/10 text-center">
-          <p className="text-xs text-white/40">Thank you for banking with Credixa</p>
-          <p className="text-xs text-white/30 mt-1">For support: support@credixa.com</p>
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-white/10 bg-white/[0.02]">
+          <p className="text-[10px] text-white/30 text-center">Thank you for banking with Credixa</p>
+          <p className="text-[10px] text-white/20 text-center mt-0.5">For support: credixasupport@gmail.com</p>
         </div>
       </div>
 
-      <div className="flex gap-3 mt-4">
-        <button 
+      {/* Action Buttons */}
+      <div className="flex gap-2 mt-4">
+        <button
           onClick={downloadReceipt}
-          className="flex-1 py-3 border border-violet-600 text-violet-400 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-violet-600/10 text-sm"
+          className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-white text-sm"
         >
-          <Download size={16} /> Download Receipt
+          <Download size={16} /> Download
         </button>
-        <button 
+        <button
           onClick={onNewTransfer}
-          className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl text-white font-bold text-sm"
+          className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl text-white font-bold text-sm hover:opacity-90 transition-opacity"
         >
           New Transfer
         </button>

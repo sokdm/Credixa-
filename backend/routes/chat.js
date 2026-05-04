@@ -70,13 +70,9 @@ router.post('/reply/:userId', adminAuth, async (req, res) => {
     );
 
     const io = req.app.get('io');
-    io.to(req.params.userId).emit('new_message', {
-      _id: Date.now(),
-      sender: 'admin',
-      text,
-      timestamp: new Date(),
-      read: false
-    });
+    const lastMessage = chat.messages[chat.messages.length - 1];
+    io.to(req.params.userId).emit('new_message', lastMessage);
+    io.to(`user_${req.params.userId}`).emit('new_message', lastMessage);
 
     res.json(chat);
   } catch (error) {

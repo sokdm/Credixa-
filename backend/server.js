@@ -90,7 +90,7 @@ io.on('connection', (socket) => {
       const userName = user ? user.fullName : 'Unknown User';
 
       const lastMessage = chat.messages[chat.messages.length - 1];
-      
+
       // Emit to user's personal room
       io.to(data.userId).emit('new_message', lastMessage);
       io.to(`user_${data.userId}`).emit('new_message', lastMessage);
