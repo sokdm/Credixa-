@@ -19,13 +19,10 @@ const io = new Server(httpServer, {
   },
   transports: ['polling', 'websocket'],
   pingTimeout: 60000,
-  pingInterval: 25000,
-  allowUpgrades: true,
-  upgradeTimeout: 10000
+  pingInterval: 25000
 });
 
 app.set('trust proxy', 1);
-
 app.use(helmet());
 app.use(cors({ origin: CLIENT_URL }));
 app.use(express.json({ limit: '10mb' }));
@@ -49,6 +46,11 @@ const connectedAdmins = new Set();
 io.on('connection', (socket) => {
   console.log(`[SOCKET] Connection established: ${socket.id}`);
 
+  // Keep connection alive
+  socket.on('ping', () => {
+    socket.emit('pong');
+  });
+
   socket.on('join_user', (userId) => {
     const room = `user_${userId}`;
     socket.join(room);
@@ -68,7 +70,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_message', async (data) => {
-    console.log(`[SOCKET] send_message received: userId=${data.userId}, text="${data.text.substring(0, 30)}..."`);
+    console.log(`[SOCKET] send_message received: userId=${data.userId}`);
     try {
       const Chat = require('./models/Chat');
       const User = require('./models/User');
@@ -88,16 +90,12 @@ io.on('connection', (socket) => {
         { upsert: true, new: true }
       );
 
-      console.log(`[SOCKET] Chat saved for user: ${data.userId}`);
-
       const user = await User.findById(data.userId).select('fullName');
       const userName = user ? user.fullName : 'Unknown User';
-
       const lastMessage = chat.messages[chat.messages.length - 1];
 
       io.to(data.userId).emit('new_message', lastMessage);
       io.to(`user_${data.userId}`).emit('new_message', lastMessage);
-      console.log(`[SOCKET] Emitted new_message to user rooms`);
 
       if (connectedAdmins.size > 0) {
         io.to('admin_room').emit('new_chat', {
@@ -106,11 +104,7 @@ io.on('connection', (socket) => {
           message: data.text,
           timestamp: new Date()
         });
-        console.log(`[SOCKET] Emitted new_chat to admin_room (${connectedAdmins.size} admins online)`);
-      } else {
-        console.log(`[SOCKET] No admins online, message queued for later`);
       }
-
     } catch (err) {
       console.error('[SOCKET] Chat error:', err);
     }
@@ -138,21 +132,15 @@ io.on('connection', (socket) => {
       const lastMessage = chat.messages[chat.messages.length - 1];
       io.to(data.userId).emit('new_message', lastMessage);
       io.to(`user_${data.userId}`).emit('new_message', lastMessage);
-      console.log(`[SOCKET] Admin reply emitted to user: ${data.userId}`);
     } catch (err) {
       console.error('[SOCKET] Admin reply error:', err);
     }
-  });
-
-  socket.on('send_notification', (data) => {
-    io.to(`user_${data.userId}`).emit('notification', data.notification);
   });
 
   socket.on('disconnect', (reason) => {
     console.log(`[SOCKET] Disconnected: ${socket.id}, reason: ${reason}`);
     if (connectedAdmins.has(socket.id)) {
       connectedAdmins.delete(socket.id);
-      console.log(`[SOCKET] Admin disconnected. Remaining admins: ${connectedAdmins.size}`);
     }
   });
 });
