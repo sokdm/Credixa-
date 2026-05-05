@@ -33,7 +33,9 @@ const Transactions = () => {
 
   const filteredTransactions = transactions.filter(tx => {
     if (filter === 'all') return true
-    const isOutgoing = tx.senderId === user?.id
+    const currentUserId = user?.id || user?._id?.toString()
+    const senderId = tx.senderId?._id?.toString?.() || tx.senderId?.toString?.() || tx.senderId
+    const isOutgoing = senderId === currentUserId || tx.type === 'debit'
     if (filter === 'sent') return isOutgoing
     if (filter === 'received') return !isOutgoing
     return true
@@ -84,7 +86,12 @@ const Transactions = () => {
         ) : (
           <div className="space-y-3">
             {filteredTransactions.map((tx, idx) => {
-              const isOutgoing = tx.senderId === user?.id
+              const currentUserId = user?.id || user?._id?.toString()
+              const senderId = tx.senderId?._id?.toString?.() || tx.senderId?.toString?.() || tx.senderId
+              const isOutgoing = senderId === currentUserId || tx.type === 'debit'
+              const counterpartyName = isOutgoing
+                ? (tx.receiverName || 'Unknown')
+                : (tx.senderName || 'Unknown')
 
               return (
                 <motion.div
@@ -101,7 +108,9 @@ const Transactions = () => {
                       {isOutgoing ? <ArrowUpRight size={20} /> : <ArrowDownLeft size={20} />}
                     </div>
                     <div>
-                      <p className="font-medium">{isOutgoing ? tx.receiverName : tx.senderName || tx.receiverName}</p>
+                      <p className="font-medium">
+                        {isOutgoing ? `Sent to ${counterpartyName}` : `Received from ${counterpartyName}`}
+                      </p>
                       <p className="text-sm text-gray-500">{tx.narration || tx.type}</p>
                       <p className="text-xs text-gray-400">{new Date(tx.createdAt).toLocaleString()}</p>
                     </div>

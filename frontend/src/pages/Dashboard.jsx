@@ -250,54 +250,64 @@ const Dashboard = () => {
                   }}
                   className="relative p-2.5 rounded-xl hover:bg-gray-700 transition-colors"
                 >
-                  <Bell size={20} className="text-gray-300" />
+                  <Bell size={20} className="text-gray-400" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-5 bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center px-1.5 border-2 border-gray-800 animate-pulse">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
+                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse" />
                   )}
                 </button>
 
-                {showNotifDropdown && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    className="absolute right-0 top-14 w-80 bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden z-50"
-                  >
-                    <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-                      <h3 className="font-semibold text-sm">Notifications</h3>
-                      <button onClick={() => navigate('/notifications')} className="text-xs text-violet-400 hover:underline">View all</button>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <div className="p-6 text-center text-gray-500 text-sm">
-                          <Bell size={24} className="mx-auto mb-2 opacity-50" />
-                          No notifications
-                        </div>
-                      ) : (
-                        notifications.slice(0, 5).map((notif, idx) => (
-                          <div key={idx} className={`p-3 border-b border-gray-700 hover:bg-gray-700/50 transition-colors ${!notif.read ? 'bg-violet-900/20' : ''}`}>
-                            <p className="text-sm font-medium text-white">{notif.title}</p>
-                            <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{notif.message}</p>
-                            <p className="text-[10px] text-gray-500 mt-1">{new Date(notif.createdAt).toLocaleTimeString()}</p>
+                <AnimatePresence>
+                  {showNotifDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 mt-3 w-80 bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden z-50"
+                    >
+                      <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+                        <h3 className="font-semibold text-sm">Notifications</h3>
+                        {notifications.length > 0 && (
+                          <button
+                            onClick={() => setNotifications([])}
+                            className="text-xs text-violet-400 hover:text-violet-300"
+                          >
+                            Clear all
+                          </button>
+                        )}
+                      </div>
+                      <div className="max-h-72 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <div className="p-6 text-center">
+                            <Bell size={24} className="mx-auto text-gray-600 mb-2" />
+                            <p className="text-sm text-gray-500">No notifications</p>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </motion.div>
-                )}
+                        ) : (
+                          notifications.map((n, i) => (
+                            <div key={i} className="p-4 border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
+                              <p className="text-sm font-medium">{n.title || 'Notification'}</p>
+                              <p className="text-xs text-gray-400 mt-1">{n.message}</p>
+                              <p className="text-[10px] text-gray-500 mt-1">
+                                {new Date(n.createdAt).toLocaleTimeString()}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
-              <button onClick={toggleTheme} className="p-2.5 rounded-xl hover:bg-gray-700 transition-colors">
+              <button
+                onClick={toggleTheme}
+                className="p-2.5 rounded-xl hover:bg-gray-700 transition-colors"
+              >
                 {darkMode ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} className="text-gray-400" />}
               </button>
 
-              <button
-                onClick={() => navigate('/profile')}
-                className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm"
-              >
-                {user?.fullName?.charAt(0)}
-              </button>
+              <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-pink-500 rounded-full flex items-center justify-center text-sm font-bold">
+                {user?.fullName?.charAt(0) || 'U'}
+              </div>
             </div>
           </div>
         </header>
@@ -357,7 +367,6 @@ const Dashboard = () => {
               </div>
             </div>
           </motion.div>
-
           {/* Quick Stats */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -475,7 +484,13 @@ const Dashboard = () => {
                 </div>
               ) : (
                 dashboardData.transactions.slice(0, 5).map((tx, idx) => {
-                  const isSender = tx.senderId === user?.id || tx.senderId?._id === user?.id || tx.type === 'debit'
+                  const currentUserId = user?.id || user?._id?.toString()
+                  const senderId = tx.senderId?._id?.toString?.() || tx.senderId?.toString?.() || tx.senderId
+                  const isSender = senderId === currentUserId || tx.type === 'debit'
+                  const counterpartyName = isSender
+                    ? (tx.receiverName || 'Unknown')
+                    : (tx.senderName || 'Unknown')
+
                   return (
                     <div key={idx} className="p-4 flex items-center justify-between hover:bg-gray-700/50 transition-colors cursor-pointer" onClick={() => navigate('/history')}>
                       <div className="flex items-center gap-4">
@@ -485,7 +500,9 @@ const Dashboard = () => {
                           {isSender ? <ArrowUpRight size={20} /> : <ArrowDownLeft size={20} />}
                         </div>
                         <div>
-                          <p className="font-semibold text-sm text-white">{tx.receiverName || tx.description || 'Transaction'}</p>
+                          <p className="font-semibold text-sm text-white">
+                            {isSender ? `Sent to ${counterpartyName}` : `Received from ${counterpartyName}`}
+                          </p>
                           <p className="text-xs text-gray-400 mt-0.5">{tx.narration || tx.type || 'Transfer'}</p>
                         </div>
                       </div>
