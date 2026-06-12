@@ -24,6 +24,7 @@ const Transfer = () => {
     accountNumber: '',
     accountName: '',
     amount: '',
+    targetCurrency: 'USD',
     narration: '',
     pin: ''
   })
@@ -77,6 +78,7 @@ const Transfer = () => {
         ? {
             recipientAccount: formData.recipientAccount,
             amount: formData.amount,
+            targetCurrency: formData.targetCurrency,
             narration: formData.narration,
             pin: formData.pin
           }
@@ -85,6 +87,7 @@ const Transfer = () => {
             accountNumber: formData.accountNumber,
             accountName: formData.accountName,
             amount: formData.amount,
+            targetCurrency: formData.targetCurrency,
             narration: formData.narration,
             pin: formData.pin
           }
@@ -132,6 +135,7 @@ const Transfer = () => {
       accountNumber: '',
       accountName: '',
       amount: '',
+      targetCurrency: 'USD',
       narration: '',
       pin: ''
     })
