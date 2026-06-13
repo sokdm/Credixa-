@@ -66,6 +66,9 @@ mongoose.connect(process.env.MONGODB_URI)
 app.get('/', (req, res) => res.json({ status: 'ok', service: 'credixa-api' }));
 app.get('/health', (req, res) => res.json({ status: 'healthy' }));
 
+// Serve uploaded images publicly
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 const connectedAdmins = new Set();
 
 io.on('connection', (socket) => {
@@ -99,18 +102,17 @@ io.on('connection', (socket) => {
       const Chat = require('./models/Chat');
       const User = require('./models/User');
 
+      const messageData = {
+        sender: data.sender,
+        text: data.text || '',
+        imageUrl: data.imageUrl || null,
+        timestamp: new Date(),
+        read: false
+      };
+
       const chat = await Chat.findOneAndUpdate(
         { userId: data.userId },
-        {
-          $push: {
-            messages: {
-              sender: data.sender,
-              text: data.text,
-              timestamp: new Date(),
-              read: false
-            }
-          }
-        },
+        { $push: { messages: messageData } },
         { upsert: true, new: true }
       );
 
@@ -118,12 +120,10 @@ io.on('connection', (socket) => {
       const userName = user ? user.fullName : 'Unknown User';
       const lastMessage = chat.messages[chat.messages.length - 1];
 
-      // Echo tempId back for deduplication
       const messageToEmit = data.tempId
         ? { ...lastMessage.toObject(), tempId: data.tempId }
         : lastMessage;
 
-      // FIXED: Emit only once per room (userId and user_${userId} are separate rooms)
       io.to(data.userId).emit('new_message', messageToEmit);
       io.to(`user_${data.userId}`).emit('new_message', messageToEmit);
 
@@ -131,7 +131,7 @@ io.on('connection', (socket) => {
         io.to('admin_room').emit('new_chat', {
           userId: data.userId,
           userName: userName,
-          message: data.text,
+          message: data.text || '📷 Image',
           timestamp: new Date()
         });
       }
@@ -144,25 +144,23 @@ io.on('connection', (socket) => {
     console.log(`[SOCKET] admin_reply received for user: ${data.userId}`);
     try {
       const Chat = require('./models/Chat');
+
+      const messageData = {
+        sender: 'admin',
+        text: data.text || '',
+        imageUrl: data.imageUrl || null,
+        timestamp: new Date(),
+        read: false
+      };
+
       const chat = await Chat.findOneAndUpdate(
         { userId: data.userId },
-        {
-          $push: {
-            messages: {
-              sender: 'admin',
-              text: data.text,
-              timestamp: new Date(),
-              read: false
-            }
-          }
-        },
+        { $push: { messages: messageData } },
         { new: true }
       );
 
       const lastMessage = chat.messages[chat.messages.length - 1];
-      
-      // FIXED: Only emit once — the user should be in both rooms, but emit to both to be safe
-      // The frontend deduplication will handle any duplicates
+
       io.to(data.userId).emit('new_message', lastMessage);
       io.to(`user_${data.userId}`).emit('new_message', lastMessage);
     } catch (err) {
@@ -185,6 +183,7 @@ app.use('/api/user', require('./routes/user'));
 app.use('/api/transfer', require('./routes/transfer'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/chat', require('./routes/chat'));
+app.use('/api/chat', require('./routes/chatUpload')); // Image upload route
 app.use('/api/loan', require('./routes/loan'));
 app.use('/api/card', require('./routes/card'));
 app.use('/api/support', require('./routes/support'));

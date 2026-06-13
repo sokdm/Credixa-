@@ -18,8 +18,8 @@ router.get('/user', auth, async (req, res) => {
 // User send message
 router.post('/user', auth, async (req, res) => {
   try {
-    const { text } = req.body;
-    if (!text?.trim()) return res.status(400).json({ error: 'Message required' });
+    const { text, imageUrl } = req.body;
+    if (!text?.trim() && !imageUrl) return res.status(400).json({ error: 'Message or image required' });
 
     const userId = req.user._id || req.user.id;
     const userName = req.user.fullName || req.user.name || 'User';
@@ -30,7 +30,8 @@ router.post('/user', auth, async (req, res) => {
         $push: {
           messages: {
             sender: 'user',
-            text: text.trim(),
+            text: text?.trim() || '',
+            imageUrl: imageUrl || null,
             timestamp: new Date(),
             read: false
           }
@@ -47,7 +48,6 @@ router.post('/user', auth, async (req, res) => {
     if (io) {
       io.to(userId.toString()).emit('new_message', lastMessage);
       io.to(`user_${userId}`).emit('new_message', lastMessage);
-      // REMOVED: io.to('admin_room').emit('new_chat', ...) — server.js socket handler already does this
     }
 
     res.status(201).json(lastMessage);
@@ -97,14 +97,15 @@ router.put('/read/:userId', adminAuth, async (req, res) => {
 // Admin reply
 router.post('/reply/:userId', adminAuth, async (req, res) => {
   try {
-    const { text } = req.body;
+    const { text, imageUrl } = req.body;
     const chat = await Chat.findOneAndUpdate(
       { userId: req.params.userId },
       {
         $push: {
           messages: {
             sender: 'admin',
-            text,
+            text: text?.trim() || '',
+            imageUrl: imageUrl || null,
             timestamp: new Date(),
             read: false
           }
