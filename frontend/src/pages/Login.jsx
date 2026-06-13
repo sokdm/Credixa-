@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, Shield, Sparkles, User } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, Shield, Sparkles } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 const Login = () => {
@@ -33,79 +33,60 @@ const Login = () => {
 
   return (
     <div className="auth-bg p-4">
-      <div className="auth-bg-overlay" />
+      {[...Array(10)].map((_, i) => (
+        <div key={i} className="particle" style={{ 
+          left: `${10 + i * 8}%`, 
+          top: `${20 + (i % 3) * 25}%`,
+          animationDelay: `${i * 0.5}s`,
+          animationDuration: `${12 + i * 2}s`
+        }} />
+      ))}
 
-      {/* Floating particles */}
-      <div className="particle" />
-      <div className="particle" />
-      <div className="particle" />
-      <div className="particle" />
-      <div className="particle" />
-      <div className="particle" />
-      <div className="particle" />
-      <div className="particle" />
-      <div className="particle" />
-      <div className="particle" />
-
-      {/* Falling leaves */}
-      <div className="falling-leaf" />
-      <div className="falling-leaf" />
-      <div className="falling-leaf" />
-      <div className="falling-leaf" />
-      <div className="falling-leaf" />
-      <div className="falling-leaf" />
-      <div className="falling-leaf" />
-      <div className="falling-leaf" />
-      <div className="falling-leaf" />
-      <div className="falling-leaf" />
-
-      {/* Content */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
         className="w-full max-w-md relative z-10"
       >
         <motion.div
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.2 }}
         >
-          <Link to="/" className="inline-flex items-center gap-2 text-white/70 mb-6 hover:text-white transition-colors">
-            <ArrowLeft size={18} /> Back to home
+          <Link to="/" className="inline-flex items-center gap-2 text-white/40 mb-8 hover:text-white transition-colors text-sm font-medium">
+            <ArrowLeft size={16} /> Back to home
           </Link>
         </motion.div>
 
         <motion.div
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.7 }}
+          transition={{ delay: 0.1, duration: 0.6 }}
           className="glass-auth p-8 md:p-10"
         >
           <div className="text-center mb-8">
             <motion.div
-              animate={{ rotate: [0, 5, -5, 0], scale: [1, 1.05, 1] }}
-              transition={{ duration: 4, repeat: Infinity }}
-              className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-primary-400 via-purple-500 to-accent-pink rounded-2xl flex items-center justify-center shadow-lg"
-              style={{ boxShadow: '0 0 30px rgba(139, 92, 246, 0.4)' }}
+              animate={{ rotate: [0, 3, -3, 0], scale: [1, 1.03, 1] }}
+              transition={{ duration: 5, repeat: Infinity }}
+              className="w-16 h-16 mx-auto mb-5 bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/30"
             >
-              <Shield className="text-white" size={32} />
+              <Shield className="text-white" size={30} />
             </motion.div>
-            <motion.h1 
+            <motion.h1
+              initial={{ y: 10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-2xl font-bold text-white mb-2"
+            >
+              Welcome back
+            </motion.h1>
+            <motion.p
               initial={{ y: 10, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="text-3xl font-bold text-white mb-2 tracking-wide"
+              className="text-white/40 text-sm"
             >
-              LOGIN
-            </motion.h1>
-            <motion.p 
-              initial={{ y: 10, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="text-white/50 text-sm"
-            >
-              Welcome back to Credixa
+              Sign in to access your Credixa account
             </motion.p>
           </div>
 
@@ -115,28 +96,29 @@ const Login = () => {
                 initial={{ opacity: 0, height: 0, y: -10 }}
                 animate={{ opacity: 1, height: 'auto', y: 0 }}
                 exit={{ opacity: 0, height: 0, y: -10 }}
-                className="mb-6 p-3 bg-red-500/10 backdrop-blur-md border border-red-500/20 text-red-300 rounded-lg text-sm text-center"
+                className="mb-6 p-3.5 bg-red-500/10 backdrop-blur-md border border-red-500/20 text-red-300 rounded-xl text-sm text-center"
               >
                 {error}
               </motion.div>
             )}
           </AnimatePresence>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <motion.div
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
+              transition={{ delay: 0.4 }}
             >
+              <label className="block text-white/40 text-xs font-medium mb-2 ml-1">Email or Phone</label>
               <div className="relative">
-                <User className="absolute left-0 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                <Mail className="absolute left-0 top-1/2 -translate-y-1/2 text-white/30" size={18} />
                 <input
                   type="text"
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   className="glass-input"
-                  placeholder="Email or Phone"
+                  placeholder="Enter your email"
                 />
               </div>
             </motion.div>
@@ -144,22 +126,23 @@ const Login = () => {
             <motion.div
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.6 }}
+              transition={{ delay: 0.5 }}
             >
+              <label className="block text-white/40 text-xs font-medium mb-2 ml-1">Password</label>
               <div className="relative">
-                <Lock className="absolute left-0 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                <Lock className="absolute left-0 top-1/2 -translate-y-1/2 text-white/30" size={18} />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                   className="glass-input pr-10"
-                  placeholder="Password"
+                  placeholder="Enter your password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -169,14 +152,14 @@ const Login = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.7 }}
+              transition={{ delay: 0.6 }}
               className="flex items-center justify-between text-sm"
             >
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="rounded bg-white/10 border-white/20 w-4 h-4" />
-                <span className="text-white/50">Remember me</span>
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input type="checkbox" className="custom-checkbox" />
+                <span className="text-white/40 text-sm">Remember me</span>
               </label>
-              <Link to="/forgot-password" className="text-sky-400 hover:text-sky-300 transition-colors">
+              <Link to="/forgot-password" className="text-violet-400 hover:text-violet-300 transition-colors text-sm font-medium">
                 Forgot password?
               </Link>
             </motion.div>
@@ -184,12 +167,12 @@ const Login = () => {
             <motion.button
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.8 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              transition={{ delay: 0.7 }}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-semibold shadow-lg shadow-sky-500/30 hover:shadow-sky-500/50 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-4 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-semibold shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <motion.div
@@ -200,21 +183,21 @@ const Login = () => {
               ) : (
                 <>
                   <Sparkles size={18} />
-                  SIGN IN
+                  Sign In
                 </>
               )}
             </motion.button>
           </form>
 
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.9 }}
-            className="mt-6 text-center text-white/50 text-sm"
+            transition={{ delay: 0.8 }}
+            className="mt-6 text-center text-white/40 text-sm"
           >
-            New here?{' '}
-            <Link to="/register" className="text-sky-400 font-semibold hover:text-sky-300 transition-colors">
-              Create Account
+            Don't have an account?{' '}
+            <Link to="/register" className="text-violet-400 font-semibold hover:text-violet-300 transition-colors">
+              Create one free
             </Link>
           </motion.p>
         </motion.div>
