@@ -1,17 +1,17 @@
 import { motion } from 'framer-motion'
-import { CheckCircle, Users, Building2, Search, UserCheck, Globe, ArrowRightLeft } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { CheckCircle, Users, Building2, Search, UserCheck, Globe, ArrowRightLeft, RefreshCw } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
 
-// Real-time exchange rates (USD base) - update these periodically or fetch from API
-const EXCHANGE_RATES = {
+// Fallback rates if API fails
+const FALLBACK_RATES = {
   USD: { rate: 1, symbol: '$', flag: '🇺🇸', name: 'US Dollar' },
-  EUR: { rate: 0.85, symbol: '€', flag: '🇪🇺', name: 'Euro' },
-  GBP: { rate: 0.73, symbol: '£', flag: '🇬🇧', name: 'British Pound' },
+  EUR: { rate: 0.92, symbol: '€', flag: '🇪🇺', name: 'Euro' },
+  GBP: { rate: 0.79, symbol: '£', flag: '🇬🇧', name: 'British Pound' },
   NGN: { rate: 1550, symbol: '₦', flag: '🇳🇬', name: 'Nigerian Naira' },
-  GHS: { rate: 15.2, symbol: '₵', flag: '🇬🇭', name: 'Ghana Cedi' },
-  KES: { rate: 129.5, symbol: 'KSh', flag: '🇰🇪', name: 'Kenyan Shilling' },
-  ZAR: { rate: 18.4, symbol: 'R', flag: '🇿🇦', name: 'South African Rand' },
-  JPY: { rate: 157.3, symbol: '¥', flag: '🇯🇵', name: 'Japanese Yen' },
+  GHS: { rate: 15.5, symbol: '₵', flag: '🇬🇭', name: 'Ghana Cedi' },
+  KES: { rate: 132, symbol: 'KSh', flag: '🇰🇪', name: 'Kenyan Shilling' },
+  ZAR: { rate: 18.7, symbol: 'R', flag: '🇿🇦', name: 'South African Rand' },
+  JPY: { rate: 151, symbol: '¥', flag: '🇯🇵', name: 'Japanese Yen' },
   CNY: { rate: 7.24, symbol: '¥', flag: '🇨🇳', name: 'Chinese Yuan' },
   INR: { rate: 83.5, symbol: '₹', flag: '🇮🇳', name: 'Indian Rupee' },
   CAD: { rate: 1.36, symbol: 'C$', flag: '🇨🇦', name: 'Canadian Dollar' },
@@ -23,19 +23,190 @@ const EXCHANGE_RATES = {
   SAR: { rate: 3.75, symbol: '﷼', flag: '🇸🇦', name: 'Saudi Riyal' },
   CHF: { rate: 0.88, symbol: 'Fr', flag: '🇨🇭', name: 'Swiss Franc' },
   SEK: { rate: 10.6, symbol: 'kr', flag: '🇸🇪', name: 'Swedish Krona' },
-  TRY: { rate: 32.1, symbol: '₺', flag: '🇹🇷', name: 'Turkish Lira' }
+  TRY: { rate: 32.1, symbol: '₺', flag: '🇹🇷', name: 'Turkish Lira' },
+  COP: { rate: 3900, symbol: '$', flag: '🇨🇴', name: 'Colombian Peso' },
+  ARS: { rate: 890, symbol: '$', flag: '🇦🇷', name: 'Argentine Peso' },
+  CLP: { rate: 920, symbol: '$', flag: '🇨🇱', name: 'Chilean Peso' },
+  PEN: { rate: 3.7, symbol: 'S/', flag: '🇵🇪', name: 'Peruvian Sol' },
+  UYU: { rate: 39, symbol: '$', flag: '🇺🇾', name: 'Uruguayan Peso' },
+  PYG: { rate: 7500, symbol: '₲', flag: '🇵🇾', name: 'Paraguayan Guarani' },
+  BOB: { rate: 6.9, symbol: 'Bs', flag: '🇧🇴', name: 'Bolivian Boliviano' },
+  DOP: { rate: 59, symbol: 'RD$', flag: '🇩🇴', name: 'Dominican Peso' },
+  HNL: { rate: 24.7, symbol: 'L', flag: '🇭🇳', name: 'Honduran Lempira' },
+  GTQ: { rate: 7.8, symbol: 'Q', flag: '🇬🇹', name: 'Guatemalan Quetzal' },
+  CRC: { rate: 520, symbol: '₡', flag: '🇨🇷', name: 'Costa Rican Colon' },
+  PAB: { rate: 1, symbol: 'B/.', flag: '🇵🇦', name: 'Panamanian Balboa' },
+  JMD: { rate: 157, symbol: 'J$', flag: '🇯🇲', name: 'Jamaican Dollar' },
+  TTD: { rate: 6.8, symbol: 'TT$', flag: '🇹🇹', name: 'Trinidad Dollar' },
+  XCD: { rate: 2.7, symbol: 'EC$', flag: '🇦🇬', name: 'E.Caribbean Dollar' },
+  XOF: { rate: 605, symbol: 'CFA', flag: '🇸🇳', name: 'W.African CFA' },
+  MAD: { rate: 10, symbol: 'DH', flag: '🇲🇦', name: 'Moroccan Dirham' },
+  EGP: { rate: 47.5, symbol: 'E£', flag: '🇪🇬', name: 'Egyptian Pound' },
+  DZD: { rate: 134, symbol: 'DA', flag: '🇩🇿', name: 'Algerian Dinar' },
+  ETB: { rate: 56, symbol: 'Br', flag: '🇪🇹', name: 'Ethiopian Birr' },
+  UGX: { rate: 3700, symbol: 'USh', flag: '🇺🇬', name: 'Ugandan Shilling' },
+  TZS: { rate: 2600, symbol: 'TSh', flag: '🇹🇿', name: 'Tanzanian Shilling' },
+  RWF: { rate: 1300, symbol: 'RF', flag: '🇷🇼', name: 'Rwandan Franc' },
+  ZMW: { rate: 26, symbol: 'K', flag: '🇿🇲', name: 'Zambian Kwacha' },
+  MZN: { rate: 63, symbol: 'MT', flag: '🇲🇿', name: 'Mozambican Metical' },
+  BWP: { rate: 13.5, symbol: 'P', flag: '🇧🇼', name: 'Botswana Pula' },
+  MGA: { rate: 4500, symbol: 'Ar', flag: '🇲🇬', name: 'Malagasy Ariary' },
+  AOA: { rate: 915, symbol: 'Kz', flag: '🇦🇴', name: 'Angolan Kwanza' }
 }
 
-const convertAmount = (amount, currencyCode) => {
-  if (!amount || isNaN(amount)) return '0.00'
-  const rate = EXCHANGE_RATES[currencyCode]?.rate || 1
+// Map API currency codes to our metadata
+const CURRENCY_META = {
+  USD: { symbol: '$', flag: '🇺🇸', name: 'US Dollar' },
+  EUR: { symbol: '€', flag: '🇪🇺', name: 'Euro' },
+  GBP: { symbol: '£', flag: '🇬🇧', name: 'British Pound' },
+  NGN: { symbol: '₦', flag: '🇳🇬', name: 'Nigerian Naira' },
+  GHS: { symbol: '₵', flag: '🇬🇭', name: 'Ghana Cedi' },
+  KES: { symbol: 'KSh', flag: '🇰🇪', name: 'Kenyan Shilling' },
+  ZAR: { symbol: 'R', flag: '🇿🇦', name: 'South African Rand' },
+  JPY: { symbol: '¥', flag: '🇯🇵', name: 'Japanese Yen' },
+  CNY: { symbol: '¥', flag: '🇨🇳', name: 'Chinese Yuan' },
+  INR: { symbol: '₹', flag: '🇮🇳', name: 'Indian Rupee' },
+  CAD: { symbol: 'C$', flag: '🇨🇦', name: 'Canadian Dollar' },
+  AUD: { symbol: 'A$', flag: '🇦🇺', name: 'Australian Dollar' },
+  BRL: { symbol: 'R$', flag: '🇧🇷', name: 'Brazilian Real' },
+  MXN: { symbol: '$', flag: '🇲🇽', name: 'Mexican Peso' },
+  SGD: { symbol: 'S$', flag: '🇸🇬', name: 'Singapore Dollar' },
+  AED: { symbol: 'د.إ', flag: '🇦🇪', name: 'UAE Dirham' },
+  SAR: { symbol: '﷼', flag: '🇸🇦', name: 'Saudi Riyal' },
+  CHF: { symbol: 'Fr', flag: '🇨🇭', name: 'Swiss Franc' },
+  SEK: { symbol: 'kr', flag: '🇸🇪', name: 'Swedish Krona' },
+  TRY: { symbol: '₺', flag: '🇹🇷', name: 'Turkish Lira' },
+  COP: { symbol: '$', flag: '🇨🇴', name: 'Colombian Peso' },
+  ARS: { symbol: '$', flag: '🇦🇷', name: 'Argentine Peso' },
+  CLP: { symbol: '$', flag: '🇨🇱', name: 'Chilean Peso' },
+  PEN: { symbol: 'S/', flag: '🇵🇪', name: 'Peruvian Sol' },
+  UYU: { symbol: '$', flag: '🇺🇾', name: 'Uruguayan Peso' },
+  PYG: { symbol: '₲', flag: '🇵🇾', name: 'Paraguayan Guarani' },
+  BOB: { symbol: 'Bs', flag: '🇧🇴', name: 'Bolivian Boliviano' },
+  DOP: { symbol: 'RD$', flag: '🇩🇴', name: 'Dominican Peso' },
+  HNL: { symbol: 'L', flag: '🇭🇳', name: 'Honduran Lempira' },
+  GTQ: { symbol: 'Q', flag: '🇬🇹', name: 'Guatemalan Quetzal' },
+  CRC: { symbol: '₡', flag: '🇨🇷', name: 'Costa Rican Colon' },
+  PAB: { symbol: 'B/.', flag: '🇵🇦', name: 'Panamanian Balboa' },
+  JMD: { symbol: 'J$', flag: '🇯🇲', name: 'Jamaican Dollar' },
+  TTD: { symbol: 'TT$', flag: '🇹🇹', name: 'Trinidad Dollar' },
+  XCD: { symbol: 'EC$', flag: '🇦🇬', name: 'E.Caribbean Dollar' },
+  XOF: { symbol: 'CFA', flag: '🇸🇳', name: 'W.African CFA' },
+  MAD: { symbol: 'DH', flag: '🇲🇦', name: 'Moroccan Dirham' },
+  EGP: { symbol: 'E£', flag: '🇪🇬', name: 'Egyptian Pound' },
+  DZD: { symbol: 'DA', flag: '🇩🇿', name: 'Algerian Dinar' },
+  ETB: { symbol: 'Br', flag: '🇪🇹', name: 'Ethiopian Birr' },
+  UGX: { symbol: 'USh', flag: '🇺🇬', name: 'Ugandan Shilling' },
+  TZS: { symbol: 'TSh', flag: '🇹🇿', name: 'Tanzanian Shilling' },
+  RWF: { symbol: 'RF', flag: '🇷🇼', name: 'Rwandan Franc' },
+  ZMW: { symbol: 'K', flag: '🇿🇲', name: 'Zambian Kwacha' },
+  MZN: { symbol: 'MT', flag: '🇲🇿', name: 'Mozambican Metical' },
+  BWP: { symbol: 'P', flag: '🇧🇼', name: 'Botswana Pula' },
+  MGA: { symbol: 'Ar', flag: '🇲🇬', name: 'Malagasy Ariary' },
+  AOA: { symbol: 'Kz', flag: '🇦🇴', name: 'Angolan Kwanza' },
+  NZD: { symbol: 'NZ$', flag: '🇳🇿', name: 'New Zealand Dollar' },
+  HKD: { symbol: 'HK$', flag: '🇭🇰', name: 'Hong Kong Dollar' },
+  KRW: { symbol: '₩', flag: '🇰🇷', name: 'South Korean Won' },
+  IDR: { symbol: 'Rp', flag: '🇮🇩', name: 'Indonesian Rupiah' },
+  MYR: { symbol: 'RM', flag: '🇲🇾', name: 'Malaysian Ringgit' },
+  PHP: { symbol: '₱', flag: '🇵🇭', name: 'Philippine Peso' },
+  THB: { symbol: '฿', flag: '🇹🇭', name: 'Thai Baht' },
+  VND: { symbol: '₫', flag: '🇻🇳', name: 'Vietnamese Dong' },
+  PKR: { symbol: '₨', flag: '🇵🇰', name: 'Pakistani Rupee' },
+  BDT: { symbol: '৳', flag: '🇧🇩', name: 'Bangladeshi Taka' },
+  LKR: { symbol: '₨', flag: '🇱🇰', name: 'Sri Lankan Rupee' },
+  NPR: { symbol: '₨', flag: '🇳🇵', name: 'Nepalese Rupee' },
+  MMK: { symbol: 'K', flag: '🇲🇲', name: 'Myanmar Kyat' },
+  KHR: { symbol: '៛', flag: '🇰🇭', name: 'Cambodian Riel' },
+  LAK: { symbol: '₭', flag: '🇱🇦', name: 'Lao Kip' },
+  MNT: { symbol: '₮', flag: '🇲🇳', name: 'Mongolian Tugrik' },
+  RUB: { symbol: '₽', flag: '🇷🇺', name: 'Russian Ruble' },
+  PLN: { symbol: 'zł', flag: '🇵🇱', name: 'Polish Zloty' },
+  CZK: { symbol: 'Kč', flag: '🇨🇿', name: 'Czech Koruna' },
+  HUF: { symbol: 'Ft', flag: '🇭🇺', name: 'Hungarian Forint' },
+  RON: { symbol: 'lei', flag: '🇷🇴', name: 'Romanian Leu' },
+  BGN: { symbol: 'лв', flag: '🇧🇬', name: 'Bulgarian Lev' },
+  HRK: { symbol: 'kn', flag: '🇭🇷', name: 'Croatian Kuna' },
+  DKK: { symbol: 'kr', flag: '🇩🇰', name: 'Danish Krone' },
+  NOK: { symbol: 'kr', flag: '🇳🇴', name: 'Norwegian Krone' },
+  ISK: { symbol: 'kr', flag: '🇮🇸', name: 'Icelandic Krona' },
+  GEL: { symbol: '₾', flag: '🇬🇪', name: 'Georgian Lari' },
+  UAH: { symbol: '₴', flag: '🇺🇦', name: 'Ukrainian Hryvnia' },
+  BYN: { symbol: 'Br', flag: '🇧🇾', name: 'Belarusian Ruble' },
+  KZT: { symbol: '₸', flag: '🇰🇿', name: 'Kazakhstani Tenge' },
+  UZS: { symbol: 'soʻm', flag: '🇺🇿', name: 'Uzbekistani Som' },
+  TJS: { symbol: 'SM', flag: '🇹🇯', name: 'Tajikistani Somoni' },
+  KGS: { symbol: 'с', flag: '🇰🇬', name: 'Kyrgystani Som' },
+  TMT: { symbol: 'm', flag: '🇹🇲', name: 'Turkmenistani Manat' },
+  AZN: { symbol: '₼', flag: '🇦🇿', name: 'Azerbaijani Manat' },
+  AMD: { symbol: '֏', flag: '🇦🇲', name: 'Armenian Dram' },
+  ALL: { symbol: 'L', flag: '🇦🇱', name: 'Albanian Lek' },
+  MKD: { symbol: 'ден', flag: '🇲🇰', name: 'Macedonian Denar' },
+  BAM: { symbol: 'KM', flag: '🇧🇦', name: 'Bosnian Mark' },
+  MDL: { symbol: 'L', flag: '🇲🇩', name: 'Moldovan Leu' },
+  RSD: { symbol: 'din', flag: '🇷🇸', name: 'Serbian Dinar' },
+  BHD: { symbol: '.د.ب', flag: '🇧🇭', name: 'Bahraini Dinar' },
+  KWD: { symbol: 'د.ك', flag: '🇰🇼', name: 'Kuwaiti Dinar' },
+  OMR: { symbol: 'ر.ع.', flag: '🇴🇲', name: 'Omani Rial' },
+  QAR: { symbol: 'ر.ق', flag: '🇶🇦', name: 'Qatari Riyal' },
+  JOD: { symbol: 'د.ا', flag: '🇯🇴', name: 'Jordanian Dinar' },
+  IQD: { symbol: 'ع.د', flag: '🇮🇶', name: 'Iraqi Dinar' },
+  LBP: { symbol: 'ل.ل', flag: '🇱🇧', name: 'Lebanese Pound' },
+  SYP: { symbol: '£S', flag: '🇸🇾', name: 'Syrian Pound' },
+  YER: { symbol: '﷼', flag: '🇾🇪', name: 'Yemeni Rial' },
+  AFN: { symbol: '؋', flag: '🇦🇫', name: 'Afghan Afghani' },
+  IRR: { symbol: '﷼', flag: '🇮🇷', name: 'Iranian Rial' },
+  BND: { symbol: 'B$', flag: '🇧🇳', name: 'Brunei Dollar' },
+  FJD: { symbol: 'FJ$', flag: '🇫🇯', name: 'Fijian Dollar' },
+  PGK: { symbol: 'K', flag: '🇵🇬', name: 'Papua New Guinean Kina' },
+  SBD: { symbol: 'SI$', flag: '🇸🇧', name: 'Solomon Islands Dollar' },
+  TOP: { symbol: 'T$', flag: '🇹🇴', name: 'Tongan Paʻanga' },
+  VUV: { symbol: 'VT', flag: '🇻🇺', name: 'Vanuatu Vatu' },
+  WST: { symbol: 'T', flag: '🇼🇸', name: 'Samoan Tala' },
+  KID: { symbol: '$', flag: '🇰🇮', name: 'Kiribati Dollar' },
+  TVD: { symbol: '$', flag: '🇹🇻', name: 'Tuvaluan Dollar' },
+  CUP: { symbol: '$', flag: '🇨🇺', name: 'Cuban Peso' },
+  NIO: { symbol: 'C$', flag: '🇳🇮', name: 'Nicaraguan Cordoba' }
+}
+
+// Free API: exchangerate-api.com (no key needed for open endpoint)
+const fetchLiveRates = async () => {
+  try {
+    const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD')
+    if (!res.ok) throw new Error('API failed')
+    const data = await res.json()
+    return data.rates
+  } catch (err) {
+    console.log('Live rates failed, using fallback:', err.message)
+    return null
+  }
+}
+
+const buildRates = (apiRates) => {
+  if (!apiRates) return FALLBACK_RATES
+  const built = {}
+  Object.keys(CURRENCY_META).forEach(code => {
+    if (apiRates[code]) {
+      built[code] = {
+        ...CURRENCY_META[code],
+        rate: apiRates[code]
+      }
+    }
+  })
+  // Always include USD
+  built.USD = { ...CURRENCY_META.USD, rate: 1 }
+  return Object.keys(built).length > 5 ? built : FALLBACK_RATES
+}
+
+const convertAmount = (amount, rate) => {
+  if (!amount || isNaN(amount) || !rate) return '0.00'
   const converted = parseFloat(amount) * rate
   return converted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const getCurrencySymbol = (code) => EXCHANGE_RATES[code]?.symbol || '$'
-const getCurrencyFlag = (code) => EXCHANGE_RATES[code]?.flag || '🌐'
-const getCurrencyName = (code) => EXCHANGE_RATES[code]?.name || code
+const getCurrencySymbol = (code, rates) => rates[code]?.symbol || '$'
+const getCurrencyFlag = (code, rates) => rates[code]?.flag || '🌐'
+const getCurrencyName = (code, rates) => rates[code]?.name || code
 
 export const StepIndicator = ({ step }) => (
   <div className="flex items-center justify-center mb-6 lg:mb-8">
@@ -68,7 +239,6 @@ export const Step1SelectType = ({ transferType, setTransferType, setStep }) => (
         <h3 className="text-lg font-semibold mb-2">Internal Transfer</h3>
         <p className="text-white/50 text-sm">Send to another Credixa account instantly</p>
       </button>
-
       <button
         onClick={() => { setTransferType('external'); setStep(2) }}
         className={`bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-6 lg:p-8 text-left hover:border-violet-500/50 transition-all ${
@@ -84,25 +254,51 @@ export const Step1SelectType = ({ transferType, setTransferType, setStep }) => (
     </div>
   </motion.div>
 )
-
 export const Step2Details = ({
   transferType, formData, setFormData, foundUser, searching,
   selectFoundUser, selectedRecipient, goToPin, setStep, error
 }) => {
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false)
   const [convertedAmount, setConvertedAmount] = useState('0.00')
+  const [rates, setRates] = useState(FALLBACK_RATES)
+  const [ratesLoading, setRatesLoading] = useState(false)
+  const [ratesUpdated, setRatesUpdated] = useState(null)
 
+  // Fetch live rates on mount
   useEffect(() => {
-    const converted = convertAmount(formData.amount, formData.targetCurrency)
+    const loadRates = async () => {
+      setRatesLoading(true)
+      const apiRates = await fetchLiveRates()
+      const built = buildRates(apiRates)
+      setRates(built)
+      setRatesUpdated(new Date().toLocaleTimeString())
+      setRatesLoading(false)
+    }
+    loadRates()
+  }, [])
+
+  // Recalculate when amount or currency changes
+  useEffect(() => {
+    const rate = rates[formData.targetCurrency]?.rate || 1
+    const converted = convertAmount(formData.amount, rate)
     setConvertedAmount(converted)
-  }, [formData.amount, formData.targetCurrency])
+  }, [formData.amount, formData.targetCurrency, rates])
 
   const handleCurrencySelect = (currencyCode) => {
     setFormData({ ...formData, targetCurrency: currencyCode })
     setShowCurrencyDropdown(false)
   }
 
-  const selectedCurrency = EXCHANGE_RATES[formData.targetCurrency] || EXCHANGE_RATES.USD
+  const refreshRates = async () => {
+    setRatesLoading(true)
+    const apiRates = await fetchLiveRates()
+    const built = buildRates(apiRates)
+    setRates(built)
+    setRatesUpdated(new Date().toLocaleTimeString())
+    setRatesLoading(false)
+  }
+
+  const selectedCurrency = rates[formData.targetCurrency] || rates.USD
 
   return (
     <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
@@ -112,10 +308,10 @@ export const Step2Details = ({
       <p className="text-white/50 text-sm mb-6">Enter recipient details</p>
 
       {error && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-4 p-4 bg-red-500/20 border border-red-500/30 text-red-400 rounded-xl text-sm"
+          className="mb-4 p-4 bg-rose-500/15 border border-rose-500/25 text-rose-400 rounded-xl text-sm"
         >
           {error}
         </motion.div>
@@ -191,7 +387,7 @@ export const Step2Details = ({
             )}
 
             {formData.recipientAccount && !foundUser && !searching && !selectedRecipient && formData.recipientAccount.length >= 5 && (
-              <p className="mt-2 text-red-400 text-xs">No user found with this account number</p>
+              <p className="mt-2 text-rose-400 text-xs">No user found with this account number</p>
             )}
           </div>
         ) : (
@@ -235,22 +431,25 @@ export const Step2Details = ({
         {/* Amount Section with Currency Selector */}
         <div>
           <label className="block text-sm font-medium mb-2 text-white/70">Amount</label>
-          
-          {/* Currency Selector */}
+
+          {/* Currency Selector - Larger */}
           <div className="relative mb-3">
             <button
               type="button"
               onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white hover:bg-white/15 transition-colors focus:outline-none focus:border-violet-500"
+              className="w-full flex items-center justify-between px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white hover:bg-white/15 transition-colors focus:outline-none focus:border-violet-500 min-h-[52px]"
             >
               <div className="flex items-center gap-3">
-                <span className="text-xl">{selectedCurrency.flag}</span>
+                <span className="text-2xl">{selectedCurrency.flag}</span>
                 <div className="text-left">
                   <p className="text-sm font-medium">{selectedCurrency.name}</p>
-                  <p className="text-xs text-white/50">{selectedCurrency.symbol} {selectedCurrency.code}</p>
+                  <p className="text-xs text-white/50">{selectedCurrency.symbol} {formData.targetCurrency}</p>
                 </div>
               </div>
-              <Globe size={18} className="text-white/40" />
+              <div className="flex items-center gap-2">
+                {ratesLoading && <RefreshCw size={16} className="text-white/40 animate-spin" />}
+                <Globe size={20} className="text-white/40" />
+              </div>
             </button>
 
             {showCurrencyDropdown && (
@@ -258,24 +457,39 @@ export const Step2Details = ({
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute z-20 w-full mt-2 max-h-64 overflow-y-auto bg-[#1a1a2e] border border-white/20 rounded-xl shadow-2xl"
+                className="absolute z-20 w-full mt-2 max-h-[70vh] overflow-y-auto bg-[#1a1a2e] border border-white/20 rounded-xl shadow-2xl"
               >
-                {Object.entries(EXCHANGE_RATES).map(([code, currency]) => (
+                {/* Refresh button */}
+                <div className="sticky top-0 bg-[#1a1a2e] border-b border-white/10 p-3 flex items-center justify-between">
+                  <p className="text-xs text-white/50">
+                    {ratesUpdated ? `Updated: ${ratesUpdated}` : 'Live rates'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); refreshRates() }}
+                    disabled={ratesLoading}
+                    className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 px-2 py-1 rounded-lg hover:bg-violet-500/10 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw size={12} className={ratesLoading ? 'animate-spin' : ''} />
+                    Refresh
+                  </button>
+                </div>
+                {Object.entries(rates).map(([code, currency]) => (
                   <button
                     key={code}
                     type="button"
                     onClick={() => handleCurrencySelect(code)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-colors text-left ${
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/10 transition-colors text-left min-h-[52px] ${
                       formData.targetCurrency === code ? 'bg-violet-500/20 border-l-2 border-violet-500' : ''
                     }`}
                   >
-                    <span className="text-xl">{currency.flag}</span>
+                    <span className="text-2xl">{currency.flag}</span>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-white">{currency.name}</p>
                       <p className="text-xs text-white/50">1 USD = {currency.rate} {currency.symbol}</p>
                     </div>
                     {formData.targetCurrency === code && (
-                      <CheckCircle size={16} className="text-violet-400" />
+                      <CheckCircle size={18} className="text-violet-400" />
                     )}
                   </button>
                 ))}
@@ -297,6 +511,7 @@ export const Step2Details = ({
               placeholder="0.00"
             />
           </div>
+
           {/* Live Conversion Display */}
           {formData.amount && parseFloat(formData.amount) > 0 && (
             <motion.div
@@ -312,11 +527,17 @@ export const Step2Details = ({
                 {selectedCurrency.symbol}{convertedAmount}
               </p>
               <p className="text-xs text-white/50 mt-1">
-                {selectedCurrency.flag} {getCurrencyName(formData.targetCurrency)} • Exchange rate: 1 USD = {selectedCurrency.rate} {selectedCurrency.symbol}
+                {selectedCurrency.flag} {getCurrencyName(formData.targetCurrency, rates)} • Exchange rate: 1 USD = {selectedCurrency.rate} {selectedCurrency.symbol}
               </p>
               {formData.targetCurrency !== 'USD' && (
                 <p className="text-xs text-white/40 mt-1">
                   You send: ${parseFloat(formData.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD
+                </p>
+              )}
+              {ratesUpdated && (
+                <p className="text-[10px] text-white/30 mt-2 flex items-center gap-1">
+                  <RefreshCw size={8} />
+                  Rate updated at {ratesUpdated}
                 </p>
               )}
             </motion.div>
@@ -354,12 +575,28 @@ export const Step2Details = ({
   )
 }
 
+
 export const Step3PIN = ({
   transferType, formData, selectedRecipient, setFormData, handleSubmit,
   setStep, loading, error
 }) => {
-  const targetCurrency = EXCHANGE_RATES[formData.targetCurrency] || EXCHANGE_RATES.USD
-  const convertedAmount = convertAmount(formData.amount, formData.targetCurrency)
+  const [rates, setRates] = useState(FALLBACK_RATES)
+  const [ratesLoading, setRatesLoading] = useState(false)
+
+  // Fetch rates for PIN screen too
+  useEffect(() => {
+    const loadRates = async () => {
+      setRatesLoading(true)
+      const apiRates = await fetchLiveRates()
+      const built = buildRates(apiRates)
+      setRates(built)
+      setRatesLoading(false)
+    }
+    loadRates()
+  }, [])
+
+  const targetCurrency = rates[formData.targetCurrency] || rates.USD
+  const convertedAmount = convertAmount(formData.amount, targetCurrency.rate)
 
   return (
     <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
@@ -367,10 +604,10 @@ export const Step3PIN = ({
       <p className="text-white/50 text-sm mb-6">Confirm transfer with your 4-digit PIN</p>
 
       {error && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-4 p-4 bg-red-500/20 border border-red-500/30 text-red-400 rounded-xl text-sm"
+          className="mb-4 p-4 bg-rose-500/15 border border-rose-500/25 text-rose-400 rounded-xl text-sm"
         >
           {error}
         </motion.div>
@@ -396,6 +633,7 @@ export const Step3PIN = ({
             </div>
             <p className="text-xs text-white/40 mt-2 text-right">
               1 USD = {targetCurrency.rate} {targetCurrency.symbol}
+              {ratesLoading && <RefreshCw size={10} className="inline ml-1 animate-spin" />}
             </p>
           </div>
 
@@ -425,6 +663,7 @@ export const Step3PIN = ({
               </div>
             </>
           )}
+
           {formData.narration && (
             <div className="flex justify-between py-2 border-b border-white/5">
               <span className="text-white/50 text-sm">Narration</span>

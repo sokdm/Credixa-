@@ -1,60 +1,122 @@
 import { motion } from 'framer-motion'
-import { CheckCircle, Download, ArrowLeft, Copy, Calendar, Clock, User, Building2, Hash, FileText, CreditCard, Globe, ArrowRightLeft, Share2, Wallet } from 'lucide-react'
-import { useState, useRef } from 'react'
+import { CheckCircle, Download, Copy, Calendar, Clock, User, Hash, ArrowRightLeft, Share2, Wallet, RefreshCw, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
 
-const EXCHANGE_RATES = {
-  USD: { rate: 1, symbol: '$', flag: '🇺🇸', name: 'US Dollar' },
-  EUR: { rate: 0.85, symbol: '€', flag: '🇪🇺', name: 'Euro' },
-  GBP: { rate: 0.73, symbol: '£', flag: '🇬🇧', name: 'British Pound' },
-  NGN: { rate: 1550, symbol: '₦', flag: '🇳🇬', name: 'Nigerian Naira' },
-  GHS: { rate: 15.2, symbol: '₵', flag: '🇬🇭', name: 'Ghana Cedi' },
-  KES: { rate: 129.5, symbol: 'KSh', flag: '🇰🇪', name: 'Kenyan Shilling' },
-  ZAR: { rate: 18.4, symbol: 'R', flag: '🇿🇦', name: 'South African Rand' },
-  JPY: { rate: 157.3, symbol: '¥', flag: '🇯🇵', name: 'Japanese Yen' },
-  CNY: { rate: 7.24, symbol: '¥', flag: '🇨🇳', name: 'Chinese Yuan' },
-  INR: { rate: 83.5, symbol: '₹', flag: '🇮🇳', name: 'Indian Rupee' },
-  CAD: { rate: 1.36, symbol: 'C$', flag: '🇨🇦', name: 'Canadian Dollar' },
-  AUD: { rate: 1.52, symbol: 'A$', flag: '🇦🇺', name: 'Australian Dollar' },
-  BRL: { rate: 5.15, symbol: 'R$', flag: '🇧🇷', name: 'Brazilian Real' },
-  MXN: { rate: 18.2, symbol: '$', flag: '🇲🇽', name: 'Mexican Peso' },
-  SGD: { rate: 1.35, symbol: 'S$', flag: '🇸🇬', name: 'Singapore Dollar' },
-  AED: { rate: 3.67, symbol: 'د.إ', flag: '🇦🇪', name: 'UAE Dirham' },
-  SAR: { rate: 3.75, symbol: '﷼', flag: '🇸🇦', name: 'Saudi Riyal' },
-  CHF: { rate: 0.88, symbol: 'Fr', flag: '🇨🇭', name: 'Swiss Franc' },
-  SEK: { rate: 10.6, symbol: 'kr', flag: '🇸🇪', name: 'Swedish Krona' },
-  TRY: { rate: 32.1, symbol: '₺', flag: '🇹🇷', name: 'Turkish Lira' }
+const CURRENCY_META = {
+  USD: { symbol: '$', flag: '🇺🇸', name: 'US Dollar' },
+  EUR: { symbol: '€', flag: '🇪🇺', name: 'Euro' },
+  GBP: { symbol: '£', flag: '🇬🇧', name: 'British Pound' },
+  NGN: { symbol: '₦', flag: '🇳🇬', name: 'Nigerian Naira' },
+  GHS: { symbol: '₵', flag: '🇬🇭', name: 'Ghana Cedi' },
+  KES: { symbol: 'KSh', flag: '🇰🇪', name: 'Kenyan Shilling' },
+  ZAR: { symbol: 'R', flag: '🇿🇦', name: 'South African Rand' },
+  JPY: { symbol: '¥', flag: '🇯🇵', name: 'Japanese Yen' },
+  CNY: { symbol: '¥', flag: '🇨🇳', name: 'Chinese Yuan' },
+  INR: { symbol: '₹', flag: '🇮🇳', name: 'Indian Rupee' },
+  CAD: { symbol: 'C$', flag: '🇨🇦', name: 'Canadian Dollar' },
+  AUD: { symbol: 'A$', flag: '🇦🇺', name: 'Australian Dollar' },
+  BRL: { symbol: 'R$', flag: '🇧🇷', name: 'Brazilian Real' },
+  MXN: { symbol: '$', flag: '🇲🇽', name: 'Mexican Peso' },
+  SGD: { symbol: 'S$', flag: '🇸🇬', name: 'Singapore Dollar' },
+  AED: { symbol: 'د.إ', flag: '🇦🇪', name: 'UAE Dirham' },
+  SAR: { symbol: '﷼', flag: '🇸🇦', name: 'Saudi Riyal' },
+  CHF: { symbol: 'Fr', flag: '🇨🇭', name: 'Swiss Franc' },
+  SEK: { symbol: 'kr', flag: '🇸🇪', name: 'Swedish Krona' },
+  TRY: { symbol: '₺', flag: '🇹🇷', name: 'Turkish Lira' },
+  COP: { symbol: '$', flag: '🇨🇴', name: 'Colombian Peso' },
+  ARS: { symbol: '$', flag: '🇦🇷', name: 'Argentine Peso' },
+  CLP: { symbol: '$', flag: '🇨🇱', name: 'Chilean Peso' },
+  PEN: { symbol: 'S/', flag: '🇵🇪', name: 'Peruvian Sol' },
+  UYU: { symbol: '$', flag: '🇺🇾', name: 'Uruguayan Peso' },
+  PYG: { symbol: '₲', flag: '🇵🇾', name: 'Paraguayan Guarani' },
+  BOB: { symbol: 'Bs', flag: '🇧🇴', name: 'Bolivian Boliviano' },
+  DOP: { symbol: 'RD$', flag: '🇩🇴', name: 'Dominican Peso' },
+  HNL: { symbol: 'L', flag: '🇭🇳', name: 'Honduran Lempira' },
+  GTQ: { symbol: 'Q', flag: '🇬🇹', name: 'Guatemalan Quetzal' },
+  CRC: { symbol: '₡', flag: '🇨🇷', name: 'Costa Rican Colon' },
+  PAB: { symbol: 'B/.', flag: '🇵🇦', name: 'Panamanian Balboa' },
+  JMD: { symbol: 'J$', flag: '🇯🇲', name: 'Jamaican Dollar' },
+  TTD: { symbol: 'TT$', flag: '🇹🇹', name: 'Trinidad Dollar' },
+  XCD: { symbol: 'EC$', flag: '🇦🇬', name: 'E.Caribbean Dollar' },
+  XOF: { symbol: 'CFA', flag: '🇸🇳', name: 'W.African CFA' },
+  MAD: { symbol: 'DH', flag: '🇲🇦', name: 'Moroccan Dirham' },
+  EGP: { symbol: 'E£', flag: '🇪🇬', name: 'Egyptian Pound' },
+  DZD: { symbol: 'DA', flag: '🇩🇿', name: 'Algerian Dinar' },
+  ETB: { symbol: 'Br', flag: '🇪🇹', name: 'Ethiopian Birr' },
+  UGX: { symbol: 'USh', flag: '🇺🇬', name: 'Ugandan Shilling' },
+  TZS: { symbol: 'TSh', flag: '🇹🇿', name: 'Tanzanian Shilling' },
+  RWF: { symbol: 'RF', flag: '🇷🇼', name: 'Rwandan Franc' },
+  ZMW: { symbol: 'K', flag: '🇿🇲', name: 'Zambian Kwacha' },
+  MZN: { symbol: 'MT', flag: '🇲🇿', name: 'Mozambican Metical' },
+  BWP: { symbol: 'P', flag: '🇧🇼', name: 'Botswana Pula' },
+  MGA: { symbol: 'Ar', flag: '🇲🇬', name: 'Malagasy Ariary' },
+  AOA: { symbol: 'Kz', flag: '🇦🇴', name: 'Angolan Kwanza' },
+  NZD: { symbol: 'NZ$', flag: '🇳🇿', name: 'New Zealand Dollar' },
+  HKD: { symbol: 'HK$', flag: '🇭🇰', name: 'Hong Kong Dollar' },
+  KRW: { symbol: '₩', flag: '🇰🇷', name: 'South Korean Won' },
+  IDR: { symbol: 'Rp', flag: '🇮🇩', name: 'Indonesian Rupiah' },
+  MYR: { symbol: 'RM', flag: '🇲🇾', name: 'Malaysian Ringgit' },
+  PHP: { symbol: '₱', flag: '🇵🇭', name: 'Philippine Peso' },
+  THB: { symbol: '฿', flag: '🇹🇭', name: 'Thai Baht' },
+  VND: { symbol: '₫', flag: '🇻🇳', name: 'Vietnamese Dong' },
+  PKR: { symbol: '₨', flag: '🇵🇰', name: 'Pakistani Rupee' },
+  BDT: { symbol: '৳', flag: '🇧🇩', name: 'Bangladeshi Taka' },
+  LKR: { symbol: '₨', flag: '🇱🇰', name: 'Sri Lankan Rupee' },
+  NPR: { symbol: '₨', flag: '🇳🇵', name: 'Nepalese Rupee' },
+  RUB: { symbol: '₽', flag: '🇷🇺', name: 'Russian Ruble' },
+  PLN: { symbol: 'zł', flag: '🇵🇱', name: 'Polish Zloty' },
+  CZK: { symbol: 'Kč', flag: '🇨🇿', name: 'Czech Koruna' },
+  HUF: { symbol: 'Ft', flag: '🇭🇺', name: 'Hungarian Forint' },
+  RON: { symbol: 'lei', flag: '🇷🇴', name: 'Romanian Leu' },
+  DKK: { symbol: 'kr', flag: '🇩🇰', name: 'Danish Krone' },
+  NOK: { symbol: 'kr', flag: '🇳🇴', name: 'Norwegian Krone' },
+  ISK: { symbol: 'kr', flag: '🇮🇸', name: 'Icelandic Krona' },
+  UAH: { symbol: '₴', flag: '🇺🇦', name: 'Ukrainian Hryvnia' },
+  KZT: { symbol: '₸', flag: '🇰🇿', name: 'Kazakhstani Tenge' },
+  AZN: { symbol: '₼', flag: '🇦🇿', name: 'Azerbaijani Manat' },
+  AMD: { symbol: '֏', flag: '🇦🇲', name: 'Armenian Dram' },
+  MDL: { symbol: 'L', flag: '🇲🇩', name: 'Moldovan Leu' },
+  BHD: { symbol: '.د.ب', flag: '🇧🇭', name: 'Bahraini Dinar' },
+  KWD: { symbol: 'د.ك', flag: '🇰🇼', name: 'Kuwaiti Dinar' },
+  OMR: { symbol: 'ر.ع.', flag: '🇴🇲', name: 'Omani Rial' },
+  QAR: { symbol: 'ر.ق', flag: '🇶🇦', name: 'Qatari Riyal' },
+  JOD: { symbol: 'د.ا', flag: '🇯🇴', name: 'Jordanian Dinar' },
+  LBP: { symbol: 'ل.ل', flag: '🇱🇧', name: 'Lebanese Pound' },
+  BND: { symbol: 'B$', flag: '🇧🇳', name: 'Brunei Dollar' },
+  FJD: { symbol: 'FJ$', flag: '🇫🇯', name: 'Fijian Dollar' }
+}
+
+const fetchLiveRates = async () => {
+  try {
+    const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD')
+    if (!res.ok) throw new Error('API failed')
+    const data = await res.json()
+    return data.rates
+  } catch (err) {
+    return null
+  }
 }
 
 const TransferReceipt = ({ receipt, transferType, onNewTransfer }) => {
   const [copied, setCopied] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
+  const [liveRates, setLiveRates] = useState(null)
   const receiptRef = useRef(null)
+
+  useEffect(() => {
+    const loadRates = async () => {
+      const rates = await fetchLiveRates()
+      setLiveRates(rates)
+    }
+    loadRates()
+  }, [])
 
   const formatDateTime = (isoString) => {
     const date = new Date(isoString)
     return {
-      date: date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }),
-      time: date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      }),
-      shortDate: date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      }),
-      shortTime: date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      })
+      date: date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+      time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      fullDate: date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
     }
   }
 
@@ -66,356 +128,348 @@ const TransferReceipt = ({ receipt, transferType, onNewTransfer }) => {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const generateTransactionId = () => {
-    const prefix = 'TXN'
-    const timestamp = Date.now().toString(36).toUpperCase()
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase()
-    return `${prefix}-${timestamp}-${random}`
+  const transactionId = receipt.transactionId || receipt.reference || `TXN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+
+  const targetCurrencyCode = receipt.targetCurrency || receipt.currency || 'USD'
+  const targetCurrency = CURRENCY_META[targetCurrencyCode] || CURRENCY_META.USD
+  
+  const usdAmount = receipt.originalAmount || receipt.amount
+  
+  const liveRate = liveRates?.[targetCurrencyCode]
+  const convertedAmount = liveRate 
+    ? (parseFloat(usdAmount) * liveRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : null
+
+  const senderName = receipt.senderName || 'N/A'
+  const senderAccount = receipt.senderAccountNumber || 'N/A'
+  const receiverName = receipt.receiverName || receipt.recipientName || receipt.recipient || 'N/A'
+  const receiverAccount = receipt.receiverAccountNumber || receipt.recipientAccount || receipt.accountNumber || 'N/A'
+  const receiverBank = receipt.receiverBankName || receipt.bankName || receipt.recipientBank || 'Credixa Banking'
+
+  const handleDownload = () => {
+    const element = receiptRef.current
+    if (!element) return
+    
+    const printWindow = window.open('', '_blank')
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Transfer Receipt - ${transactionId}</title>
+          <style>
+            body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 40px; background: #f8fafc; }
+            .receipt { max-width: 480px; margin: 0 auto; background: white; border-radius: 16px; padding: 32px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+            .header { text-align: center; margin-bottom: 20px; }
+            .success-badge { display: inline-flex; align-items: center; gap: 8px; background: #dcfce7; color: #166534; padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+            .amount-section { text-align: center; margin: 16px 0; padding: 16px; background: #f8fafc; border-radius: 12px; }
+            .amount { font-size: 28px; font-weight: 700; color: #0f172a; }
+            .converted { font-size: 16px; color: #059669; margin-top: 6px; font-weight: 600; }
+            .parties { display: flex; align-items: center; justify-content: space-between; margin: 16px 0; padding: 12px; background: #f8fafc; border-radius: 12px; }
+            .party { text-align: center; flex: 1; }
+            .party-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 4px; letter-spacing: 0.5px; }
+            .party-name { font-size: 13px; font-weight: 600; color: #0f172a; }
+            .party-acct { font-size: 11px; color: #64748b; margin-top: 2px; }
+            .arrow { color: #059669; font-size: 20px; font-weight: 700; margin: 0 8px; }
+            .details { margin-top: 16px; }
+            .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+            .detail-row:last-child { border-bottom: none; }
+            .detail-label { color: #64748b; }
+            .detail-value { color: #0f172a; font-weight: 500; }
+            .footer { text-align: center; margin-top: 20px; padding-top: 20px; border-top: 2px dashed #e2e8f0; color: #64748b; font-size: 11px; }
+            .logo { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+            .tagline { font-size: 11px; color: #64748b; }
+          </style>
+        </head>
+        <body>
+          <div class="receipt">
+            <div class="header">
+              <div class="logo">CREDIXA</div>
+              <div class="tagline">Secure Global Transfers</div>
+              <div style="margin-top:12px">
+                <div class="success-badge">✓ Transfer Successful</div>
+              </div>
+            </div>
+            
+            <div class="amount-section">
+              <div class="amount">$${parseFloat(usdAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</div>
+              ${convertedAmount ? `<div class="converted">≈ ${targetCurrency.symbol}${convertedAmount} ${targetCurrencyCode}</div>` : ''}
+            </div>
+
+            <div class="parties">
+              <div class="party">
+                <div class="party-label">From</div>
+                <div class="party-name">${senderName}</div>
+                <div class="party-acct">${senderAccount}</div>
+              </div>
+              <div class="arrow">→</div>
+              <div class="party">
+                <div class="party-label">To</div>
+                <div class="party-name">${receiverName}</div>
+                <div class="party-acct">${receiverAccount}</div>
+              </div>
+            </div>
+            
+            <div class="details">
+              <div class="detail-row">
+                <span class="detail-label">Transaction ID</span>
+                <span class="detail-value">${transactionId}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Date</span>
+                <span class="detail-value">${dt.fullDate}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Time</span>
+                <span class="detail-value">${dt.time}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Transfer Type</span>
+                <span class="detail-value">${transferType === 'wire' ? 'Wire Transfer' : transferType === 'mobile' ? 'Mobile Money' : transferType === 'external' ? 'External Transfer' : 'Bank Transfer'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Recipient Currency</span>
+                <span class="detail-value">${targetCurrency.flag} ${targetCurrency.name} (${targetCurrencyCode})</span>
+              </div>
+              ${receipt.narration ? `
+              <div class="detail-row">
+                <span class="detail-label">Description</span>
+                <span class="detail-value">${receipt.narration}</span>
+              </div>
+              ` : ''}
+              <div class="detail-row">
+                <span class="detail-label">Status</span>
+                <span class="detail-value" style="color: #059669; font-weight: 600;">Completed</span>
+              </div>
+            </div>
+            
+            <div class="footer">
+              <p>This receipt was generated automatically by CREDIXA.</p>
+              <p>Keep this for your records.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `
+    printWindow.document.write(html)
+    printWindow.document.close()
+    printWindow.print()
   }
 
-  const transactionId = receipt.transactionId || generateTransactionId()
+  const handleShare = async () => {
+    const shareData = {
+      title: 'CREDIXA Transfer Receipt',
+      text: `Transfer of $${parseFloat(usdAmount).toLocaleString()} USD to ${receiverName} (${targetCurrencyCode}) completed successfully. TXN: ${transactionId}`,
+      url: window.location.href
+    }
 
-  const targetCurrency = EXCHANGE_RATES[receipt.targetCurrency || receipt.currency || 'USD'] || EXCHANGE_RATES.USD
-  const originalAmount = receipt.originalAmount || receipt.amount
-  const displayAmount = receipt.amount
-
-  const downloadReceipt = () => {
-    if (!receipt) return
-
-    const content = `
-╔══════════════════════════════════════════════════════════════════╗
-║                    CREDIXA DIGITAL BANKING                       ║
-║                                                                  ║
-║              OFFICIAL TRANSACTION RECEIPT                        ║
-║                                                                  ║
-╠══════════════════════════════════════════════════════════════════╣
-║  TRANSACTION ID    : ${transactionId.padEnd(47)} ║
-║  REFERENCE NUMBER  : ${receipt.reference.padEnd(47)} ║
-╠══════════════════════════════════════════════════════════════════╣
-║  STATUS            : SUCCESSFUL                                  ║
-║  TYPE              : ${(transferType === 'internal' ? 'Internal Transfer' : 'External Transfer').padEnd(47)} ║
-║  DATE              : ${dt.date.padEnd(47)} ║
-║  TIME              : ${dt.time.padEnd(47)} ║
-║  PROCESSING TIME   : Instant                                     ║
-╠══════════════════════════════════════════════════════════════════╣
-║  FROM                                                            ║
-║  Name:      ${receipt.senderName.padEnd(51)} ║
-║  Account:   ${receipt.senderAccountNumber.padEnd(51)} ║
-║  Bank:      Credixa Banking                                      ║
-╠══════════════════════════════════════════════════════════════════╣
-║  TO                                                              ║
-║  Name:      ${receipt.receiverName.padEnd(51)} ║
-║  Account:   ${(receipt.receiverAccountNumber || 'N/A').padEnd(51)} ║
-║  Bank:      ${(receipt.bankName || 'Credixa Banking').padEnd(51)} ║
-╠══════════════════════════════════════════════════════════════════╣
-║  AMOUNT SENT        : $${originalAmount.toLocaleString().padEnd(46)} ║
-║  CURRENCY           : ${(targetCurrency.name + ' ' + targetCurrency.flag).padEnd(47)} ║
-║  RECIPIENT RECEIVES : ${(targetCurrency.symbol + displayAmount.toLocaleString()).padEnd(47)} ║
-╠══════════════════════════════════════════════════════════════════╣
-║  NARRATION       : ${(receipt.narration || 'N/A').padEnd(49)} ║
-║  CHANNEL         : Mobile App                                    ║
-║  SESSION ID      : ${receipt.reference.padEnd(49)} ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  This is an official receipt generated by Credixa Banking.       ║
-║  Keep this receipt for your records.                             ║
-║                                                                  ║
-║  For support: credixasupport@gmail.com                           ║
-║  Generated: ${dt.shortDate} ${dt.shortTime.padEnd(37)} ║
-║                                                                  ║
-╚══════════════════════════════════════════════════════════════════╝
-    `.trim()
-
-    const blob = new Blob([content], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `Credixa-Receipt-${receipt.reference}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const shareReceipt = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: 'Credixa Transfer Receipt',
-          text: `Transfer of ${targetCurrency.symbol}${displayAmount.toLocaleString()} to ${receipt.receiverName} - Ref: ${receipt.reference}`,
-          url: window.location.href
-        })
+        await navigator.share(shareData)
       } catch (err) {
-        console.log('Share cancelled')
+        // User cancelled
       }
     } else {
-      setShowShareMenu(!showShareMenu)
+      copyToClipboard(shareData.text)
     }
+    setShowShareMenu(false)
   }
 
-  return (
-    <motion.div
-      key="step4"
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3 }}
-      className="w-full max-w-md mx-auto px-4"
-    >
-      {/* Success Header */}
-      <div className="text-center mb-6">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
-          className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-green-400/20 to-emerald-500/20 rounded-full flex items-center justify-center border-2 border-green-400/30 shadow-lg shadow-green-500/10"
-        >
-          <CheckCircle className="text-green-400" size={40} strokeWidth={2.5} />
-        </motion.div>
-        <motion.h2 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-2xl font-bold text-green-400"
-        >
-          Transfer Successful!
-        </motion.h2>
-        <motion.p 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="text-white/50 text-sm mt-1"
-        >
-          Transaction completed securely
-        </motion.p>
-      </div>
+  const receiptDetails = [
+    { icon: Hash, label: 'Transaction ID', value: transactionId, copyable: true },
+    { icon: Calendar, label: 'Date', value: dt.fullDate },
+    { icon: Clock, label: 'Time', value: dt.time },
+    { icon: ArrowRightLeft, label: 'Transfer Type', value: transferType === 'wire' ? 'Wire Transfer' : transferType === 'mobile' ? 'Mobile Money' : transferType === 'external' ? 'External Transfer' : 'Bank Transfer' },
+    { icon: Wallet, label: 'Recipient Currency', value: `${targetCurrency.flag} ${targetCurrency.name} (${targetCurrencyCode})` },
+    ...(receipt.narration ? [{ icon: Hash, label: 'Description', value: receipt.narration }] : []),
+  ]
 
-      {/* Receipt Card */}
-      <motion.div 
+return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="max-w-md mx-auto"
+    >
+      <div
         ref={receiptRef}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-gradient-to-b from-[#1a1a2e] to-[#131325] border border-white/10 rounded-3xl overflow-hidden shadow-2xl shadow-black/50"
+        className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100"
       >
-        {/* Decorative Top Pattern */}
-        <div className="h-2 bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500" />
-        
-        {/* Bank Header */}
-        <div className="px-6 pt-6 pb-4 text-center border-b border-white/5">
-          <motion.div 
-            initial={{ scale: 0.8 }}
+        {/* Header */}
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-4 text-center text-white">
+          <motion.div
+            initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 0.4, type: "spring" }}
-            className="w-14 h-14 mx-auto mb-3 bg-gradient-to-br from-violet-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/20"
+            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+            className="inline-flex items-center justify-center w-12 h-12 bg-white/20 rounded-full mb-2 backdrop-blur-sm"
           >
-            <span className="text-white font-bold text-2xl">C</span>
+            <CheckCircle className="w-6 h-6 text-white" />
           </motion.div>
-          <h3 className="font-bold text-lg tracking-wider text-white">CREDIXA</h3>
-          <p className="text-white/40 text-[10px] uppercase tracking-[0.2em] mt-0.5">Digital Banking</p>
-          <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
-            <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-            <span className="text-green-400 text-[10px] font-semibold uppercase tracking-wider">Successful</span>
-          </div>
+          <h2 className="text-xl font-bold mb-0.5">Transfer Successful!</h2>
+          <p className="text-emerald-100 text-xs">Your money is on its way</p>
         </div>
 
-        <div className="p-5 space-y-4">
-          {/* Amount Section - Hero */}
-          <div className="bg-gradient-to-br from-violet-600/20 via-purple-600/20 to-pink-600/20 rounded-2xl p-5 text-center border border-violet-500/20 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-pink-500/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+        {/* Amount Section - BOTH USD sent AND converted target currency */}
+        <div className="p-4 text-center border-b border-slate-100">
+          <p className="text-slate-500 text-xs mb-1">You sent</p>
+          <div className="text-2xl font-bold text-slate-900 mb-1">
+            ${parseFloat(usdAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-sm text-slate-400">USD</span>
+          </div>
+          
+          {convertedAmount && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-semibold"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Receiver gets ≈ {targetCurrency.symbol}{convertedAmount} {targetCurrencyCode}
+            </motion.div>
+          )}
+          
+          {!convertedAmount && liveRates === null && (
+            <p className="text-xs text-slate-400 mt-1">Exchange rate unavailable</p>
+          )}
+        </div>
+
+        {/* Sender → Receiver Compact Row */}
+        <div className="px-4 py-3 border-b border-slate-100">
+          <div className="flex items-center justify-between">
+            <div className="text-center flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">From</p>
+              <p className="text-sm font-semibold text-slate-900 truncate">{senderName}</p>
+              <p className="text-[10px] text-slate-500">{senderAccount}</p>
+            </div>
+            <div className="mx-2 text-emerald-500">
+              <ArrowRightLeft className="w-4 h-4" />
+            </div>
+            <div className="text-center flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">To</p>
+              <p className="text-sm font-semibold text-slate-900 truncate">{receiverName}</p>
+              <p className="text-[10px] text-slate-500">{receiverAccount}</p>
+            </div>
+          </div>
+          <p className="text-center text-[10px] text-slate-400 mt-1">{receiverBank}</p>
+        </div>
+
+        {/* Details */}
+        <div className="px-4 py-3 space-y-2">
+          {receiptDetails.map((detail, index) => (
+            <motion.div
+              key={detail.label}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 + index * 0.05 }}
+              className="flex items-center justify-between py-1"
+            >
+              <div className="flex items-center gap-2 text-slate-500">
+                <detail.icon className="w-3.5 h-3.5" />
+                <span className="text-xs">{detail.label}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-medium text-slate-900 text-right">{detail.value}</span>
+                {detail.copyable && (
+                  <button
+                    onClick={() => copyToClipboard(detail.value)}
+                    className="p-0.5 hover:bg-slate-100 rounded transition-colors"
+                    title="Copy"
+                  >
+                    {copied ? (
+                      <CheckCircle className="w-3 h-3 text-emerald-500" />
+                    ) : (
+                      <Copy className="w-3 h-3 text-slate-400" />
+                    )}
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          ))}
+          
+          {/* Status */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="flex items-center justify-between py-1 pt-2 border-t border-slate-100"
+          >
+            <div className="flex items-center gap-2 text-slate-500">
+              <CheckCircle className="w-3.5 h-3.5" />
+              <span className="text-xs">Status</span>
+            </div>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-semibold">
+              <span className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" />
+              Completed
+            </span>
+          </motion.div>
+        </div>
+
+        {/* Actions */}
+        <div className="p-4 bg-slate-50 border-t border-slate-100 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={handleDownload}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-300 transition-all text-xs"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download
+            </button>
             
             <div className="relative">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Wallet size={14} className="text-violet-400" />
-                <p className="text-white/40 text-[10px] uppercase tracking-widest font-medium">Amount Transferred</p>
-              </div>
-              <p className="text-3xl font-bold text-white tracking-tight">
-                {targetCurrency.symbol}{displayAmount.toLocaleString()}
-              </p>
-              <p className="text-xs text-white/50 mt-1">
-                {targetCurrency.flag} {targetCurrency.name}
-              </p>
+              <button
+                onClick={() => setShowShareMenu(!showShareMenu)}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-300 transition-all text-xs"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                Share
+              </button>
               
-              {receipt.targetCurrency && receipt.targetCurrency !== 'USD' && (
-                <div className="mt-3 pt-3 border-t border-white/10">
-                  <div className="flex items-center justify-center gap-2 text-xs text-white/40">
-                    <ArrowRightLeft size={12} />
-                    <span>Sent: ${originalAmount.toLocaleString()} USD</span>
-                  </div>
-                </div>
+              {showShareMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="absolute bottom-full left-0 right-0 mb-1.5 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-10"
+                >
+                  <button
+                    onClick={handleShare}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    Share via...
+                  </button>
+                  <button
+                    onClick={() => {
+                      copyToClipboard(`Transfer of $${parseFloat(usdAmount).toLocaleString()} USD to ${receiverName} (${targetCurrencyCode}) - TXN: ${transactionId}`)
+                      setShowShareMenu(false)
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy Details
+                  </button>
+                </motion.div>
               )}
             </div>
           </div>
-
-          {/* Transaction Details Grid */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="bg-white/[0.03] rounded-xl p-3 border border-white/5">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Calendar size={12} className="text-violet-400" />
-                <p className="text-white/30 text-[9px] uppercase tracking-wider font-medium">Date</p>
-              </div>
-              <p className="text-xs text-white/90 font-medium">{dt.shortDate}</p>
-            </div>
-            <div className="bg-white/[0.03] rounded-xl p-3 border border-white/5">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Clock size={12} className="text-violet-400" />
-                <p className="text-white/30 text-[9px] uppercase tracking-wider font-medium">Time</p>
-              </div>
-              <p className="text-xs text-white/90 font-medium">{dt.shortTime}</p>
-            </div>
-          </div>
-
-          {/* Transaction ID */}
-          <div className="bg-white/[0.03] rounded-xl p-3.5 border border-white/5">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5">
-                <Hash size={12} className="text-violet-400" />
-                <p className="text-white/30 text-[9px] uppercase tracking-wider font-medium">Transaction ID</p>
-              </div>
-              <button
-                onClick={() => copyToClipboard(transactionId)}
-                className="text-violet-400 hover:text-violet-300 transition-colors p-1 hover:bg-violet-500/10 rounded-lg"
-              >
-                {copied ? <CheckCircle size={14} /> : <Copy size={14} />}
-              </button>
-            </div>
-            <p className="font-mono font-semibold text-xs text-violet-300 tracking-wide">{transactionId}</p>
-          </div>
-
-          {/* Reference */}
-          <div className="bg-white/[0.03] rounded-xl p-3.5 border border-white/5">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <FileText size={12} className="text-violet-400" />
-              <p className="text-white/30 text-[9px] uppercase tracking-wider font-medium">Reference</p>
-            </div>
-            <p className="font-mono font-semibold text-xs text-white/80">{receipt.reference}</p>
-          </div>
-
-          {/* Status & Type */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="bg-white/[0.03] rounded-xl p-3 border border-white/5">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <CheckCircle size={12} className="text-green-400" />
-                <p className="text-white/30 text-[9px] uppercase tracking-wider font-medium">Status</p>
-              </div>
-              <p className="text-xs text-green-400 font-bold">SUCCESSFUL</p>
-            </div>
-            <div className="bg-white/[0.03] rounded-xl p-3 border border-white/5">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <ArrowLeft size={12} className="text-violet-400" />
-                <p className="text-white/30 text-[9px] uppercase tracking-wider font-medium">Type</p>
-              </div>
-              <p className="text-xs text-white/90 font-medium">
-                {transferType === 'internal' ? 'Internal' : 'External'}
-              </p>
-            </div>
-          </div>
-
-          {/* From Section */}
-          <div className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 bg-violet-500/20 rounded-lg flex items-center justify-center">
-                <User size={14} className="text-violet-400" />
-              </div>
-              <div>
-                <p className="text-white/30 text-[9px] uppercase tracking-wider font-medium">From</p>
-                <p className="text-xs text-white/60">Credixa Banking</p>
-              </div>
-            </div>
-            <p className="font-semibold text-sm text-white ml-10">{receipt.senderName}</p>
-            <p className="text-[11px] text-white/40 font-mono ml-10">{receipt.senderAccountNumber}</p>
-          </div>
-
-          {/* To Section */}
-          <div className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 bg-pink-500/20 rounded-lg flex items-center justify-center">
-                <User size={14} className="text-pink-400" />
-              </div>
-              <div>
-                <p className="text-white/30 text-[9px] uppercase tracking-wider font-medium">To</p>
-                <p className="text-xs text-white/60">{receipt.bankName || 'Credixa Banking'}</p>
-              </div>
-            </div>
-            <p className="font-semibold text-sm text-white ml-10">{receipt.receiverName}</p>
-            <p className="text-[11px] text-white/40 font-mono ml-10">{receipt.receiverAccountNumber || 'N/A'}</p>
-          </div>
-
-          {/* Currency Info */}
-          <div className="bg-white/[0.03] rounded-xl p-3 border border-white/5">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <Globe size={12} className="text-violet-400" />
-              <p className="text-white/30 text-[9px] uppercase tracking-wider font-medium">Currency</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{targetCurrency.flag}</span>
-              <div>
-                <p className="text-xs text-white/90 font-medium">{targetCurrency.name}</p>
-                <p className="text-[10px] text-white/40">1 USD = {targetCurrency.rate} {targetCurrency.symbol}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Narration */}
-          {receipt.narration && (
-            <div className="bg-white/[0.03] rounded-xl p-3 border border-white/5">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <FileText size={12} className="text-violet-400" />
-                <p className="text-white/30 text-[9px] uppercase tracking-wider font-medium">Narration</p>
-              </div>
-              <p className="text-xs text-white/80">{receipt.narration}</p>
-            </div>
-          )}
-
-          {/* Session ID */}
-          <div className="bg-white/[0.03] rounded-xl p-3 border border-white/5">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Hash size={12} className="text-violet-400" />
-              <p className="text-white/30 text-[9px] uppercase tracking-wider font-medium">Session ID</p>
-            </div>
-            <p className="font-mono text-[11px] text-white/40">{receipt.reference}</p>
-          </div>
+          
+          <button
+            onClick={onNewTransfer}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 transition-all text-xs"
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5" />
+            New Transfer
+          </button>
         </div>
-        {/* Footer */}
-        <div className="px-5 py-4 border-t border-white/5 bg-white/[0.02]">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <div className="h-px w-8 bg-white/10" />
-            <CreditCard size={14} className="text-white/20" />
-            <div className="h-px w-8 bg-white/10" />
-          </div>
-          <p className="text-[10px] text-white/30 text-center">Thank you for banking with Credixa</p>
-          <p className="text-[10px] text-white/20 text-center mt-0.5">credixasupport@gmail.com</p>
-        </div>
-      </motion.div>
+      </div>
 
-      {/* Action Buttons */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className="flex gap-3 mt-5 mb-8"
-      >
-        <button
-          onClick={downloadReceipt}
-          className="flex-1 py-3.5 bg-white/5 border border-white/10 rounded-2xl font-semibold flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-white text-sm active:scale-95"
-        >
-          <Download size={16} /> Download
-        </button>
-        <button
-          onClick={shareReceipt}
-          className="flex-1 py-3.5 bg-white/5 border border-white/10 rounded-2xl font-semibold flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-white text-sm active:scale-95"
-        >
-          <Share2 size={16} /> Share
-        </button>
-      </motion.div>
-
-      <motion.button
+      {/* Security Note */}
+      <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        onClick={onNewTransfer}
-        className="w-full py-4 bg-gradient-to-r from-violet-600 to-purple-600 rounded-2xl text-white font-bold text-sm hover:opacity-90 transition-opacity active:scale-[0.98] mb-8 shadow-lg shadow-violet-500/20"
+        transition={{ delay: 0.8 }}
+        className="text-center text-[10px] text-slate-400 mt-3 px-4"
       >
-        New Transfer
-      </motion.button>
+        This receipt was generated securely by CREDIXA. Keep it for your records.
+      </motion.p>
     </motion.div>
   )
 }

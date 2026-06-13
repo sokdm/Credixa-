@@ -7,16 +7,14 @@ const Notification = require('../models/Notification');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
-// NEW: Lookup user by account number before transfer
+// Lookup user by account number
 router.get('/lookup-account/:accountNumber', auth, async (req, res) => {
   try {
     const cleanAccount = req.params.accountNumber.trim().replace(/\s/g, '');
     const user = await User.findOne({ accountNumber: cleanAccount }).select('fullName accountNumber');
-    
     if (!user) {
       return res.status(404).json({ error: 'No user found with this account number' });
     }
-    
     res.json({
       found: true,
       fullName: user.fullName,
@@ -29,21 +27,13 @@ router.get('/lookup-account/:accountNumber', auth, async (req, res) => {
 
 router.post('/internal', auth, async (req, res) => {
   try {
-    const { recipientAccount, amount, narration, pin } = req.body;
-    console.log(`[TRANSFER] Internal transfer attempt by user: ${req.user._id}, recipient: ${recipientAccount}, amount: ${amount}`);
+    const { recipientAccount, amount, narration, pin, targetCurrency, originalAmount } = req.body;
+    console.log(`[TRANSFER] Internal transfer by user: ${req.user._id}, recipient: ${recipientAccount}, amount: ${amount}, targetCurrency: ${targetCurrency}`);
 
     const sender = await User.findById(req.user._id);
-    if (!sender) {
-      return res.status(404).json({ error: 'Sender not found' });
-    }
-
-    if (sender.isLocked) {
-      return res.status(403).json({ error: 'Account locked. Contact support.' });
-    }
-
-    if (!sender.transactionPin) {
-      return res.status(400).json({ error: 'Transaction PIN not set' });
-    }
+    if (!sender) return res.status(404).json({ error: 'Sender not found' });
+    if (sender.isLocked) return res.status(403).json({ error: 'Account locked. Contact support.' });
+    if (!sender.transactionPin) return res.status(400).json({ error: 'Transaction PIN not set' });
 
     const isHashed = sender.transactionPin.startsWith('$2');
     let isPinValid;
@@ -52,43 +42,20 @@ router.post('/internal', auth, async (req, res) => {
     } else {
       isPinValid = pin === sender.transactionPin;
     }
-
-    if (!isPinValid) {
-      return res.status(400).json({ error: 'Invalid transaction PIN' });
-    }
+    if (!isPinValid) return res.status(400).json({ error: 'Invalid transaction PIN' });
 
     const transferAmount = parseFloat(amount);
-    if (isNaN(transferAmount) || transferAmount <= 0) {
-      return res.status(400).json({ error: 'Invalid amount' });
-    }
+    if (isNaN(transferAmount) || transferAmount <= 0) return res.status(400).json({ error: 'Invalid amount' });
+    if (sender.balance < transferAmount) return res.status(400).json({ error: 'Insufficient balance' });
 
-    if (sender.balance < transferAmount) {
-      return res.status(400).json({ error: 'Insufficient balance' });
-    }
-
-    // FIXED: Clean and search account number
     const cleanAccount = recipientAccount.toString().trim().replace(/\s/g, '');
-    console.log(`[TRANSFER] Searching for account: "${cleanAccount}"`);
-
     let receiver = await User.findOne({ accountNumber: cleanAccount });
-    
-    if (!receiver) {
-      console.log(`[TRANSFER] Recipient not found for account: "${cleanAccount}"`);
-      return res.status(404).json({ error: 'No user found with this account number' });
-    }
-
-    console.log(`[TRANSFER] Found receiver: ${receiver.fullName}, account: ${receiver.accountNumber}`);
-
-    if (sender._id.toString() === receiver._id.toString()) {
-      return res.status(400).json({ error: 'Cannot transfer to yourself' });
-    }
+    if (!receiver) return res.status(404).json({ error: 'No user found with this account number' });
+    if (sender._id.toString() === receiver._id.toString()) return res.status(400).json({ error: 'Cannot transfer to yourself' });
 
     sender.balance -= transferAmount;
     receiver.balance += transferAmount;
-
-    if (!sender.firstTransferDate) {
-      sender.firstTransferDate = new Date();
-    }
+    if (!sender.firstTransferDate) sender.firstTransferDate = new Date();
 
     await sender.save();
     await receiver.save();
@@ -102,6 +69,8 @@ router.post('/internal', auth, async (req, res) => {
       receiverName: receiver.fullName,
       receiverAccountNumber: receiver.accountNumber,
       amount: transferAmount,
+      originalAmount: originalAmount || transferAmount,
+      targetCurrency: targetCurrency || sender.currency,
       currency: sender.currency,
       narration,
       type: 'internal',
@@ -133,6 +102,8 @@ router.post('/internal', auth, async (req, res) => {
         receiverAccountNumber: receiver.accountNumber,
         bankName: 'Credixa Banking',
         amount: transferAmount,
+        originalAmount: originalAmount || transferAmount,
+        targetCurrency: targetCurrency || sender.currency,
         currency: sender.currency,
         narration: narration || 'Internal Transfer',
         date: new Date().toISOString(),
@@ -147,20 +118,12 @@ router.post('/internal', auth, async (req, res) => {
 
 router.post('/external', auth, async (req, res) => {
   try {
-    const { bankName, accountNumber, accountName, amount, narration, pin } = req.body;
-    
+    const { bankName, accountNumber, accountName, amount, narration, pin, targetCurrency, originalAmount } = req.body;
+
     const sender = await User.findById(req.user._id);
-    if (!sender) {
-      return res.status(404).json({ error: 'Sender not found' });
-    }
-
-    if (sender.isLocked) {
-      return res.status(403).json({ error: 'Account locked. Contact support.' });
-    }
-
-    if (!sender.transactionPin) {
-      return res.status(400).json({ error: 'Transaction PIN not set' });
-    }
+    if (!sender) return res.status(404).json({ error: 'Sender not found' });
+    if (sender.isLocked) return res.status(403).json({ error: 'Account locked. Contact support.' });
+    if (!sender.transactionPin) return res.status(400).json({ error: 'Transaction PIN not set' });
 
     const isHashed = sender.transactionPin.startsWith('$2');
     let isPinValid;
@@ -169,25 +132,14 @@ router.post('/external', auth, async (req, res) => {
     } else {
       isPinValid = pin === sender.transactionPin;
     }
-
-    if (!isPinValid) {
-      return res.status(400).json({ error: 'Invalid transaction PIN' });
-    }
+    if (!isPinValid) return res.status(400).json({ error: 'Invalid transaction PIN' });
 
     const transferAmount = parseFloat(amount);
-    if (isNaN(transferAmount) || transferAmount <= 0) {
-      return res.status(400).json({ error: 'Invalid amount' });
-    }
-
-    if (sender.balance < transferAmount) {
-      return res.status(400).json({ error: 'Insufficient balance' });
-    }
+    if (isNaN(transferAmount) || transferAmount <= 0) return res.status(400).json({ error: 'Invalid amount' });
+    if (sender.balance < transferAmount) return res.status(400).json({ error: 'Insufficient balance' });
 
     sender.balance -= transferAmount;
-    if (!sender.firstTransferDate) {
-      sender.firstTransferDate = new Date();
-    }
-
+    if (!sender.firstTransferDate) sender.firstTransferDate = new Date();
     await sender.save();
 
     const reference = 'CRX' + uuidv4().substring(0, 12).toUpperCase();
@@ -199,6 +151,8 @@ router.post('/external', auth, async (req, res) => {
       receiverAccountNumber: accountNumber,
       receiverBankName: bankName,
       amount: transferAmount,
+      originalAmount: originalAmount || transferAmount,
+      targetCurrency: targetCurrency || sender.currency,
       currency: sender.currency,
       narration,
       type: 'external',
@@ -224,6 +178,8 @@ router.post('/external', auth, async (req, res) => {
         receiverAccountNumber: accountNumber,
         bankName: bankName,
         amount: transferAmount,
+        originalAmount: originalAmount || transferAmount,
+        targetCurrency: targetCurrency || sender.currency,
         currency: sender.currency,
         narration: narration || 'External Transfer',
         date: new Date().toISOString(),
