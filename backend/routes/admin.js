@@ -50,12 +50,25 @@ router.put('/users/:id/lock', async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    user.isLocked = !user.isLocked;
+    user.isLocked = true;
     await user.save();
-    res.json({ message: `User ${user.isLocked ? 'locked' : 'unlocked'}`, user });
+    res.json({ message: 'User locked', user });
   } catch (err) {
     console.error('Admin lock error:', err);
-    res.status(500).json({ error: 'Failed to update user' });
+    res.status(500).json({ error: 'Failed to lock user' });
+  }
+});
+
+router.put('/users/:id/unlock', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    user.isLocked = false;
+    await user.save();
+    res.json({ message: 'User unlocked', user });
+  } catch (err) {
+    console.error('Admin unlock error:', err);
+    res.status(500).json({ error: 'Failed to unlock user' });
   }
 });
 
@@ -91,9 +104,9 @@ router.post('/transfer', async (req, res) => {
     await receiver.save();
     await transaction.save();
 
-    res.json({ 
-      success: true, 
-      message: 'Transfer completed', 
+    res.json({
+      success: true,
+      message: 'Transfer completed',
       transaction: {
         reference,
         senderName: senderName || 'Credixa Admin',
