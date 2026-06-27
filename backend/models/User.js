@@ -14,7 +14,13 @@ const userSchema = new mongoose.Schema({
   isLocked: { type: Boolean, default: false },
   isAdmin: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
-  firstTransferDate: { type: Date, default: null }
+  firstTransferDate: { type: Date, default: null },
+  // OTP fields for password reset
+  passwordResetOTP: { type: String, default: null },
+  passwordResetOTPExpiry: { type: Date, default: null },
+  // OTP fields for PIN reset
+  pinResetOTP: { type: String, default: null },
+  pinResetOTPExpiry: { type: Date, default: null }
 });
 
 userSchema.pre('save', async function(next) {

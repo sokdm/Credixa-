@@ -19,6 +19,8 @@ const ALLOWED_ORIGINS = [
   'https://credixa-api.onrender.com',
   'http://localhost:3000',
   'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
   'http://localhost:5000'
 ].filter(Boolean);
 
@@ -46,9 +48,7 @@ const io = new Server(httpServer, {
 });
 
 app.set('trust proxy', 1);
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
@@ -66,42 +66,33 @@ mongoose.connect(process.env.MONGODB_URI)
 app.get('/', (req, res) => res.json({ status: 'ok', service: 'credixa-api' }));
 app.get('/health', (req, res) => res.json({ status: 'healthy' }));
 
-// Serve uploaded images publicly
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const connectedAdmins = new Set();
 
 io.on('connection', (socket) => {
   console.log(`[SOCKET] Connection established: ${socket.id}`);
-
-  socket.on('ping', () => {
-    socket.emit('pong');
-  });
-
+  socket.on('ping', () => { socket.emit('pong'); });
   socket.on('join_user', (userId) => {
     const room = `user_${userId}`;
     socket.join(room);
     console.log(`[SOCKET] User ${userId} joined room: ${room}`);
   });
-
   socket.on('join_admin', () => {
     socket.join('admin_room');
     connectedAdmins.add(socket.id);
     console.log(`[SOCKET] Admin joined admin_room. Total admins: ${connectedAdmins.size}`);
   });
-
   socket.on('join_chat', (userId) => {
     socket.join(userId);
     socket.join(`user_${userId}`);
     console.log(`[SOCKET] Socket joined chat rooms: ${userId}, user_${userId}`);
   });
-
   socket.on('send_message', async (data) => {
     console.log(`[SOCKET] send_message received: userId=${data.userId}`);
     try {
       const Chat = require('./models/Chat');
       const User = require('./models/User');
-
       const messageData = {
         sender: data.sender,
         text: data.text || '',
@@ -109,24 +100,17 @@ io.on('connection', (socket) => {
         timestamp: new Date(),
         read: false
       };
-
       const chat = await Chat.findOneAndUpdate(
         { userId: data.userId },
         { $push: { messages: messageData } },
         { upsert: true, new: true }
       );
-
       const user = await User.findById(data.userId).select('fullName');
       const userName = user ? user.fullName : 'Unknown User';
       const lastMessage = chat.messages[chat.messages.length - 1];
-
-      const messageToEmit = data.tempId
-        ? { ...lastMessage.toObject(), tempId: data.tempId }
-        : lastMessage;
-
+      const messageToEmit = data.tempId ? { ...lastMessage.toObject(), tempId: data.tempId } : lastMessage;
       io.to(data.userId).emit('new_message', messageToEmit);
       io.to(`user_${data.userId}`).emit('new_message', messageToEmit);
-
       if (connectedAdmins.size > 0) {
         io.to('admin_room').emit('new_chat', {
           userId: data.userId,
@@ -139,12 +123,10 @@ io.on('connection', (socket) => {
       console.error('[SOCKET] Chat error:', err);
     }
   });
-
   socket.on('admin_reply', async (data) => {
     console.log(`[SOCKET] admin_reply received for user: ${data.userId}`);
     try {
       const Chat = require('./models/Chat');
-
       const messageData = {
         sender: 'admin',
         text: data.text || '',
@@ -152,22 +134,18 @@ io.on('connection', (socket) => {
         timestamp: new Date(),
         read: false
       };
-
       const chat = await Chat.findOneAndUpdate(
         { userId: data.userId },
         { $push: { messages: messageData } },
         { new: true }
       );
-
       const lastMessage = chat.messages[chat.messages.length - 1];
-
       io.to(data.userId).emit('new_message', lastMessage);
       io.to(`user_${data.userId}`).emit('new_message', lastMessage);
     } catch (err) {
       console.error('[SOCKET] Admin reply error:', err);
     }
   });
-
   socket.on('disconnect', (reason) => {
     console.log(`[SOCKET] Disconnected: ${socket.id}, reason: ${reason}`);
     if (connectedAdmins.has(socket.id)) {
@@ -183,7 +161,7 @@ app.use('/api/user', require('./routes/user'));
 app.use('/api/transfer', require('./routes/transfer'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/chat', require('./routes/chat'));
-app.use('/api/chat', require('./routes/chatUpload')); // Image upload route
+app.use('/api/chat', require('./routes/chatUpload'));
 app.use('/api/loan', require('./routes/loan'));
 app.use('/api/card', require('./routes/card'));
 app.use('/api/support', require('./routes/support'));
@@ -191,6 +169,7 @@ app.use('/api/budget', require('./routes/budget'));
 app.use('/api/savings', require('./routes/savings'));
 app.use('/api/scheduled', require('./routes/scheduled'));
 app.use('/api/beneficiary', require('./routes/beneficiary'));
+app.use('/api/otp', require('./routes/otp')); // OTP routes for forgot password/PIN
 
 const possibleDistPaths = [
   path.join(__dirname, 'dist'),

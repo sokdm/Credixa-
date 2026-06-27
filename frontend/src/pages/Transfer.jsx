@@ -17,6 +17,7 @@ const Transfer = () => {
     bankName: '',
     accountNumber: '',
     accountName: '',
+    recipientEmail: '',
     amount: '',
     narration: '',
     pin: '',
@@ -40,9 +41,7 @@ const Transfer = () => {
             headers: { Authorization: `Bearer ${getToken()}` }
           })
           setFoundUser(res.data)
-        } catch (err) {
-          setFoundUser(null)
-        }
+        } catch (err) { setFoundUser(null) }
         setSearching(false)
       }, 500)
       return () => clearTimeout(timeout)
@@ -71,7 +70,6 @@ const Transfer = () => {
       setError('Please enter a 4-digit PIN')
       return
     }
-
     setLoading(true)
     setError('')
 
@@ -81,11 +79,10 @@ const Transfer = () => {
         pin: formData.pin,
         narration: formData.narration,
         targetCurrency: formData.targetCurrency,
-        originalAmount: parseFloat(formData.amount)
+        originalAmount: parseFloat(formData.amount),
+        recipientEmail: formData.recipientEmail
       }
-
       const endpoint = transferType === 'internal' ? '/api/transfer/internal' : '/api/transfer/external'
-
       if (transferType === 'internal') {
         payload.recipientAccount = formData.recipientAccount
       } else {
@@ -93,12 +90,9 @@ const Transfer = () => {
         payload.accountNumber = formData.accountNumber
         payload.accountName = formData.accountName
       }
-
       const res = await axios.post(`${API_URL}${endpoint}`, payload, {
         headers: { Authorization: `Bearer ${getToken()}` }
       })
-
-      // Use the transaction data from backend (which now includes targetCurrency)
       setReceipt(res.data.transaction)
       setStep(4)
     } catch (err) {
@@ -112,14 +106,8 @@ const Transfer = () => {
     setStep(1)
     setTransferType('internal')
     setFormData({
-      recipientAccount: '',
-      bankName: '',
-      accountNumber: '',
-      accountName: '',
-      amount: '',
-      narration: '',
-      pin: '',
-      targetCurrency: 'USD'
+      recipientAccount: '', bankName: '', accountNumber: '', accountName: '',
+      recipientEmail: '', amount: '', narration: '', pin: '', targetCurrency: 'USD'
     })
     setSelectedRecipient(null)
     setFoundUser(null)
@@ -131,61 +119,18 @@ const Transfer = () => {
     <div className="min-h-[100dvh] bg-[#0a0a0f] text-white">
       <div className="sticky top-0 z-20 bg-[#0a0a0f]/80 backdrop-blur-lg border-b border-white/5">
         <div className="flex items-center gap-3 px-4 py-4">
-          <button
-            onClick={() => step === 4 ? resetTransfer() : navigate(-1)}
-            className="p-2 -ml-2 hover:bg-white/5 rounded-full transition-colors"
-          >
+          <button onClick={() => step === 4 ? resetTransfer() : navigate(-1)} className="p-2 -ml-2 hover:bg-white/5 rounded-full transition-colors">
             <ArrowLeft size={24} />
           </button>
           <h1 className="text-xl font-bold">Transfer Money</h1>
         </div>
       </div>
-
       <div className="max-w-lg mx-auto px-4 py-6">
         <AnimatePresence mode="wait">
-          {step === 1 && (
-            <Step1SelectType
-              transferType={transferType}
-              setTransferType={setTransferType}
-              setStep={setStep}
-            />
-          )}
-
-          {step === 2 && (
-            <Step2Details
-              transferType={transferType}
-              formData={formData}
-              setFormData={setFormData}
-              foundUser={foundUser}
-              searching={searching}
-              selectFoundUser={selectFoundUser}
-              selectedRecipient={selectedRecipient}
-              goToPin={goToPin}
-              setStep={setStep}
-              error={error}
-            />
-          )}
-
-          {step === 3 && (
-            <Step3PIN
-              transferType={transferType}
-              formData={formData}
-              selectedRecipient={selectedRecipient}
-              setFormData={setFormData}
-              handleSubmit={handleSubmit}
-              setStep={setStep}
-              loading={loading}
-              error={error}
-            />
-          )}
-
-          {step === 4 && receipt && (
-            <TransferReceipt
-              receipt={receipt}
-              transferType={transferType}
-              onNewTransfer={resetTransfer}
-            />
-          )}
+          {step === 1 && <Step1SelectType transferType={transferType} setTransferType={setTransferType} setStep={setStep} />}
+          {step === 2 && <Step2Details transferType={transferType} formData={formData} setFormData={setFormData} foundUser={foundUser} searching={searching} selectFoundUser={selectFoundUser} selectedRecipient={selectedRecipient} goToPin={goToPin} setStep={setStep} error={error} />}
+          {step === 3 && <Step3PIN transferType={transferType} formData={formData} selectedRecipient={selectedRecipient} setFormData={setFormData} handleSubmit={handleSubmit} setStep={setStep} loading={loading} error={error} />}
+          {step === 4 && receipt && <TransferReceipt receipt={receipt} transferType={transferType} onNewTransfer={resetTransfer} />}
         </AnimatePresence>
       </div>
     </div>

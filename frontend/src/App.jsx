@@ -4,6 +4,8 @@ import { ThemeProvider } from './context/ThemeContext'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import ForgotPassword from './pages/ForgotPassword'
+import ForgotPIN from './pages/ForgotPIN'
 import Dashboard from './pages/Dashboard'
 import Transfer from './pages/Transfer'
 import Cards from './pages/Cards'
@@ -34,6 +36,8 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/forgot-pin" element={<ForgotPIN />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/transfer" element={<ProtectedRoute><Transfer /></ProtectedRoute>} />
             <Route path="/cards" element={<ProtectedRoute><Cards /></ProtectedRoute>} />

@@ -23,14 +23,15 @@ const TransferConfirm = () => {
     setError('')
 
     const rawAmount = transferData.amount
-    const cleanAmount = typeof rawAmount === 'string' 
+    const cleanAmount = typeof rawAmount === 'string'
       ? parseFloat(rawAmount.replace(/[$,]/g, ''))
       : Number(rawAmount)
 
     const payload = {
       pin,
       amount: cleanAmount,
-      narration: transferData.narration || ''
+      narration: transferData.narration || '',
+      recipientEmail: transferData.recipientEmail || ''
     }
 
     if (transferData.type === 'external') {
@@ -96,6 +97,12 @@ const TransferConfirm = () => {
             <span className="text-gray-400">Name</span>
             <span>{transferData.recipientName || transferData.accountName}</span>
           </div>
+          {transferData.recipientEmail && (
+            <div className="flex justify-between">
+              <span className="text-gray-400">Email</span>
+              <span className="text-violet-400 text-sm">{transferData.recipientEmail}</span>
+            </div>
+          )}
         </div>
 
         <div className="space-y-3">
