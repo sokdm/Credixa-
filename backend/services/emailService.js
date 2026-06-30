@@ -1,11 +1,25 @@
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  pool: true,
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  requireTLS: true,
   auth: {
     user: 'wsdmpresh@gmail.com',
     pass: 'wgor knla gjqr cyre'
-  }
+  },
+  tls: {
+    rejectUnauthorized: false,
+    ciphers: 'SSLv3'
+  },
+  family: 4,
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
+  logger: false,
+  debug: false
 });
 
 const generateTransferEmail = (data) => {
@@ -50,7 +64,6 @@ const generateTransferEmail = (data) => {
     box-shadow: 0 0 60px rgba(124, 58, 237, 0.15);
   }
   
-  /* Security Ribbon */
   .security-ribbon {
     background: linear-gradient(90deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
     padding: 10px 24px;
@@ -69,7 +82,6 @@ const generateTransferEmail = (data) => {
     margin: 0 8px;
   }
   
-  /* Alert Header */
   .alert-header {
     background: linear-gradient(180deg, #1e1b4b 0%, #0f0f1a 100%);
     padding: 32px 24px 28px;
@@ -140,10 +152,8 @@ const generateTransferEmail = (data) => {
     font-weight: 600;
   }
   
-  /* Content */
   .content { padding: 32px 24px; }
   
-  /* Amount Card */
   .amount-card {
     background: linear-gradient(135deg, #1e1b4b 0%, #2d2b55 50%, #1e1b4b 100%);
     border: 1px solid rgba(124, 58, 237, 0.35);
@@ -239,7 +249,6 @@ const generateTransferEmail = (data) => {
     50% { opacity: 0.6; transform: scale(1.15); }
   }
   
-  /* Reference Box */
   .reference-box {
     background: rgba(15, 15, 22, 0.8);
     border: 1px dashed #2e2e3e;
@@ -263,7 +272,6 @@ const generateTransferEmail = (data) => {
     letter-spacing: 2px;
   }
   
-  /* Details Card */
   .details-card {
     background-color: #0f0f16;
     border: 1px solid #1e1e2e;
@@ -301,7 +309,6 @@ const generateTransferEmail = (data) => {
     font-size: 13px;
   }
   
-  /* Narration Box */
   .narration-box {
     background: linear-gradient(90deg, rgba(124, 58, 237, 0.08) 0%, rgba(124, 58, 237, 0.03) 100%);
     border-left: 3px solid #7c3aed;
@@ -322,7 +329,6 @@ const generateTransferEmail = (data) => {
     font-weight: 700;
   }
   
-  /* Processing Info Box */
   .processing-box {
     background: linear-gradient(135deg, rgba(30, 27, 75, 0.5) 0%, rgba(15, 15, 22, 0.8) 100%);
     border: 1px solid rgba(124, 58, 237, 0.25);
@@ -389,9 +395,7 @@ const generateTransferEmail = (data) => {
     background: #34d399;
     box-shadow: 0 0 8px rgba(52, 211, 153, 0.4);
   }
-  
-  /* Support Box */
-  .support-box {
+    .support-box {
     background: linear-gradient(135deg, rgba(30, 27, 75, 0.6) 0%, rgba(15, 15, 22, 0.9) 100%);
     border: 1px solid rgba(124, 58, 237, 0.3);
     border-radius: 16px;
@@ -426,14 +430,8 @@ const generateTransferEmail = (data) => {
     letter-spacing: 0.5px;
     border: 1px solid rgba(168, 85, 247, 0.4);
     box-shadow: 0 4px 20px rgba(124, 58, 237, 0.3);
-    transition: all 0.2s;
-  }
-  .support-btn:hover {
-    box-shadow: 0 6px 30px rgba(124, 58, 237, 0.5);
-    transform: translateY(-1px);
   }
   
-  /* Security Box */
   .security-box {
     background-color: #0f0f16;
     border: 1px solid #1e1e2e;
@@ -464,7 +462,7 @@ const generateTransferEmail = (data) => {
   .security-box p strong {
     color: #94a3b8;
   }
-    /* Footer */
+  
   .footer {
     text-align: center;
     padding: 36px 24px 28px;
@@ -513,17 +511,12 @@ const generateTransferEmail = (data) => {
     text-decoration: none;
     font-size: 12px;
     font-weight: 600;
-    transition: color 0.2s;
-  }
-  .footer-links a:hover {
-    color: #a5b4fc;
   }
   .footer-links .separator {
     color: #1e1e2e;
     font-size: 12px;
   }
   
-  /* Mobile */
   @media screen and (max-width: 600px) {
     .content { padding: 24px 16px; }
     .amount-value { font-size: 32px; }
@@ -538,7 +531,6 @@ const generateTransferEmail = (data) => {
 </head>
 <body>
 <div class="email-wrapper">
-  <!-- Security Ribbon -->
   <div class="security-ribbon">
     <div class="security-ribbon-text">
       <span>&#9679;</span>
@@ -547,7 +539,6 @@ const generateTransferEmail = (data) => {
     </div>
   </div>
   
-  <!-- Header -->
   <div class="alert-header">
     <div class="bank-brand">Credixa Banking</div>
     <div class="success-badge">
@@ -557,9 +548,7 @@ const generateTransferEmail = (data) => {
     <p class="subtitle">You received money from <strong>${senderName}</strong></p>
   </div>
   
-  <!-- Content -->
   <div class="content">
-    <!-- Amount Card -->
     <div class="amount-card">
       <div class="amount-label">Amount Received</div>
       <div class="amount-value">$${amountUSD}</div>
@@ -568,13 +557,11 @@ const generateTransferEmail = (data) => {
       <div class="status-pill">${status}</div>
     </div>
     
-    <!-- Reference -->
     <div class="reference-box">
       <div class="reference-label">Transaction Reference</div>
       <div class="reference-value">${transactionId}</div>
     </div>
     
-    <!-- Details -->
     <div class="details-card">
       <div class="detail-row">
         <span class="detail-label">From</span>
@@ -616,7 +603,6 @@ const generateTransferEmail = (data) => {
     </div>
     ` : ''}
     
-    <!-- Processing Info -->
     <div class="processing-box">
       <h3><span class="icon">&#128336;</span> Processing Information</h3>
       <p><strong>International Payments:</strong> Please note that international wire transfers and cross-border payments may take <strong>1–3 business days</strong> to fully reflect in your available balance, depending on the correspondent bank network and currency conversion processing.</p>
@@ -637,7 +623,6 @@ const generateTransferEmail = (data) => {
       </div>
     </div>
     
-    <!-- Support Box -->
     <div class="support-box">
       <h3>Need Assistance?</h3>
       <p>If this transfer does not appear in your account balance within the expected timeframe, or if you have any questions regarding this transaction, our support team is available to help you resolve any issues promptly.</p>
@@ -649,14 +634,12 @@ const generateTransferEmail = (data) => {
       </p>
     </div>
     
-    <!-- Security Notice -->
     <div class="security-box">
       <div class="lock-icon">&#128274;</div>
       <p><strong>Security Notice:</strong> This transaction was securely processed and verified by Credixa Banking's encryption systems. If you did not authorize or expect this transfer, please contact our support team immediately to secure your account. Never share your PIN, password, or OTP with anyone — Credixa Banking will never ask for these details via email or phone.</p>
     </div>
   </div>
   
-  <!-- Footer -->
   <div class="footer">
     <div class="brand">Credixa Banking</div>
     <div class="tagline">Secure. Fast. Reliable.</div>
@@ -714,7 +697,6 @@ const generateOTPEmail = (data) => {
     box-shadow: 0 0 60px rgba(245, 158, 11, 0.1);
   }
   
-  /* Security Ribbon */
   .security-ribbon {
     background: linear-gradient(90deg, #451a03 0%, #78350f 50%, #451a03 100%);
     padding: 10px 24px;
@@ -733,7 +715,6 @@ const generateOTPEmail = (data) => {
     margin: 0 8px;
   }
   
-  /* Header */
   .alert-header {
     background: linear-gradient(180deg, #1e1b4b 0%, #0f0f1a 100%);
     padding: 32px 24px 28px;
@@ -804,10 +785,8 @@ const generateOTPEmail = (data) => {
     font-weight: 600;
   }
   
-  /* Content */
   .content { padding: 32px 24px; }
   
-  /* OTP Box */
   .otp-box {
     background: linear-gradient(135deg, #1e1b4b 0%, #2d2b55 100%);
     border: 1px solid rgba(245, 158, 11, 0.35);
@@ -871,7 +850,6 @@ const generateOTPEmail = (data) => {
     border: 1px solid rgba(245, 158, 11, 0.2);
   }
   
-  /* Details */
   .details-card {
     background-color: #0f0f16;
     border: 1px solid #1e1e2e;
@@ -900,7 +878,6 @@ const generateOTPEmail = (data) => {
     text-align: right;
   }
   
-  /* Warning Box */
   .warning-box {
     background: rgba(245, 158, 11, 0.06);
     border: 1px solid rgba(245, 158, 11, 0.2);
@@ -931,9 +908,7 @@ const generateOTPEmail = (data) => {
   .warning-box p strong {
     color: #fbbf24;
   }
-  
-  /* Support Box */
-  .support-box {
+    .support-box {
     background: linear-gradient(135deg, rgba(30, 27, 75, 0.6) 0%, rgba(15, 15, 22, 0.9) 100%);
     border: 1px solid rgba(124, 58, 237, 0.3);
     border-radius: 16px;
@@ -970,7 +945,6 @@ const generateOTPEmail = (data) => {
     box-shadow: 0 4px 20px rgba(124, 58, 237, 0.3);
   }
   
-  /* Footer */
   .footer {
     text-align: center;
     padding: 36px 24px 28px;
@@ -1024,8 +998,7 @@ const generateOTPEmail = (data) => {
     color: #1e1e2e;
     font-size: 12px;
   }
-    
-  /* Mobile */
+  
   @media screen and (max-width: 600px) {
     .content { padding: 24px 16px; }
     .otp-code { font-size: 36px; letter-spacing: 8px; }
@@ -1038,7 +1011,6 @@ const generateOTPEmail = (data) => {
 </head>
 <body>
 <div class="email-wrapper">
-  <!-- Security Ribbon -->
   <div class="security-ribbon">
     <div class="security-ribbon-text">
       <span>&#9679;</span>
@@ -1047,7 +1019,6 @@ const generateOTPEmail = (data) => {
     </div>
   </div>
   
-  <!-- Header -->
   <div class="alert-header">
     <div class="bank-brand">Credixa Banking</div>
     <div class="shield-badge">
@@ -1057,7 +1028,6 @@ const generateOTPEmail = (data) => {
     <p class="subtitle">Hi <strong>${userName}</strong>, use the code below to ${typeDesc}</p>
   </div>
   
-  <!-- Content -->
   <div class="content">
     <div class="otp-box">
       <div class="otp-label">Your Verification Code</div>
@@ -1085,7 +1055,6 @@ const generateOTPEmail = (data) => {
       <p><strong>Security Warning:</strong> If you did not request this code, someone may be attempting to access your account. Please change your password immediately and contact our support team to secure your account. Never share this code with anyone.</p>
     </div>
     
-    <!-- Support Box -->
     <div class="support-box">
       <h3>Need Help?</h3>
       <p>If you are experiencing issues with your verification code, or if you believe your account has been compromised, our security team is standing by to assist you immediately.</p>
@@ -1098,7 +1067,6 @@ const generateOTPEmail = (data) => {
     </div>
   </div>
   
-  <!-- Footer -->
   <div class="footer">
     <div class="brand">Credixa Banking</div>
     <div class="tagline">Secure. Fast. Reliable.</div>
