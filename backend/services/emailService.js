@@ -1,7 +1,5 @@
 const sgMail = require('@sendgrid/mail');
 
-// Set your SendGrid API key as an environment variable in Render:
-// SENDGRID_API_KEY=SG.xxxxxx
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
 
 const generateTransferEmail = (data) => {
@@ -162,6 +160,7 @@ const generateTransferEmail = (data) => {
 </body>
 </html>`;
 };
+
 const generateOTPEmail = (data) => {
   const { userName, otpCode, otpType, expiryMinutes } = data;
   const typeLabel = otpType === 'password' ? 'Password Reset' : 'PIN Reset';
@@ -280,11 +279,7 @@ const sendTransferEmail = async (recipientEmail, transferData) => {
 
     await sgMail.send({
       to: recipientEmail,
-      from: {
-        email: 'noreply@credixabanking.com',
-        name: 'Credixa Banking'
-      },
-      replyTo: 'credixasupport@gmail.com',
+      from: 'credixasupport@gmail.com',
       subject: `You received $${transferData.amountUSD} from ${transferData.senderName} — Credixa Banking`,
       html: htmlContent,
     });
@@ -303,11 +298,7 @@ const sendOTPEmail = async (recipientEmail, otpData) => {
 
     await sgMail.send({
       to: recipientEmail,
-      from: {
-        email: 'noreply@credixabanking.com',
-        name: 'Credixa Banking'
-      },
-      replyTo: 'credixasupport@gmail.com',
+      from: 'credixasupport@gmail.com',
       subject: `${otpData.otpType === 'password' ? '🔐 Password Reset' : '🔐 PIN Reset'} — Your Credixa Verification Code`,
       html: htmlContent,
     });
