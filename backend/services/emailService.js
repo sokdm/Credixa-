@@ -12,11 +12,14 @@ const generateTransferEmail = (data) => {
   const maskedSender = senderAccount ? '****' + senderAccount.slice(-4) : '****';
   const maskedRecipient = recipientAccount ? '****' + recipientAccount.slice(-4) : '****';
 
-  // Determine status step for timeline
   const statusLower = status.toLowerCase();
   const isPending = statusLower === 'pending';
   const isProcessing = statusLower === 'processing';
   const isCompleted = statusLower === 'completed';
+
+  // Status colors
+  const statusColor = isPending ? '#f59e0b' : isProcessing ? '#3b82f6' : '#10b981';
+  const statusBg = isPending ? 'rgba(245,158,11,0.15)' : isProcessing ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)';
 
   return `
 <!DOCTYPE html>
@@ -27,834 +30,366 @@ const generateTransferEmail = (data) => {
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <title>Transaction Alert — Credixa Banking</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-  
-  body, table, td, p, a, li, blockquote { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+  /* Client-specific resets */
+  body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
   table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-  img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+  img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
   
-  body { 
-    margin: 0; 
-    padding: 0; 
-    background-color: #050508; 
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    -webkit-font-smoothing: antialiased; 
-    -moz-osx-font-smoothing: grayscale;
-  }
+  /* Reset */
+  body { margin: 0; padding: 0; width: 100% !important; height: 100% !important; }
   
-  .email-wrapper { 
-    max-width: 600px; 
-    margin: 0 auto; 
-    background-color: #0a0a0f; 
-    color: #e2e8f0;
-    box-shadow: 0 0 60px rgba(124, 58, 237, 0.15);
-  }
-  
-  /* Security Ribbon */
-  .security-ribbon {
-    background: linear-gradient(90deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
-    padding: 10px 24px;
-    text-align: center;
-    border-bottom: 1px solid rgba(124, 58, 237, 0.3);
-  }
-  .security-ribbon-text {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    color: #a5b4fc;
-  }
-  .security-ribbon-text span {
-    color: #34d399;
-    margin: 0 8px;
-  }
-  
-  /* Alert Header */
-  .alert-header {
-    background: linear-gradient(180deg, #1e1b4b 0%, #0f0f1a 100%);
-    padding: 32px 24px 28px;
-    text-align: center;
-    border-bottom: 1px solid rgba(124, 58, 237, 0.2);
-    position: relative;
-    overflow: hidden;
-  }
-  .alert-header::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 200px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #a855f7, transparent);
-  }
-  
-  .bank-brand {
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 5px;
-    color: #818cf8;
-    margin-bottom: 24px;
-    text-transform: uppercase;
-  }
-  
-  .success-badge {
-    width: 72px;
-    height: 72px;
-    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%);
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 20px;
-    box-shadow: 0 0 50px rgba(124, 58, 237, 0.5), inset 0 0 20px rgba(255,255,255,0.1);
-    border: 2px solid rgba(168, 85, 247, 0.4);
-  }
-  .success-badge svg {
-    width: 32px;
-    height: 32px;
-    fill: none;
-    stroke: #ffffff;
-    stroke-width: 3;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  
-  .alert-header h1 {
-    margin: 0 0 10px 0;
-    font-size: 28px;
-    font-weight: 800;
-    color: #ffffff;
-    letter-spacing: -0.5px;
-    line-height: 1.2;
-  }
-  .alert-header .subtitle {
-    margin: 0;
-    font-size: 15px;
-    color: #94a3b8;
-    font-weight: 400;
-    line-height: 1.5;
-  }
-  .alert-header .subtitle strong {
-    color: #c4b5fd;
-    font-weight: 600;
-  }
-  
-  /* Content */
-  .content { padding: 32px 24px; }
-  
-  /* Amount Card */
-  .amount-card {
-    background: linear-gradient(135deg, #1e1b4b 0%, #2d2b55 50%, #1e1b4b 100%);
-    border: 1px solid rgba(124, 58, 237, 0.35);
-    border-radius: 20px;
-    padding: 36px 24px;
-    margin-bottom: 28px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
-  .amount-card::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(124, 58, 237, 0.12) 0%, transparent 60%);
-    pointer-events: none;
-  }
-  .amount-card::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.6), transparent);
-  }
-  
-  .amount-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 3px;
-    color: #a5b4fc;
-    margin-bottom: 14px;
-    font-weight: 700;
-  }
-  .amount-value {
-    font-size: 44px;
-    font-weight: 900;
-    color: #ffffff;
-    margin: 0;
-    letter-spacing: -1.5px;
-    line-height: 1.1;
-    text-shadow: 0 2px 20px rgba(124, 58, 237, 0.3);
-  }
-  .amount-converted {
-    font-size: 18px;
-    color: #c4b5fd;
-    margin-top: 14px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-  }
-  .rate-pill {
-    font-size: 12px;
-    color: #818cf8;
-    margin-top: 12px;
-    font-weight: 600;
-    background: rgba(124, 58, 237, 0.2);
-    display: inline-block;
-    padding: 6px 16px;
-    border-radius: 24px;
-    border: 1px solid rgba(124, 58, 237, 0.3);
-    letter-spacing: 0.5px;
-  }
-  .status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(52, 211, 153, 0.12);
-    color: #34d399;
-    padding: 8px 20px;
-    border-radius: 24px;
-    font-size: 11px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    margin-top: 20px;
-    border: 1px solid rgba(52, 211, 153, 0.3);
-  }
-  .status-pill.pending {
-    background: rgba(245, 158, 11, 0.12);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-  }
-  .status-pill.pending::before {
-    background: #fbbf24;
-    box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
-    animation: pulse 2s infinite;
-  }
-  .status-pill.processing {
-    background: rgba(59, 130, 246, 0.12);
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-  }
-  .status-pill.processing::before {
-    background: #60a5fa;
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
-    animation: pulse 1.5s infinite;
-  }
-  .status-pill::before {
-    content: '';
-    width: 8px;
-    height: 8px;
-    background: #34d399;
-    border-radius: 50%;
-    box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.6; transform: scale(1.15); }
-  }
-  
-  /* Reference Box */
-  .reference-box {
-    background: rgba(15, 15, 22, 0.8);
-    border: 1px dashed #2e2e3e;
-    border-radius: 12px;
-    padding: 16px 20px;
-    margin-bottom: 28px;
-    text-align: center;
-  }
-  .reference-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 3px;
-    color: #475569;
-    margin-bottom: 6px;
-    font-weight: 700;
-  }
-  .reference-value {
-    font-size: 12px;
-    color: #64748b;
-    font-family: 'SF Mono', monospace;
-    letter-spacing: 2px;
-  }
-  
-  /* Details Card */
-  .details-card {
-    background-color: #0f0f16;
-    border: 1px solid #1e1e2e;
-    border-radius: 16px;
-    padding: 8px 24px;
-    margin-bottom: 28px;
-  }
-  .detail-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 0;
-    border-bottom: 1px solid #1e1e2e;
-  }
-  .detail-row:last-child { border-bottom: none; }
-  .detail-label {
-    font-size: 13px;
-    color: #64748b;
-    font-weight: 500;
-    letter-spacing: 0.3px;
-  }
-  .detail-value {
-    font-size: 14px;
-    font-weight: 600;
-    color: #e2e8f0;
-    text-align: right;
-    max-width: 55%;
-    word-break: break-word;
-  }
-  .detail-value.sender { color: #c4b5fd; font-weight: 700; }
-  .detail-value.highlight { color: #34d399; font-weight: 700; }
-  .detail-value.pending { color: #fbbf24; font-weight: 700; }
-  .detail-value.processing { color: #60a5fa; font-weight: 700; }
-  .detail-value.account { 
-    font-family: 'SF Mono', 'Courier New', monospace; 
-    letter-spacing: 1px;
-    font-size: 13px;
-  }
-  
-  /* Narration Box */
-  .narration-box {
-    background: linear-gradient(90deg, rgba(124, 58, 237, 0.08) 0%, rgba(124, 58, 237, 0.03) 100%);
-    border-left: 3px solid #7c3aed;
-    border-radius: 0 14px 14px 0;
-    padding: 20px 24px;
-    margin-bottom: 28px;
-  }
-  .narration-box p {
-    margin: 0;
-    font-size: 14px;
-    color: #cbd5e1;
-    line-height: 1.7;
-    font-style: italic;
-  }
-  .narration-box strong {
-    color: #a78bfa;
-    font-style: normal;
-    font-weight: 700;
-  }
-  
-  /* Status Timeline */
-  .status-timeline {
-    background: linear-gradient(135deg, rgba(30, 27, 75, 0.5) 0%, rgba(15, 15, 22, 0.8) 100%);
-    border: 1px solid rgba(124, 58, 237, 0.25);
-    border-radius: 16px;
-    padding: 28px 24px;
-    margin-bottom: 28px;
-  }
-  .status-timeline h3 {
-    margin: 0 0 24px 0;
-    font-size: 13px;
-    font-weight: 700;
-    color: #a5b4fc;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    text-align: center;
-  }
-  .timeline-track {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: relative;
-    padding: 0 8px;
-  }
-  .timeline-track::before {
-    content: '';
-    position: absolute;
-    top: 20px;
-    left: 40px;
-    right: 40px;
-    height: 3px;
-    background: linear-gradient(90deg, #1e1e2e 0%, #1e1e2e 100%);
-    border-radius: 2px;
-    z-index: 0;
-  }
-  .timeline-track.completed::before {
-    background: linear-gradient(90deg, #34d399 0%, #34d399 100%);
-  }
-  .timeline-track.partial::before {
-    background: linear-gradient(90deg, #34d399 0%, #34d399 50%, #1e1e2e 50%, #1e1e2e 100%);
-  }
-  .timeline-step {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    position: relative;
-    z-index: 1;
-    flex: 1;
-  }
-  .step-circle {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    font-weight: 800;
-    border: 2px solid;
-    background: #0f0f16;
-  }
-  .step-circle.completed {
-    background: linear-gradient(135deg, #059669 0%, #34d399 100%);
-    border-color: #34d399;
-    color: #0f0f16;
-    box-shadow: 0 0 20px rgba(52, 211, 153, 0.4);
-  }
-  .step-circle.active {
-    background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
-    border-color: #60a5fa;
-    color: #0f0f16;
-    box-shadow: 0 0 20px rgba(96, 165, 250, 0.4);
-    animation: glow 2s infinite;
-  }
-  .step-circle.pending {
-    background: #0f0f16;
-    border-color: #fbbf24;
-    color: #fbbf24;
-    box-shadow: 0 0 15px rgba(251, 191, 36, 0.2);
-  }
-  .step-circle.inactive {
-    background: #0f0f16;
-    border-color: #2e2e3e;
-    color: #475569;
-  }
-  @keyframes glow {
-    0%, 100% { box-shadow: 0 0 20px rgba(96, 165, 250, 0.4); }
-    50% { box-shadow: 0 0 30px rgba(96, 165, 250, 0.7); }
-  }
-  .step-label {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #94a3b8;
-  }
-  .step-label.completed { color: #34d399; }
-  .step-label.active { color: #60a5fa; }
-  .step-label.pending { color: #fbbf24; }
-  .step-time {
-    font-size: 10px;
-    color: #475569;
-    margin-top: 2px;
-  }
-  
-  /* Processing Info Box */
-  .processing-box {
-    background: linear-gradient(135deg, rgba(30, 27, 75, 0.5) 0%, rgba(15, 15, 22, 0.8) 100%);
-    border: 1px solid rgba(124, 58, 237, 0.25);
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 28px;
-  }
-  .processing-box h3 {
-    margin: 0 0 16px 0;
-    font-size: 13px;
-    font-weight: 700;
-    color: #a5b4fc;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .processing-box h3 .icon {
-    width: 28px;
-    height: 28px;
-    background: rgba(124, 58, 237, 0.2);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-  }
-  .processing-box p {
-    margin: 0 0 12px 0;
-    font-size: 13px;
-    color: #94a3b8;
-    line-height: 1.7;
-  }
-  .processing-box p:last-child { margin-bottom: 0; }
-  .processing-box p strong {
-    color: #c4b5fd;
-  }
-  
-  /* Fee Notice Box */
-  .fee-notice {
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(180, 83, 9, 0.05) 100%);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 28px;
-    position: relative;
-    overflow: hidden;
-  }
-  .fee-notice::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
-  }
-  .fee-notice h3 {
-    margin: 0 0 14px 0;
-    font-size: 13px;
-    font-weight: 800;
-    color: #fbbf24;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding-left: 8px;
-  }
-  .fee-notice h3 .icon {
-    width: 28px;
-    height: 28px;
-    background: rgba(245, 158, 11, 0.2);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-  }
-  .fee-notice p {
-    margin: 0 0 12px 0;
-    font-size: 13px;
-    color: #d1d5db;
-    line-height: 1.8;
-    padding-left: 8px;
-  }
-  .fee-notice p:last-child { margin-bottom: 0; }
-  .fee-notice p strong {
-    color: #fbbf24;
-  }
-  .fee-notice .policy-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 4px;
-    border: 1px solid rgba(245, 158, 11, 0.2);
-  }
-  
-  /* Support Box */
-  .support-box {
-    background: linear-gradient(135deg, rgba(30, 27, 75, 0.6) 0%, rgba(15, 15, 22, 0.9) 100%);
-    border: 1px solid rgba(124, 58, 237, 0.3);
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 28px;
-    text-align: center;
-  }
-  .support-box h3 {
-    margin: 0 0 12px 0;
-    font-size: 14px;
-    font-weight: 700;
-    color: #c4b5fd;
-    letter-spacing: 1px;
-  }
-  .support-box p {
-    margin: 0 0 16px 0;
-    font-size: 13px;
-    color: #94a3b8;
-    line-height: 1.7;
-  }
-  .support-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
-    color: #ffffff;
-    text-decoration: none;
-    padding: 12px 28px;
-    border-radius: 24px;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    border: 1px solid rgba(168, 85, 247, 0.4);
-    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.3);
-  }
-  
-  /* Security Box */
-  .security-box {
-    background-color: #0f0f16;
-    border: 1px solid #1e1e2e;
-    border-radius: 14px;
-    padding: 20px 24px;
-    margin-bottom: 28px;
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-  }
-  .security-box .lock-icon {
-    width: 36px;
-    height: 36px;
-    background: rgba(124, 58, 237, 0.15);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    font-size: 16px;
-  }
-  .security-box p {
-    margin: 0;
-    font-size: 12px;
-    color: #64748b;
-    line-height: 1.7;
-  }
-  .security-box p strong {
-    color: #94a3b8;
-  }
-  
-  /* Footer */
-  .footer {
-    text-align: center;
-    padding: 36px 24px 28px;
-    border-top: 1px solid #1e1e2e;
-    background: linear-gradient(180deg, #0c0c14 0%, #050508 100%);
-  }
-  .footer .brand {
-    font-size: 16px;
-    font-weight: 900;
-    color: #818cf8;
-    margin-bottom: 6px;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-  }
-  .footer .tagline {
-    font-size: 12px;
-    color: #475569;
-    margin-bottom: 24px;
-    font-weight: 500;
-    letter-spacing: 1px;
-  }
-  .footer-divider {
-    width: 40px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #7c3aed, transparent);
-    margin: 0 auto 20px;
-    border-radius: 2px;
-  }
-  .footer p {
-    margin: 6px 0;
-    font-size: 11px;
-    color: #334155;
-    line-height: 1.6;
-  }
-  .footer-links {
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 1px solid #1e1e2e;
-    display: flex;
-    justify-content: center;
-    gap: 24px;
-    flex-wrap: wrap;
-  }
-  .footer-links a {
-    color: #818cf8;
-    text-decoration: none;
-    font-size: 12px;
-    font-weight: 600;
-  }
-  .footer-links .separator {
-    color: #1e1e2e;
-    font-size: 12px;
-  }
-  
-  /* Mobile */
+  /* Responsive */
   @media screen and (max-width: 600px) {
-    .content { padding: 24px 16px; }
-    .amount-value { font-size: 32px; }
-    .alert-header h1 { font-size: 22px; }
-    .detail-row { flex-direction: column; align-items: flex-start; gap: 6px; }
-    .detail-value { text-align: left; max-width: 100%; }
-    .footer-links { gap: 16px; }
-    .timeline-track { padding: 0 4px; }
-    .timeline-track::before { left: 28px; right: 28px; }
-    .step-circle { width: 36px; height: 36px; font-size: 14px; }
-    .step-label { font-size: 9px; }
+    .wrapper { width: 100% !important; }
+    .mobile-padding { padding: 20px 16px !important; }
+    .mobile-hide { display: none !important; }
+    .mobile-stack { display: block !important; width: 100% !important; }
+    .mobile-center { text-align: center !important; }
+    .amount-text { font-size: 32px !important; }
   }
 </style>
 </head>
-<body>
-<div class="email-wrapper">
-  <!-- Security Ribbon -->
-  <div class="security-ribbon">
-    <div class="security-ribbon-text">
-      <span>&#9679;</span>
-      Secure Transaction Alert
-      <span>&#9679;</span>
-    </div>
-  </div>
-  
-  <!-- Header -->
-  <div class="alert-header">
-    <div class="bank-brand">Credixa Banking</div>
-    <div class="success-badge">
-      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
-    </div>
-    <h1>Money Received!</h1>
-    <p class="subtitle">You received money from <strong>${senderName}</strong></p>
-  </div>
-  
-  <!-- Content -->
-  <div class="content">
-    <!-- Amount Card -->
-    <div class="amount-card">
-      <div class="amount-label">Amount Received</div>
-      <div class="amount-value">$${amountUSD}</div>
-      <div class="amount-converted">${amountConverted} ${currencyFlag}</div>
-      <div class="rate-pill">1 USD = ${exchangeRate} ${currencyCode}</div>
-      <div class="status-pill ${isPending ? 'pending' : isProcessing ? 'processing' : ''}">${status}</div>
-    </div>
-    
-    <!-- Reference -->
-    <div class="reference-box">
-      <div class="reference-label">Transaction Reference</div>
-      <div class="reference-value">${transactionId}</div>
-    </div>
-    
-    <!-- Status Timeline -->
-    <div class="status-timeline">
-      <h3>Transaction Status</h3>
-      <div class="timeline-track ${isCompleted ? 'completed' : isProcessing ? 'partial' : ''}">
-        <div class="timeline-step">
-          <div class="step-circle ${isPending || isProcessing || isCompleted ? 'completed' : 'inactive'}">&#10003;</div>
-          <div class="step-label ${isPending || isProcessing || isCompleted ? 'completed' : ''}">Pending</div>
-          <div class="step-time">Received</div>
-        </div>
-        <div class="timeline-step">
-          <div class="step-circle ${isProcessing ? 'active' : isCompleted ? 'completed' : 'inactive'}">${isCompleted ? '&#10003;' : isProcessing ? '&#9679;' : '2'}</div>
-          <div class="step-label ${isProcessing ? 'active' : isCompleted ? 'completed' : ''}">Processing</div>
-          <div class="step-time">${isProcessing ? 'In Progress' : isCompleted ? 'Done' : 'Waiting'}</div>
-        </div>
-        <div class="timeline-step">
-          <div class="step-circle ${isCompleted ? 'completed' : 'pending'}">${isCompleted ? '&#10003;' : '3'}</div>
-          <div class="step-label ${isCompleted ? 'completed' : 'pending'}">Successful</div>
-          <div class="step-time">${isCompleted ? 'Completed' : 'Pending'}</div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Details -->
-    <div class="details-card">
-      <div class="detail-row">
-        <span class="detail-label">From</span>
-        <span class="detail-value sender">${senderName}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">From Account</span>
-        <span class="detail-value account">${maskedSender}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">To Your Account</span>
-        <span class="detail-value account">${maskedRecipient}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Bank</span>
-        <span class="detail-value">${recipientBank}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Account Name</span>
-        <span class="detail-value">${recipientName}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Currency</span>
-        <span class="detail-value">${currencyFlag} ${currencyCode}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Date & Time</span>
-        <span class="detail-value">${date}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Status</span>
-        <span class="detail-value ${isPending ? 'pending' : isProcessing ? 'processing' : 'highlight'}">${isPending ? '&#9200; ' : isProcessing ? '&#9889; ' : '&#10003; '}${status}</span>
-      </div>
-    </div>
-    
-    ${narration ? `
-    <div class="narration-box">
-      <p><strong>Sender's Note:</strong> "${narration}"</p>
-    </div>
-    ` : ''}
-    
-    <!-- International Exchange Fee Notice -->
-    <div class="fee-notice">
-      <h3><span class="icon">&#128176;</span>International Exchange Fee Required</h3>
-      <p><strong>Important Notice:</strong> An international exchange fee is always attached to international transfers as part of our banking policy. This fee is required to be paid before you can receive the money into your account.</p>
-      <p>The exchange fee covers currency conversion processing, correspondent bank charges, and cross-border regulatory compliance. Without this fee settlement, your funds will remain in processing status and cannot be credited to your account.</p>
-      <p><strong>Action Required:</strong> Kindly contact our support team for further information and assistance regarding the fee payment process. Our representatives will guide you through the necessary steps to complete your transaction.</p>
-      <div class="policy-badge">&#128274; Credixa Banking Policy</div>
-    </div>
-    
-    <!-- Processing Info -->
-    <div class="processing-box">
-      <h3><span class="icon">&#128336;</span>Processing Information</h3>
-      <p><strong>International Payments:</strong> Please note that international wire transfers and cross-border payments may take <strong>1–3 business days</strong> to fully reflect in your available balance, depending on the correspondent bank network and currency conversion processing.</p>
-      <p><strong>Local Transfers:</strong> Domestic transfers within the same banking network are typically processed instantly and should appear in your balance immediately.</p>
-    </div>
-    
-    <!-- Support Box -->
-    <div class="support-box">
-      <h3>Need Assistance?</h3>
-      <p>If this transfer does not appear in your account balance within the expected timeframe, if you have questions about the international exchange fee, or if you need any help regarding this transaction, our support team is available to assist you promptly.</p>
-      <a href="mailto:credixasupport@gmail.com?subject=Transaction%20Inquiry%20-%20${transactionId}" class="support-btn">
-        <span>&#128172;</span> Contact Support
-      </a>
-      <p style="margin-top: 14px; margin-bottom: 0; font-size: 11px; color: #475569;">
-        Please include your <strong>Transaction Reference</strong> in your inquiry for faster resolution.
-      </p>
-    </div>
-    
-    <!-- Security Notice -->
-    <div class="security-box">
-      <div class="lock-icon">&#128274;</div>
-      <p><strong>Security Notice:</strong> This transaction was securely processed and verified by Credixa Banking's encryption systems. If you did not authorize or expect this transfer, please contact our support team immediately to secure your account. Never share your PIN, password, or OTP with anyone — Credixa Banking will never ask for these details via email or phone.</p>
-    </div>
-  </div>
-  
-  <!-- Footer -->
-  <div class="footer">
-    <div class="brand">Credixa Banking</div>
-    <div class="tagline">Secure. Fast. Reliable.</div>
-    <div class="footer-divider"></div>
-    <p>This is an automated security alert from Credixa Banking.</p>
-    <p>Please do not reply to this email. For assistance, contact our support team.</p>
-    <p style="margin-top: 12px;">&copy; 2026 Credixa Banking. All rights reserved.</p>
-    <div class="footer-links">
-      <a href="mailto:credixasupport@gmail.com">Support</a>
-      <span class="separator">|</span>
-      <a href="#">Privacy Policy</a>
-      <span class="separator">|</span>
-      <a href="#">Terms of Service</a>
-    </div>
-  </div>
-</div>
+<body style="margin:0; padding:0; background-color:#050508; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased;">
+
+<!-- Wrapper -->
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#050508;">
+  <tr>
+    <td align="center" style="padding:20px 10px;">
+      
+      <!-- Main Container -->
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="560" class="wrapper" style="max-width:560px; width:100%; background-color:#0a0a0f; border-radius:16px; overflow:hidden; border:1px solid #1e1e2e;">
+        
+        <!-- Security Ribbon -->
+        <tr>
+          <td style="background:linear-gradient(90deg,#1e1b4b 0%,#312e81 50%,#1e1b4b 100%); padding:12px 24px; text-align:center; border-bottom:1px solid rgba(124,58,237,0.3);">
+            <p style="margin:0; font-size:10px; font-weight:700; letter-spacing:4px; text-transform:uppercase; color:#a5b4fc;">
+              <span style="color:#34d399;">&#9679;</span>&nbsp;&nbsp;SECURE TRANSACTION ALERT&nbsp;&nbsp;<span style="color:#34d399;">&#9679;</span>
+            </p>
+          </td>
+        </tr>
+        
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(180deg,#1e1b4b 0%,#0f0f1a 100%); padding:40px 24px 32px; text-align:center; border-bottom:1px solid rgba(124,58,237,0.2);">
+            <p style="margin:0 0 24px; font-size:11px; font-weight:800; letter-spacing:5px; color:#818cf8; text-transform:uppercase;">CREDIXA BANKING</p>
+            
+            <!-- Success Circle -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:0 auto 20px;">
+              <tr>
+                <td style="width:72px; height:72px; background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%); border-radius:50%; text-align:center; vertical-align:middle; border:2px solid rgba(168,85,247,0.4);">
+                  <span style="font-size:32px; color:#ffffff;">&#10003;</span>
+                </td>
+              </tr>
+            </table>
+            
+            <h1 style="margin:0 0 10px; font-size:28px; font-weight:800; color:#ffffff; letter-spacing:-0.5px;">Money Received!</h1>
+            <p style="margin:0; font-size:15px; color:#94a3b8;">You received money from <strong style="color:#c4b5fd;">${senderName}</strong></p>
+          </td>
+        </tr>
+        
+        <!-- Content -->
+        <tr>
+          <td class="mobile-padding" style="padding:32px 24px;">
+            
+            <!-- Amount Card -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:linear-gradient(135deg,#1e1b4b 0%,#2d2b55 50%,#1e1b4b 100%); border:1px solid rgba(124,58,237,0.35); border-radius:16px; margin-bottom:24px;">
+              <tr>
+                <td style="padding:32px 20px; text-align:center;">
+                  <p style="margin:0 0 12px; font-size:11px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:#a5b4fc;">AMOUNT RECEIVED</p>
+                  <p class="amount-text" style="margin:0; font-size:44px; font-weight:900; color:#ffffff; letter-spacing:-1.5px;">$${amountUSD}</p>
+                  <p style="margin:12px 0 0; font-size:18px; font-weight:600; color:#c4b5fd;">${amountConverted} ${currencyFlag}</p>
+                  
+                  <!-- Rate Pill -->
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:12px auto 0;">
+                    <tr>
+                      <td style="background:rgba(124,58,237,0.2); border:1px solid rgba(124,58,237,0.3); border-radius:24px; padding:6px 16px;">
+                        <p style="margin:0; font-size:12px; font-weight:600; color:#818cf8; letter-spacing:0.5px;">1 USD = ${exchangeRate} ${currencyCode}</p>
+                      </td>
+                    </tr>
+                  </table>
+                  
+                  <!-- Status Pill -->
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:20px auto 0;">
+                    <tr>
+                      <td style="background:${statusBg}; border:1px solid ${statusColor}4D; border-radius:24px; padding:8px 20px;">
+                        <p style="margin:0; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:2px; color:${statusColor};">
+                          <span style="display:inline-block; width:8px; height:8px; background:${statusColor}; border-radius:50%; margin-right:8px; vertical-align:middle;">&nbsp;</span>${status}
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+            
+            <!-- Reference Box -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:rgba(15,15,22,0.8); border:1px dashed #2e2e3e; border-radius:12px; margin-bottom:24px;">
+              <tr>
+                <td style="padding:16px 20px; text-align:center;">
+                  <p style="margin:0 0 6px; font-size:10px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:#475569;">TRANSACTION REFERENCE</p>
+                  <p style="margin:0; font-size:12px; color:#64748b; font-family:'Courier New',monospace; letter-spacing:2px;">${transactionId}</p>
+                </td>
+              </tr>
+            </table>
+            
+            <!-- Status Timeline -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:linear-gradient(135deg,rgba(30,27,75,0.5) 0%,rgba(15,15,22,0.8) 100%); border:1px solid rgba(124,58,237,0.25); border-radius:16px; margin-bottom:24px;">
+              <tr>
+                <td style="padding:24px 20px;">
+                  <p style="margin:0 0 20px; font-size:13px; font-weight:700; color:#a5b4fc; text-transform:uppercase; letter-spacing:2px; text-align:center;">TRANSACTION STATUS</p>
+                  
+                  <!-- Timeline Track -->
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                      <td>
+                        
+                        <!-- Step 1: Pending -->
+                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="left" class="mobile-stack" style="width:33.33%;">
+                          <tr>
+                            <td align="center" style="padding:0 4px;">
+                              <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                                <tr>
+                                  <td style="width:44px; height:44px; background:linear-gradient(135deg,#059669 0%,#10b981 100%); border-radius:50%; text-align:center; vertical-align:middle; border:2px solid #10b981;">
+                                    <span style="font-size:18px; font-weight:800; color:#0f0f16;">&#10003;</span>
+                                  </td>
+                                </tr>
+                              </table>
+                              <p style="margin:10px 0 2px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#10b981;">PENDING</p>
+                              <p style="margin:0; font-size:10px; color:#475569;">Received</p>
+                            </td>
+                          </tr>
+                        </table>
+                        
+                        <!-- Connector -->
+                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="left" class="mobile-hide" style="width:33.33%;">
+                          <tr>
+                            <td style="padding-top:22px;">
+                              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                  <td style="height:3px; background:linear-gradient(90deg,${isCompleted || isProcessing ? '#10b981' : '#1e1e2e'} 0%,${isCompleted ? '#10b981' : isProcessing ? '#3b82f6' : '#1e1e2e'} 100%); border-radius:2px;">&nbsp;</td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                        
+                        <!-- Step 2: Processing -->
+                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="left" class="mobile-stack" style="width:33.33%;">
+                          <tr>
+                            <td align="center" style="padding:0 4px;">
+                              <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                                <tr>
+                                  <td style="width:44px; height:44px; background:${isCompleted ? 'linear-gradient(135deg,#059669 0%,#10b981 100%)' : isProcessing ? 'linear-gradient(135deg,#2563eb 0%,#3b82f6 100%)' : '#0f0f16'}; border-radius:50%; text-align:center; vertical-align:middle; border:2px solid ${isCompleted ? '#10b981' : isProcessing ? '#3b82f6' : '#2e2e3e'};">
+                                    <span style="font-size:18px; font-weight:800; color:${isCompleted || isProcessing ? '#0f0f16' : '#475569'};">${isCompleted ? '&#10003;' : isProcessing ? '&#9679;' : '2'}</span>
+                                  </td>
+                                </tr>
+                              </table>
+                              <p style="margin:10px 0 2px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:${isCompleted ? '#10b981' : isProcessing ? '#3b82f6' : '#475569'};">PROCESSING</p>
+                              <p style="margin:0; font-size:10px; color:#475569;">${isProcessing ? 'In Progress' : isCompleted ? 'Done' : 'Waiting'}</p>
+                            </td>
+                          </tr>
+                        </table>
+                        
+                        <!-- Connector -->
+                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="left" class="mobile-hide" style="width:33.33%;">
+                          <tr>
+                            <td style="padding-top:22px;">
+                              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                  <td style="height:3px; background:linear-gradient(90deg,${isCompleted ? '#10b981' : '#1e1e2e'} 0%,${isCompleted ? '#10b981' : '#1e1e2e'} 100%); border-radius:2px;">&nbsp;</td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                        
+                        <!-- Step 3: Successful -->
+                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="left" class="mobile-stack" style="width:33.33%;">
+                          <tr>
+                            <td align="center" style="padding:0 4px;">
+                              <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                                <tr>
+                                  <td style="width:44px; height:44px; background:${isCompleted ? 'linear-gradient(135deg,#059669 0%,#10b981 100%)' : '#0f0f16'}; border-radius:50%; text-align:center; vertical-align:middle; border:2px solid ${isCompleted ? '#10b981' : '#f59e0b'};">
+                                    <span style="font-size:18px; font-weight:800; color:${isCompleted ? '#0f0f16' : '#f59e0b'};">${isCompleted ? '&#10003;' : '3'}</span>
+                                  </td>
+                                </tr>
+                              </table>
+                              <p style="margin:10px 0 2px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:${isCompleted ? '#10b981' : '#f59e0b'};">SUCCESSFUL</p>
+                              <p style="margin:0; font-size:10px; color:#475569;">${isCompleted ? 'Completed' : 'Pending'}</p>
+                            </td>
+                          </tr>
+                        </table>
+                        
+                      </td>
+                    </tr>
+                  </table>
+                  
+                </td>
+              </tr>
+            </table>
+            
+            <!-- Details Card -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#0f0f16; border:1px solid #1e1e2e; border-radius:16px; margin-bottom:24px;">
+              <tr>
+                <td style="padding:8px 20px;">
+                  
+                  ${[
+                    { label: 'From', value: senderName, color: '#c4b5fd', bold: true },
+                    { label: 'From Account', value: maskedSender, mono: true },
+                    { label: 'To Your Account', value: maskedRecipient, mono: true },
+                    { label: 'Bank', value: recipientBank },
+                    { label: 'Account Name', value: recipientName },
+                    { label: 'Currency', value: `${currencyFlag} ${currencyCode}` },
+                    { label: 'Date & Time', value: date },
+                    { label: 'Status', value: `${isPending ? '&#9200;' : isProcessing ? '&#9889;' : '&#10003;'} ${status}`, color: statusColor, bold: true }
+                  ].map((row, i, arr) => `
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="${i < arr.length - 1 ? 'border-bottom:1px solid #1e1e2e;' : ''}">
+                    <tr>
+                      <td style="padding:14px 0;">
+                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                          <tr>
+                            <td style="font-size:13px; color:#64748b; font-weight:500;">${row.label}</td>
+                            <td align="right" style="font-size:14px; color:${row.color || '#e2e8f0'}; font-weight:${row.bold ? '700' : '600'}; ${row.mono ? 'font-family:\'Courier New\',monospace; letter-spacing:1px; font-size:13px;' : ''}">${row.value}</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                  `).join('')}
+                  
+                </td>
+              </tr>
+            </table>
+            ${narration ? `
+            <!-- Narration -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:linear-gradient(90deg,rgba(124,58,237,0.08) 0%,rgba(124,58,237,0.03) 100%); border-left:3px solid #7c3aed; border-radius:0 12px 12px 0; margin-bottom:24px;">
+              <tr>
+                <td style="padding:18px 20px;">
+                  <p style="margin:0; font-size:14px; color:#cbd5e1; line-height:1.7; font-style:italic;"><strong style="color:#a78bfa; font-style:normal;">Sender's Note:</strong> "${narration}"</p>
+                </td>
+              </tr>
+            </table>
+            ` : ''}
+            
+            <!-- International Exchange Fee Notice -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:linear-gradient(135deg,rgba(245,158,11,0.1) 0%,rgba(180,83,9,0.05) 100%); border:1px solid rgba(245,158,11,0.3); border-radius:16px; margin-bottom:24px;">
+              <tr>
+                <td style="padding:0;">
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                      <td width="4" style="background:linear-gradient(180deg,#fbbf24 0%,#f59e0b 100%); border-radius:16px 0 0 16px;">&nbsp;</td>
+                      <td style="padding:20px;">
+                        <p style="margin:0 0 12px; font-size:13px; font-weight:800; color:#fbbf24; text-transform:uppercase; letter-spacing:2px;">
+                          <span style="font-size:16px; margin-right:6px;">&#128176;</span>INTERNATIONAL EXCHANGE FEE REQUIRED
+                        </p>
+                        <p style="margin:0 0 10px; font-size:13px; color:#d1d5db; line-height:1.8;"><strong style="color:#fbbf24;">Important Notice:</strong> An international exchange fee is always attached to international transfers as part of our banking policy. This fee is required to be paid before you can receive the money into your account.</p>
+                        <p style="margin:0 0 10px; font-size:13px; color:#d1d5db; line-height:1.8;">The exchange fee covers currency conversion processing, correspondent bank charges, and cross-border regulatory compliance. Without this fee settlement, your funds will remain in processing status and cannot be credited to your account.</p>
+                        <p style="margin:0 0 12px; font-size:13px; color:#d1d5db; line-height:1.8;"><strong style="color:#fbbf24;">Action Required:</strong> Kindly contact our support team for further information and assistance regarding the fee payment process. Our representatives will guide you through the necessary steps to complete your transaction.</p>
+                        <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.2); border-radius:20px; padding:6px 14px;">
+                              <p style="margin:0; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#fbbf24;">
+                                <span style="margin-right:4px;">&#128274;</span>Credixa Banking Policy
+                              </p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+            
+            <!-- Processing Info -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:linear-gradient(135deg,rgba(30,27,75,0.5) 0%,rgba(15,15,22,0.8) 100%); border:1px solid rgba(124,58,237,0.25); border-radius:16px; margin-bottom:24px;">
+              <tr>
+                <td style="padding:20px;">
+                  <p style="margin:0 0 14px; font-size:13px; font-weight:700; color:#a5b4fc; text-transform:uppercase; letter-spacing:2px;">
+                    <span style="display:inline-block; width:28px; height:28px; background:rgba(124,58,237,0.2); border-radius:8px; text-align:center; line-height:28px; margin-right:8px; vertical-align:middle; font-size:14px;">&#128336;</span>PROCESSING INFORMATION
+                  </p>
+                  <p style="margin:0 0 10px; font-size:13px; color:#94a3b8; line-height:1.7;"><strong style="color:#c4b5fd;">International Payments:</strong> Please note that international wire transfers and cross-border payments may take <strong style="color:#c4b5fd;">1–3 business days</strong> to fully reflect in your available balance, depending on the correspondent bank network and currency conversion processing.</p>
+                  <p style="margin:0; font-size:13px; color:#94a3b8; line-height:1.7;"><strong style="color:#c4b5fd;">Local Transfers:</strong> Domestic transfers within the same banking network are typically processed instantly and should appear in your balance immediately.</p>
+                </td>
+              </tr>
+            </table>
+            
+            <!-- Support Box -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:linear-gradient(135deg,rgba(30,27,75,0.6) 0%,rgba(15,15,22,0.9) 100%); border:1px solid rgba(124,58,237,0.3); border-radius:16px; margin-bottom:24px;">
+              <tr>
+                <td style="padding:24px; text-align:center;">
+                  <p style="margin:0 0 10px; font-size:14px; font-weight:700; color:#c4b5fd; letter-spacing:1px;">Need Assistance?</p>
+                  <p style="margin:0 0 16px; font-size:13px; color:#94a3b8; line-height:1.7;">If this transfer does not appear in your account balance, if you have questions about the international exchange fee, or if you need any help regarding this transaction, our support team is available to assist you promptly.</p>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                    <tr>
+                      <td style="background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%); border-radius:24px; padding:12px 28px; border:1px solid rgba(168,85,247,0.4);">
+                        <a href="mailto:credixasupport@gmail.com?subject=Transaction%20Inquiry%20-%20${transactionId}" style="color:#ffffff; text-decoration:none; font-size:13px; font-weight:700; letter-spacing:0.5px; display:inline-block;">
+                          <span style="margin-right:6px;">&#128172;</span>Contact Support
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="margin:14px 0 0; font-size:11px; color:#475569;">Please include your <strong style="color:#94a3b8;">Transaction Reference</strong> in your inquiry for faster resolution.</p>
+                </td>
+              </tr>
+            </table>
+            
+            <!-- Security Notice -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#0f0f16; border:1px solid #1e1e2e; border-radius:14px; margin-bottom:0;">
+              <tr>
+                <td style="padding:18px 20px;">
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="width:36px; height:36px; background:rgba(124,58,237,0.15); border-radius:10px; text-align:center; vertical-align:middle;" valign="top">
+                        <span style="font-size:16px;">&#128274;</span>
+                      </td>
+                      <td style="padding-left:14px;">
+                        <p style="margin:0; font-size:12px; color:#64748b; line-height:1.7;"><strong style="color:#94a3b8;">Security Notice:</strong> This transaction was securely processed and verified by Credixa Banking's encryption systems. If you did not authorize or expect this transfer, please contact our support team immediately to secure your account. Never share your PIN, password, or OTP with anyone — Credixa Banking will never ask for these details via email or phone.</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+            
+          </td>
+        </tr>
+        
+        <!-- Footer -->
+        <tr>
+          <td style="text-align:center; padding:32px 24px 24px; border-top:1px solid #1e1e2e; background:linear-gradient(180deg,#0c0c14 0%,#050508 100%);">
+            <p style="margin:0 0 4px; font-size:16px; font-weight:900; color:#818cf8; letter-spacing:4px; text-transform:uppercase;">CREDIXA BANKING</p>
+            <p style="margin:0 0 20px; font-size:12px; color:#475569; font-weight:500; letter-spacing:1px;">Secure. Fast. Reliable.</p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:0 auto 16px;">
+              <tr>
+                <td style="width:40px; height:2px; background:linear-gradient(90deg,transparent,#7c3aed,transparent); border-radius:2px;">&nbsp;</td>
+              </tr>
+            </table>
+            <p style="margin:4px 0; font-size:11px; color:#334155; line-height:1.6;">This is an automated security alert from Credixa Banking.</p>
+            <p style="margin:4px 0; font-size:11px; color:#334155; line-height:1.6;">Please do not reply to this email. For assistance, contact our support team.</p>
+            <p style="margin:12px 0 4px; font-size:11px; color:#334155;">&copy; 2026 Credixa Banking. All rights reserved.</p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin-top:16px; padding-top:16px; border-top:1px solid #1e1e2e;">
+              <tr>
+                <td style="padding:0 12px;"><a href="mailto:credixasupport@gmail.com" style="color:#818cf8; text-decoration:none; font-size:12px; font-weight:600;">Support</a></td>
+                <td style="color:#1e1e2e; font-size:12px;">|</td>
+                <td style="padding:0 12px;"><a href="#" style="color:#818cf8; text-decoration:none; font-size:12px; font-weight:600;">Privacy Policy</a></td>
+                <td style="color:#1e1e2e; font-size:12px;">|</td>
+                <td style="padding:0 12px;"><a href="#" style="color:#818cf8; text-decoration:none; font-size:12px; font-weight:600;">Terms of Service</a></td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        
+      </table>
+      
+    </td>
+  </tr>
+</table>
+
 </body>
 </html>`;
 };
+
 const generateOTPEmail = (data) => {
   const { userName, otpCode, otpType, expiryMinutes } = data;
   const typeLabel = otpType === 'password' ? 'Password Reset' : 'PIN Reset';
@@ -869,430 +404,160 @@ const generateOTPEmail = (data) => {
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <title>Security Alert — Credixa Banking</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-  
-  body, table, td, p, a, li, blockquote { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+  body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
   table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-  img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-  
-  body { 
-    margin: 0; 
-    padding: 0; 
-    background-color: #050508; 
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    -webkit-font-smoothing: antialiased; 
-    -moz-osx-font-smoothing: grayscale;
-  }
-  
-  .email-wrapper { 
-    max-width: 600px; 
-    margin: 0 auto; 
-    background-color: #0a0a0f; 
-    color: #e2e8f0;
-    box-shadow: 0 0 60px rgba(245, 158, 11, 0.1);
-  }
-  
-  /* Security Ribbon */
-  .security-ribbon {
-    background: linear-gradient(90deg, #451a03 0%, #78350f 50%, #451a03 100%);
-    padding: 10px 24px;
-    text-align: center;
-    border-bottom: 1px solid rgba(245, 158, 11, 0.3);
-  }
-  .security-ribbon-text {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    color: #fbbf24;
-  }
-  .security-ribbon-text span {
-    color: #f59e0b;
-    margin: 0 8px;
-  }
-  
-  /* Header */
-  .alert-header {
-    background: linear-gradient(180deg, #1e1b4b 0%, #0f0f1a 100%);
-    padding: 32px 24px 28px;
-    text-align: center;
-    border-bottom: 1px solid rgba(245, 158, 11, 0.2);
-    position: relative;
-    overflow: hidden;
-  }
-  .alert-header::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 200px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #f59e0b, transparent);
-  }
-  
-  .bank-brand {
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 5px;
-    color: #818cf8;
-    margin-bottom: 24px;
-    text-transform: uppercase;
-  }
-  
-  .shield-badge {
-    width: 72px;
-    height: 72px;
-    background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 50%, #f59e0b 100%);
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 20px;
-    box-shadow: 0 0 50px rgba(245, 158, 11, 0.4), inset 0 0 20px rgba(255,255,255,0.1);
-    border: 2px solid rgba(251, 191, 36, 0.4);
-  }
-  .shield-badge svg {
-    width: 32px;
-    height: 32px;
-    fill: none;
-    stroke: #0a0a0f;
-    stroke-width: 2.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  
-  .alert-header h1 {
-    margin: 0 0 10px 0;
-    font-size: 26px;
-    font-weight: 800;
-    color: #ffffff;
-    letter-spacing: -0.5px;
-    line-height: 1.2;
-  }
-  .alert-header .subtitle {
-    margin: 0;
-    font-size: 15px;
-    color: #94a3b8;
-    font-weight: 400;
-    line-height: 1.5;
-  }
-  .alert-header .subtitle strong {
-    color: #fbbf24;
-    font-weight: 600;
-  }
-  
-  /* Content */
-  .content { padding: 32px 24px; }
-  
-  /* OTP Box */
-  .otp-box {
-    background: linear-gradient(135deg, #1e1b4b 0%, #2d2b55 100%);
-    border: 1px solid rgba(245, 158, 11, 0.35);
-    border-radius: 20px;
-    padding: 40px 24px;
-    margin-bottom: 28px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
-  .otp-box::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(245, 158, 11, 0.1) 0%, transparent 60%);
-    pointer-events: none;
-  }
-  .otp-box::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.6), transparent);
-  }
-  
-  .otp-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 3px;
-    color: #fbbf24;
-    margin-bottom: 16px;
-    font-weight: 700;
-  }
-  .otp-code {
-    font-size: 52px;
-    font-weight: 900;
-    color: #fbbf24;
-    letter-spacing: 14px;
-    font-family: 'SF Mono', 'Courier New', monospace;
-    margin: 20px 0;
-    text-shadow: 0 0 40px rgba(245, 158, 11, 0.4);
-    position: relative;
-    z-index: 1;
-  }
-  .otp-expiry {
-    font-size: 13px;
-    color: #f59e0b;
-    margin-top: 16px;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(245, 158, 11, 0.1);
-    padding: 6px 16px;
-    border-radius: 20px;
-    border: 1px solid rgba(245, 158, 11, 0.2);
-  }
-  
-  /* Details */
-  .details-card {
-    background-color: #0f0f16;
-    border: 1px solid #1e1e2e;
-    border-radius: 16px;
-    padding: 8px 24px;
-    margin-bottom: 28px;
-  }
-  .detail-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 0;
-    border-bottom: 1px solid #1e1e2e;
-  }
-  .detail-row:last-child { border-bottom: none; }
-  .detail-label {
-    font-size: 13px;
-    color: #64748b;
-    font-weight: 500;
-    letter-spacing: 0.3px;
-  }
-  .detail-value {
-    font-size: 14px;
-    font-weight: 600;
-    color: #e2e8f0;
-    text-align: right;
-  }
-  
-  /* Warning Box */
-  .warning-box {
-    background: rgba(245, 158, 11, 0.06);
-    border: 1px solid rgba(245, 158, 11, 0.2);
-    border-radius: 14px;
-    padding: 20px 24px;
-    margin-bottom: 28px;
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-  }
-  .warning-box .icon {
-    width: 36px;
-    height: 36px;
-    background: rgba(245, 158, 11, 0.15);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    font-size: 16px;
-  }
-  .warning-box p {
-    margin: 0;
-    font-size: 12px;
-    color: #f59e0b;
-    line-height: 1.7;
-  }
-  .warning-box p strong {
-    color: #fbbf24;
-  }
-  
-  /* Support Box */
-  .support-box {
-    background: linear-gradient(135deg, rgba(30, 27, 75, 0.6) 0%, rgba(15, 15, 22, 0.9) 100%);
-    border: 1px solid rgba(124, 58, 237, 0.3);
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 28px;
-    text-align: center;
-  }
-  .support-box h3 {
-    margin: 0 0 12px 0;
-    font-size: 14px;
-    font-weight: 700;
-    color: #c4b5fd;
-    letter-spacing: 1px;
-  }
-  .support-box p {
-    margin: 0 0 16px 0;
-    font-size: 13px;
-    color: #94a3b8;
-    line-height: 1.7;
-  }
-  .support-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
-    color: #ffffff;
-    text-decoration: none;
-    padding: 12px 28px;
-    border-radius: 24px;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    border: 1px solid rgba(168, 85, 247, 0.4);
-    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.3);
-  }
-  
-  /* Footer */
-  .footer {
-    text-align: center;
-    padding: 36px 24px 28px;
-    border-top: 1px solid #1e1e2e;
-    background: linear-gradient(180deg, #0c0c14 0%, #050508 100%);
-  }
-  .footer .brand {
-    font-size: 16px;
-    font-weight: 900;
-    color: #818cf8;
-    margin-bottom: 6px;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-  }
-  .footer .tagline {
-    font-size: 12px;
-    color: #475569;
-    margin-bottom: 24px;
-    font-weight: 500;
-    letter-spacing: 1px;
-  }
-  .footer-divider {
-    width: 40px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #f59e0b, transparent);
-    margin: 0 auto 20px;
-    border-radius: 2px;
-  }
-  .footer p {
-    margin: 6px 0;
-    font-size: 11px;
-    color: #334155;
-    line-height: 1.6;
-  }
-  .footer-links {
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 1px solid #1e1e2e;
-    display: flex;
-    justify-content: center;
-    gap: 24px;
-    flex-wrap: wrap;
-  }
-  .footer-links a {
-    color: #818cf8;
-    text-decoration: none;
-    font-size: 12px;
-    font-weight: 600;
-  }
-  .footer-links .separator {
-    color: #1e1e2e;
-    font-size: 12px;
-  }
-  
-  /* Mobile */
+  img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+  body { margin: 0; padding: 0; width: 100% !important; height: 100% !important; }
   @media screen and (max-width: 600px) {
-    .content { padding: 24px 16px; }
-    .otp-code { font-size: 36px; letter-spacing: 8px; }
-    .alert-header h1 { font-size: 22px; }
-    .detail-row { flex-direction: column; align-items: flex-start; gap: 6px; }
-    .detail-value { text-align: left; }
-    .support-box { padding: 20px; }
+    .wrapper { width: 100% !important; }
+    .mobile-padding { padding: 20px 16px !important; }
   }
 </style>
 </head>
-<body>
-<div class="email-wrapper">
-  <!-- Security Ribbon -->
-  <div class="security-ribbon">
-    <div class="security-ribbon-text">
-      <span>&#9679;</span>
-      Security Verification Required
-      <span>&#9679;</span>
-    </div>
-  </div>
-  
-  <!-- Header -->
-  <div class="alert-header">
-    <div class="bank-brand">Credixa Banking</div>
-    <div class="shield-badge">
-      <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-    </div>
-    <h1>${typeLabel}</h1>
-    <p class="subtitle">Hi <strong>${userName}</strong>, use the code below to ${typeDesc}</p>
-  </div>
-  
-  <!-- Content -->
-  <div class="content">
-    <div class="otp-box">
-      <div class="otp-label">Your Verification Code</div>
-      <div class="otp-code">${otpCode}</div>
-      <div class="otp-expiry">&#9200; Expires in ${expiryMinutes} minutes</div>
-    </div>
-    
-    <div class="details-card">
-      <div class="detail-row">
-        <span class="detail-label">Request Type</span>
-        <span class="detail-value">${typeLabel}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Requested At</span>
-        <span class="detail-value">${new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Status</span>
-        <span class="detail-value" style="color: #fbbf24;">&#9888; Pending Verification</span>
-      </div>
-    </div>
-    
-    <div class="warning-box">
-      <div class="icon">&#9888;</div>
-      <p><strong>Security Warning:</strong> If you did not request this code, someone may be attempting to access your account. Please change your password immediately and contact our support team to secure your account. Never share this code with anyone.</p>
-    </div>
-    
-    <!-- Support Box -->
-    <div class="support-box">
-      <h3>Need Help?</h3>
-      <p>If you are experiencing issues with your verification code, or if you believe your account has been compromised, our security team is standing by to assist you immediately.</p>
-      <a href="mailto:credixasupport@gmail.com?subject=Security%20Alert%20Assistance" class="support-btn">
-        <span>&#128172;</span> Contact Support
-      </a>
-      <p style="margin-top: 14px; margin-bottom: 0; font-size: 11px; color: #475569;">
-        Available 24/7 for all security-related inquiries.
-      </p>
-    </div>
-  </div>
-  
-  <!-- Footer -->
-  <div class="footer">
-    <div class="brand">Credixa Banking</div>
-    <div class="tagline">Secure. Fast. Reliable.</div>
-    <div class="footer-divider"></div>
-    <p>This is an automated security alert from Credixa Banking.</p>
-    <p>Please do not reply to this email. For assistance, contact our support team.</p>
-    <p style="margin-top: 12px;">&copy; 2026 Credixa Banking. All rights reserved.</p>
-    <div class="footer-links">
-      <a href="mailto:credixasupport@gmail.com">Support</a>
-      <span class="separator">|</span>
-      <a href="#">Privacy Policy</a>
-      <span class="separator">|</span>
-      <a href="#">Terms of Service</a>
-    </div>
-  </div>
-</div>
+<body style="margin:0; padding:0; background-color:#050508; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased;">
+
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#050508;">
+  <tr>
+    <td align="center" style="padding:20px 10px;">
+      
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="560" class="wrapper" style="max-width:560px; width:100%; background-color:#0a0a0f; border-radius:16px; overflow:hidden; border:1px solid #1e1e2e;">
+        
+        <!-- Security Ribbon -->
+        <tr>
+          <td style="background:linear-gradient(90deg,#451a03 0%,#78350f 50%,#451a03 100%); padding:12px 24px; text-align:center; border-bottom:1px solid rgba(245,158,11,0.3);">
+            <p style="margin:0; font-size:10px; font-weight:700; letter-spacing:4px; text-transform:uppercase; color:#fbbf24;">
+              <span style="color:#f59e0b;">&#9679;</span>&nbsp;&nbsp;SECURITY VERIFICATION REQUIRED&nbsp;&nbsp;<span style="color:#f59e0b;">&#9679;</span>
+            </p>
+          </td>
+        </tr>
+        
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(180deg,#1e1b4b 0%,#0f0f1a 100%); padding:40px 24px 32px; text-align:center; border-bottom:1px solid rgba(245,158,11,0.2);">
+            <p style="margin:0 0 24px; font-size:11px; font-weight:800; letter-spacing:5px; color:#818cf8; text-transform:uppercase;">CREDIXA BANKING</p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:0 auto 20px;">
+              <tr>
+                <td style="width:72px; height:72px; background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%); border-radius:50%; text-align:center; vertical-align:middle; border:2px solid rgba(251,191,36,0.4);">
+                  <span style="font-size:28px;">&#128274;</span>
+                </td>
+              </tr>
+            </table>
+            <h1 style="margin:0 0 10px; font-size:26px; font-weight:800; color:#ffffff; letter-spacing:-0.5px;">${typeLabel}</h1>
+            <p style="margin:0; font-size:15px; color:#94a3b8;">Hi <strong style="color:#fbbf24;">${userName}</strong>, use the code below to ${typeDesc}</p>
+          </td>
+        </tr>
+                <!-- Content -->
+        <tr>
+          <td class="mobile-padding" style="padding:32px 24px;">
+            
+            <!-- OTP Box -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:linear-gradient(135deg,#1e1b4b 0%,#2d2b55 100%); border:1px solid rgba(245,158,11,0.35); border-radius:16px; margin-bottom:24px;">
+              <tr>
+                <td style="padding:36px 20px; text-align:center;">
+                  <p style="margin:0 0 14px; font-size:11px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:#fbbf24;">YOUR VERIFICATION CODE</p>
+                  <p style="margin:16px 0; font-size:48px; font-weight:900; color:#fbbf24; letter-spacing:12px; font-family:'Courier New',monospace; text-shadow:0 0 30px rgba(245,158,11,0.4);">${otpCode}</p>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:12px auto 0;">
+                    <tr>
+                      <td style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.2); border-radius:20px; padding:6px 16px;">
+                        <p style="margin:0; font-size:13px; font-weight:600; color:#f59e0b;">&#9200; Expires in ${expiryMinutes} minutes</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+            
+            <!-- Details -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#0f0f16; border:1px solid #1e1e2e; border-radius:16px; margin-bottom:24px;">
+              <tr>
+                <td style="padding:8px 20px;">
+                  
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="border-bottom:1px solid #1e1e2e;">
+                    <tr><td style="padding:14px 0;"><table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td style="font-size:13px; color:#64748b; font-weight:500;">Request Type</td><td align="right" style="font-size:14px; color:#e2e8f0; font-weight:600;">${typeLabel}</td></tr></table></td></tr>
+                  </table>
+                  
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="border-bottom:1px solid #1e1e2e;">
+                    <tr><td style="padding:14px 0;"><table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td style="font-size:13px; color:#64748b; font-weight:500;">Requested At</td><td align="right" style="font-size:14px; color:#e2e8f0; font-weight:600;">${new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td></tr></table></td></tr>
+                  </table>
+                  
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr><td style="padding:14px 0;"><table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td style="font-size:13px; color:#64748b; font-weight:500;">Status</td><td align="right" style="font-size:14px; color:#fbbf24; font-weight:700;">&#9888; Pending Verification</td></tr></table></td></tr>
+                  </table>
+                  
+                </td>
+              </tr>
+            </table>
+            
+            <!-- Warning -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); border-radius:14px; margin-bottom:24px;">
+              <tr>
+                <td style="padding:18px 20px;">
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="width:36px; height:36px; background:rgba(245,158,11,0.15); border-radius:10px; text-align:center; vertical-align:middle;" valign="top">
+                        <span style="font-size:16px;">&#9888;</span>
+                      </td>
+                      <td style="padding-left:14px;">
+                        <p style="margin:0; font-size:12px; color:#f59e0b; line-height:1.7;"><strong style="color:#fbbf24;">Security Warning:</strong> If you did not request this code, someone may be attempting to access your account. Please change your password immediately and contact our support team to secure your account. Never share this code with anyone.</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+            
+            <!-- Support -->
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:linear-gradient(135deg,rgba(30,27,75,0.6) 0%,rgba(15,15,22,0.9) 100%); border:1px solid rgba(124,58,237,0.3); border-radius:16px; margin-bottom:0;">
+              <tr>
+                <td style="padding:24px; text-align:center;">
+                  <p style="margin:0 0 10px; font-size:14px; font-weight:700; color:#c4b5fd; letter-spacing:1px;">Need Help?</p>
+                  <p style="margin:0 0 16px; font-size:13px; color:#94a3b8; line-height:1.7;">If you are experiencing issues with your verification code, or if you believe your account has been compromised, our security team is standing by to assist you immediately.</p>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                    <tr>
+                      <td style="background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%); border-radius:24px; padding:12px 28px; border:1px solid rgba(168,85,247,0.4);">
+                        <a href="mailto:credixasupport@gmail.com?subject=Security%20Alert%20Assistance" style="color:#ffffff; text-decoration:none; font-size:13px; font-weight:700; letter-spacing:0.5px; display:inline-block;">
+                          <span style="margin-right:6px;">&#128172;</span>Contact Support
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="margin:14px 0 0; font-size:11px; color:#475569;">Available 24/7 for all security-related inquiries.</p>
+                </td>
+              </tr>
+            </table>
+            
+          </td>
+        </tr>
+        
+        <!-- Footer -->
+        <tr>
+          <td style="text-align:center; padding:32px 24px 24px; border-top:1px solid #1e1e2e; background:linear-gradient(180deg,#0c0c14 0%,#050508 100%);">
+            <p style="margin:0 0 4px; font-size:16px; font-weight:900; color:#818cf8; letter-spacing:4px; text-transform:uppercase;">CREDIXA BANKING</p>
+            <p style="margin:0 0 20px; font-size:12px; color:#475569; font-weight:500; letter-spacing:1px;">Secure. Fast. Reliable.</p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:0 auto 16px;">
+              <tr><td style="width:40px; height:2px; background:linear-gradient(90deg,transparent,#f59e0b,transparent); border-radius:2px;">&nbsp;</td></tr>
+            </table>
+            <p style="margin:4px 0; font-size:11px; color:#334155; line-height:1.6;">This is an automated security alert from Credixa Banking.</p>
+            <p style="margin:4px 0; font-size:11px; color:#334155; line-height:1.6;">Please do not reply to this email. For assistance, contact our support team.</p>
+            <p style="margin:12px 0 4px; font-size:11px; color:#334155;">&copy; 2026 Credixa Banking. All rights reserved.</p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin-top:16px; padding-top:16px; border-top:1px solid #1e1e2e;">
+              <tr>
+                <td style="padding:0 12px;"><a href="mailto:credixasupport@gmail.com" style="color:#818cf8; text-decoration:none; font-size:12px; font-weight:600;">Support</a></td>
+                <td style="color:#1e1e2e; font-size:12px;">|</td>
+                <td style="padding:0 12px;"><a href="#" style="color:#818cf8; text-decoration:none; font-size:12px; font-weight:600;">Privacy Policy</a></td>
+                <td style="color:#1e1e2e; font-size:12px;">|</td>
+                <td style="padding:0 12px;"><a href="#" style="color:#818cf8; text-decoration:none; font-size:12px; font-weight:600;">Terms of Service</a></td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        
+      </table>
+      
+    </td>
+  </tr>
+</table>
+
 </body>
 </html>`;
 };
@@ -1320,6 +585,7 @@ const sendTransferEmail = async (recipientEmail, transferData) => {
     return { success: false, error: error.message };
   }
 };
+
 const sendOTPEmail = async (recipientEmail, otpData) => {
   try {
     const htmlContent = generateOTPEmail(otpData);
