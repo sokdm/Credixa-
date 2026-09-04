@@ -332,6 +332,7 @@ textarea {
   background: linear-gradient(135deg, #f9fcf5, #e9f1e3);
   box-shadow: 0 18px 42px rgba(10, 35, 18, 0.15);
 }
+.internal-check-image { display: block; width: 100%; height: auto; margin-bottom: 18px; border-radius: 4px; box-shadow: 0 8px 20px rgba(10, 35, 18, 0.12); }
 .check-preview-header, .check-preview-pay, .check-preview-details, .check-preview-footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .check-preview-header { padding-bottom: 18px; border-bottom: 1px solid #b8c9b8; }
 .check-preview-header strong { display: block; color: #245c38; font-family: 'Manrope', sans-serif; font-size: 29px; letter-spacing: 0.04em; }

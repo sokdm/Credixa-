@@ -12,12 +12,15 @@ const makeCheckId = () => `CC-${uuidv4().replace(/-/g, '').slice(0, 16).toUpperC
 
 router.post('/', adminAuth, async (req, res) => {
   try {
-    const { recipientEmail, amount, currency = 'USD', memo = '', expiresAt } = req.body;
+    const { recipientEmail, recipientAccountNumber, amount, currency = 'USD', memo = '', expiresAt } = req.body;
     const numericAmount = Number(amount);
-    if (!recipientEmail || !Number.isFinite(numericAmount) || numericAmount <= 0) {
-      return res.status(400).json({ error: 'Recipient email and a valid amount are required' });
+    if ((!recipientEmail && !recipientAccountNumber) || !Number.isFinite(numericAmount) || numericAmount <= 0) {
+      return res.status(400).json({ error: 'Recipient email or account number and a valid amount are required' });
     }
-    const recipient = await User.findOne({ email: recipientEmail.toLowerCase().trim() }).select('_id fullName email accountNumber currency');
+    const recipientQuery = recipientEmail
+      ? { email: recipientEmail.toLowerCase().trim() }
+      : { accountNumber: String(recipientAccountNumber).replace(/\s/g, '') };
+    const recipient = await User.findOne(recipientQuery).select('_id fullName email accountNumber currency');
     if (!recipient) return res.status(404).json({ error: 'Recipient account not found' });
 
     const check = await InternalCheck.create({
