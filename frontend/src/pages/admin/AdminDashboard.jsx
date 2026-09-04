@@ -6,7 +6,7 @@ import {
   Lock, Unlock, Send, Search, ChevronLeft, LogOut,
   TrendingUp, DollarSign, UserCheck, Menu, CheckCircle,
   Download, AlertCircle, Bot, Wifi, WifiOff, Image as ImageIcon,
-  X, Check, Copy, Phone, Mail, CreditCard
+  X, Check, Copy, Phone, Mail, CreditCard, FileCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import io from 'socket.io-client';
@@ -78,6 +78,9 @@ const AdminDashboard = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [checks, setChecks] = useState([]);
+  const [checkForm, setCheckForm] = useState({ recipientEmail: '', amount: '', currency: 'USD', memo: '', expiresAt: '' });
+  const [createdCheck, setCreatedCheck] = useState(null);
   const { logout } = useAuth();
   const navigate = useNavigate();
   const socketRef = useRef(null);
@@ -92,6 +95,7 @@ const AdminDashboard = () => {
     if (!token) { navigate('/admin/login'); return; }
 
     const newSocket = io(API_URL, {
+      auth: { token: getToken() },
       transports: ['polling', 'websocket'],
       timeout: 20000,
       reconnectionAttempts: Infinity,
@@ -162,6 +166,7 @@ const AdminDashboard = () => {
     if (activeTab === 'users') fetchUsers();
     if (activeTab === 'support') fetchChats();
     if (activeTab === 'transfers') fetchUsers();
+    if (activeTab === 'checks') fetchChecks();
   }, [activeTab]);
 
   const handleApiError = (err, context) => {
@@ -187,6 +192,40 @@ const AdminDashboard = () => {
       });
       setUsers(res.data);
     } catch (err) { handleApiError(err, 'Users'); }
+  };
+
+  const fetchChecks = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/checks`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      setChecks(res.data.checks || []);
+    } catch (err) { handleApiError(err, 'Checks'); }
+  };
+
+  const createCheck = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.post(`${API_URL}/api/checks`, checkForm, { headers: { Authorization: `Bearer ${getToken()}` } });
+      setCreatedCheck(res.data.check);
+      setCheckForm({ recipientEmail: '', amount: '', currency: 'USD', memo: '', expiresAt: '' });
+      fetchChecks();
+    } catch (err) { handleApiError(err, 'Create check'); }
+  };
+
+  const cancelCheck = async (checkId) => {
+    try {
+      await axios.patch(`${API_URL}/api/checks/${checkId}/cancel`, {}, { headers: { Authorization: `Bearer ${getToken()}` } });
+      fetchChecks();
+    } catch (err) { handleApiError(err, 'Cancel check'); }
+  };
+
+  const downloadCheck = (check) => {
+    const content = `CREDIXA BANKING\nINTERNAL DIGITAL CHECK - NON-NEGOTIABLE\n\nCheck ID: ${check.checkId}\nRecipient: ${check.recipientName}\nAmount: ${check.currency} ${check.amount}\nMemo: ${check.memo || 'None'}\n\nValid only inside Credixa Banking. Verify this ID through the Credixa app.`;
+    const url = URL.createObjectURL(new Blob([content], { type: 'text/plain' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Credixa-${check.checkId}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const fetchChats = async () => {
@@ -496,6 +535,7 @@ const AdminDashboard = () => {
             <SidebarItem icon={Users} label="Users" active={activeTab === 'users'} onClick={() => { setActiveTab('users'); closeSidebar(); }} />
             <SidebarItem icon={MessageSquare} label="Support" active={activeTab === 'support'} onClick={() => { setActiveTab('support'); closeSidebar(); }} badge={unreadCount} />
             <SidebarItem icon={ArrowLeftRight} label="Transfers" active={activeTab === 'transfers'} onClick={() => { setActiveTab('transfers'); closeSidebar(); }} />
+            <SidebarItem icon={FileCheck} label="Checks" active={activeTab === 'checks'} onClick={() => { setActiveTab('checks'); closeSidebar(); }} />
           </nav>
 
           <div className="pt-4 border-t border-white/10">
@@ -1011,6 +1051,15 @@ const AdminDashboard = () => {
                     </div>
                   </motion.div>
                 )}
+              </motion.div>
+            )}
+
+            {activeTab === 'checks' && (
+              <motion.div key="checks" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                <div><h2 className="text-2xl lg:text-3xl font-bold">Internal Credixa checks</h2><p className="text-white/50 mt-1">Create and manage closed-loop digital checks. These are not negotiable instruments.</p></div>
+                <GlassCard className="max-w-xl p-6"><form onSubmit={createCheck} className="space-y-4"><input required type="email" placeholder="Recipient email" value={checkForm.recipientEmail} onChange={e => setCheckForm({ ...checkForm, recipientEmail: e.target.value })} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white" /><input required type="number" min="0.01" step="0.01" placeholder="Amount" value={checkForm.amount} onChange={e => setCheckForm({ ...checkForm, amount: e.target.value })} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white" /><input placeholder="Memo" value={checkForm.memo} onChange={e => setCheckForm({ ...checkForm, memo: e.target.value })} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white" /><button className="rounded-xl bg-teal-600 px-5 py-3 font-semibold text-white">Create internal check</button></form></GlassCard>
+                {createdCheck && <GlassCard className="max-w-xl border-teal-400/30 p-6"><p className="text-xs uppercase tracking-widest text-teal-300">Internal use only</p><p className="mt-3 text-2xl font-bold">{createdCheck.currency} {createdCheck.amount.toLocaleString()}</p><p className="mt-2 text-white/60">To {createdCheck.recipientName}</p><p className="mt-4 font-mono text-teal-300">{createdCheck.checkId}</p><p className="mt-4 text-xs text-white/40">NON-NEGOTIABLE CREDIXA DIGITAL CHECK</p><button onClick={() => downloadCheck(createdCheck)} className="mt-5 rounded-lg border border-white/20 px-3 py-2 text-sm text-white/80">Download record</button><button onClick={() => window.print()} className="ml-2 mt-5 rounded-lg border border-teal-400/40 px-3 py-2 text-sm text-teal-300">Print preview</button></GlassCard>}
+                <div className="space-y-3">{checks.map(check => <GlassCard key={check._id} className="flex flex-wrap items-center justify-between gap-4 p-4"><div><p className="font-semibold">{check.checkId}</p><p className="text-sm text-white/50">{check.recipientName} · {check.currency} {check.amount}</p></div><div className="flex items-center gap-3"><span className="capitalize text-sm text-white/60">{check.status}</span>{['created', 'pending'].includes(check.status) && <button onClick={() => cancelCheck(check.checkId)} className="rounded-lg border border-rose-400/40 px-3 py-2 text-sm text-rose-300">Cancel</button>}</div></GlassCard>)}</div>
               </motion.div>
             )}
           </AnimatePresence>

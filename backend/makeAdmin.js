@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://daviddylan78778_db_user:bS5ekXxKJz0xjtre@studenthive.v6xwezd.mongodb.net/?appName=Studenthive';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 async function makeAdmin() {
   try {
+    if (!MONGODB_URI) throw new Error('MONGODB_URI is required');
     await mongoose.connect(MONGODB_URI);
     console.log('Connected to MongoDB');
     

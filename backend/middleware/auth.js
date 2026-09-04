@@ -1,10 +1,11 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV !== 'production' ? 'credixa-local-development-only-secret' : null);
 
 const auth = async (req, res, next) => {
   try {
+    if (!JWT_SECRET) return res.status(500).json({ error: 'Authentication is not configured' });
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) {
       console.log('[AUTH_MW] No token provided');
@@ -37,6 +38,7 @@ const auth = async (req, res, next) => {
 
 const adminAuth = async (req, res, next) => {
   try {
+    if (!JWT_SECRET) return res.status(500).json({ error: 'Authentication is not configured' });
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) {
       console.log('[ADMIN_MW] No token provided');

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, ChevronLeft, MessageCircle, CheckCheck, Clock, WifiOff, Bot, AlertCircle, Image as ImageIcon, X, Check } from 'lucide-react';
+import { Send, ChevronLeft, MessageCircle, CheckCheck, Clock, WifiOff, Bot, AlertCircle, Image as ImageIcon, X, Check, Copy, MoreVertical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import axios from 'axios';
@@ -52,6 +52,7 @@ const Support = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [copiedId, setCopiedId] = useState(null);
+  const [messageMenuId, setMessageMenuId] = useState(null);
   const [longPressTimer, setLongPressTimer] = useState(null);
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
@@ -138,6 +139,7 @@ const Support = () => {
     }
 
     const socket = io(SOCKET_URL, {
+      auth: { token: localStorage.getItem('token') },
       transports: ['polling', 'websocket'],
       timeout: 20000,
       reconnectionAttempts: 3,
@@ -323,6 +325,13 @@ const Support = () => {
     }
   };
 
+  const translateMessage = (text) => {
+    if (!text) return;
+    const url = `https://translate.google.com/?sl=auto&tl=en&text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setMessageMenuId(null);
+  };
+
   const handleTouchStart = (text, id) => {
     const timer = setTimeout(() => {
       copyMessage(text, id);
@@ -484,6 +493,13 @@ return (
                     onTouchEnd={handleTouchEnd}
                     onTouchMove={handleTouchEnd}
                   >
+                    <button type="button" onClick={(event) => { event.stopPropagation(); setMessageMenuId(messageMenuId === msgKey ? null : msgKey); }} className="absolute right-1 top-1 z-20 rounded-full p-1 text-white/45 hover:bg-black/20 hover:text-white" aria-label="Message actions"><MoreVertical size={14} /></button>
+                    {messageMenuId === msgKey && (
+                      <div className="absolute right-1 top-8 z-30 min-w-28 rounded-lg border border-white/10 bg-[#16252b] p-1 shadow-xl" onClick={(event) => event.stopPropagation()}>
+                        <button type="button" onClick={() => copyMessage(displayText, msgKey)} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-white/80 hover:bg-white/10"><Copy size={13} /> Copy</button>
+                        {msg.text && <button type="button" onClick={() => translateMessage(msg.text)} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-white/80 hover:bg-white/10">Translate</button>}
+                      </div>
+                    )}
                     {/* Copy feedback overlay */}
                     {copiedId === msgKey && (
                       <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center z-10 backdrop-blur-[1px]">

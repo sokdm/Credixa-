@@ -7,7 +7,13 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config();
+const jwt = require('jsonwebtoken');
+const User = require('./models/User');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+mongoose.set('bufferCommands', false);
+
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV !== 'production' ? 'credixa-local-development-only-secret' : null);
 
 const app = express();
 const httpServer = createServer(app);
@@ -31,7 +37,7 @@ const corsOptions = {
       callback(null, true);
     } else {
       console.log('[CORS] Blocked origin:', origin);
-      callback(null, true);
+      callback(new Error('Origin not allowed by CORS'));
     }
   },
   credentials: true,
@@ -47,6 +53,21 @@ const io = new Server(httpServer, {
   allowEIO3: true
 });
 
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token;
+    if (!token || !JWT_SECRET) return next(new Error('Socket authentication required'));
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const userId = decoded.id || decoded._id || decoded.userId;
+    const user = await User.findById(userId).select('_id isAdmin');
+    if (!user) return next(new Error('Socket user not found'));
+    socket.user = user;
+    next();
+  } catch (error) {
+    next(new Error('Socket authentication failed'));
+  }
+});
+
 app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors(corsOptions));
@@ -59,14 +80,34 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB Connected'))
-  .catch(err => console.error('MongoDB Error:', err));
+let databaseReady = false;
+mongoose.connection.on('connected', () => {
+  databaseReady = true;
+  console.log('MongoDB Connected');
+});
+mongoose.connection.on('disconnected', () => {
+  databaseReady = false;
+  console.error('MongoDB disconnected');
+});
+
+if (process.env.MONGODB_URI) {
+  mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 10000 })
+    .catch(err => console.error('MongoDB Error:', err.message));
+} else {
+  console.error('MongoDB is not configured. Set MONGODB_URI before using database features.');
+}
 
 app.get('/', (req, res) => res.json({ status: 'ok', service: 'credixa-api' }));
-app.get('/health', (req, res) => res.json({ status: 'healthy' }));
+app.get('/health', (req, res) => res.status(databaseReady ? 200 : 503).json({ status: databaseReady ? 'healthy' : 'degraded', database: databaseReady ? 'connected' : 'disconnected' }));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+app.use('/api', (req, res, next) => {
+  if (!databaseReady && !req.path.startsWith('/exchange-rates')) {
+    return res.status(503).json({ error: 'Database unavailable. Configure MONGODB_URI and try again.' });
+  }
+  next();
+});
 
 const connectedAdmins = new Set();
 
@@ -74,27 +115,31 @@ io.on('connection', (socket) => {
   console.log(`[SOCKET] Connection established: ${socket.id}`);
   socket.on('ping', () => { socket.emit('pong'); });
   socket.on('join_user', (userId) => {
+    if (!socket.user.isAdmin && socket.user._id.toString() !== userId.toString()) return;
     const room = `user_${userId}`;
     socket.join(room);
     console.log(`[SOCKET] User ${userId} joined room: ${room}`);
   });
   socket.on('join_admin', () => {
+    if (!socket.user.isAdmin) return;
     socket.join('admin_room');
     connectedAdmins.add(socket.id);
     console.log(`[SOCKET] Admin joined admin_room. Total admins: ${connectedAdmins.size}`);
   });
   socket.on('join_chat', (userId) => {
+    if (!socket.user.isAdmin && socket.user._id.toString() !== userId.toString()) return;
     socket.join(userId);
     socket.join(`user_${userId}`);
     console.log(`[SOCKET] Socket joined chat rooms: ${userId}, user_${userId}`);
   });
   socket.on('send_message', async (data) => {
+    if (!socket.user || socket.user.isAdmin || socket.user._id.toString() !== String(data.userId)) return;
     console.log(`[SOCKET] send_message received: userId=${data.userId}`);
     try {
       const Chat = require('./models/Chat');
       const User = require('./models/User');
       const messageData = {
-        sender: data.sender,
+        sender: 'user',
         text: data.text || '',
         imageUrl: data.imageUrl || null,
         timestamp: new Date(),
@@ -124,6 +169,7 @@ io.on('connection', (socket) => {
     }
   });
   socket.on('admin_reply', async (data) => {
+    if (!socket.user?.isAdmin) return;
     console.log(`[SOCKET] admin_reply received for user: ${data.userId}`);
     try {
       const Chat = require('./models/Chat');
@@ -170,6 +216,8 @@ app.use('/api/savings', require('./routes/savings'));
 app.use('/api/scheduled', require('./routes/scheduled'));
 app.use('/api/beneficiary', require('./routes/beneficiary'));
 app.use('/api/otp', require('./routes/otp')); // OTP routes for forgot password/PIN
+app.use('/api/checks', require('./routes/checks'));
+app.use('/api/exchange-rates', require('./routes/exchangeRates'));
 
 const possibleDistPaths = [
   path.join(__dirname, 'dist'),

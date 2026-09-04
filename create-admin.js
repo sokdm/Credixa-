@@ -1,18 +1,22 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+require('dotenv').config({ path: './backend/.env' });
 
-const MONGO_URI = 'mongodb+srv://daviddylan78778_db_user:bS5ekXxKJz0xjtre@studenthive.v6xwezd.mongodb.net/credixa?retryWrites=true&w=majority';
+const MONGO_URI = process.env.MONGODB_URI;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 async function createAdmin() {
   try {
+    if (!MONGO_URI || !ADMIN_EMAIL || !ADMIN_PASSWORD) throw new Error('MONGODB_URI, ADMIN_EMAIL, and ADMIN_PASSWORD are required');
     await mongoose.connect(MONGO_URI);
     console.log('Connected!');
 
-    const hashedPassword = await bcrypt.hash('wisdomfx22a', 10);
+    const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
 
     const result = await mongoose.connection.collection('users').insertOne({
       fullName: 'Admin User',
-      email: 'wsdmpresh@gmail.com',
+      email: ADMIN_EMAIL,
       password: hashedPassword,
       isAdmin: true,
       isActive: true,
@@ -26,8 +30,7 @@ async function createAdmin() {
     });
 
     console.log('Admin user created with ID:', result.insertedId);
-    console.log('Email: wsdmpresh@gmail.com');
-    console.log('Password: wisdomfx22a');
+    console.log('Admin credentials were supplied through environment variables.');
     console.log('isAdmin: true');
 
     process.exit(0);

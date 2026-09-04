@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, Shield, Sparkles } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, Shield, Sparkles, Moon, Sun, ArrowUpRight, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' })
@@ -10,6 +11,7 @@ const Login = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
+  const { darkMode, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
@@ -32,7 +34,7 @@ const Login = () => {
   }
 
   return (
-    <div className="auth-bg p-4">
+    <div className="auth-bg p-4 sm:p-6">
       {[...Array(10)].map((_, i) => (
         <div key={i} className="particle" style={{ 
           left: `${10 + i * 8}%`, 
@@ -46,23 +48,28 @@ const Login = () => {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="w-full max-w-md relative z-10"
+        className="premium-auth-layout w-full max-w-5xl relative z-10"
       >
-        <motion.div
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Link to="/" className="inline-flex items-center gap-2 text-white/40 mb-8 hover:text-white transition-colors text-sm font-medium">
-            <ArrowLeft size={16} /> Back to home
-          </Link>
-        </motion.div>
-
+        <section className="premium-auth-aside hidden lg:flex">
+          <div className="premium-auth-mark"><span>C</span></div>
+          <p className="premium-eyebrow">CREDIXA BANKING</p>
+          <h2>Clarity for every financial decision.</h2>
+          <p className="premium-auth-copy">Move money, understand your activity, and stay close to the goals that matter.</p>
+          <div className="premium-auth-list">
+            {['One clear view of your account', 'Protected transfers with transaction PIN', 'Real-time activity and notifications'].map(item => <div key={item}><CheckCircle2 size={17} /><span>{item}</span></div>)}
+          </div>
+          <div className="premium-auth-aside-foot"><span>Trusted tools for everyday banking</span><ArrowUpRight size={18} /></div>
+        </section>
+        <section className="premium-auth-form">
+          <div className="flex items-center justify-between mb-7">
+            <Link to="/" className="inline-flex items-center gap-2 cx-muted hover:cx-brand transition-colors text-sm font-medium"><ArrowLeft size={16} /> Back to home</Link>
+            <button type="button" onClick={toggleTheme} className="premium-theme-button" aria-label="Toggle color theme">{darkMode ? <Sun size={17} /> : <Moon size={17} />}</button>
+          </div>
         <motion.div
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.6 }}
-          className="glass-auth p-8 md:p-10"
+          className="glass-auth premium-auth-card p-6 sm:p-8 md:p-10"
         >
           <div className="text-center mb-8">
             <motion.div
@@ -201,6 +208,7 @@ const Login = () => {
             </Link>
           </motion.p>
         </motion.div>
+        </section>
       </motion.div>
     </div>
   )

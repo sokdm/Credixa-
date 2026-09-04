@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import {
   Zap, CreditCard, PiggyBank, Clock, Receipt, Shield,
   CheckCircle, Users, TrendingUp, Activity, Star,
-  ChevronDown, Menu, X, ArrowRight, Download,
+  ChevronDown, Menu, X, ArrowRight,
   Wallet, ArrowUpRight, ArrowDownRight, BarChart3,
   Smartphone, Globe, Lock, Sparkles, Sun, Moon
 } from 'lucide-react'
@@ -16,7 +16,7 @@ const features = [
   { icon: PiggyBank, title: 'Smart Savings', desc: 'Auto-save with round-ups, set goals, and earn competitive daily rewards.' },
   { icon: Clock, title: '24/7 Access', desc: 'Bank on your terms — anytime, any day, from any device, anywhere.' },
   { icon: Receipt, title: 'Bill Payments', desc: 'Pay airtime, electricity, TV, internet, and more in one seamless tap.' },
-  { icon: Shield, title: 'Bank-Grade Security', desc: 'PIN, biometric auth, OTP verification, and 256-bit encryption protect every transaction.' }
+  { icon: Shield, title: 'Layered Account Security', desc: 'PIN protection, OTP verification, authenticated sessions, and server-side checks help protect every transaction.' }
 ]
 
 const whyChoose = [
@@ -25,13 +25,13 @@ const whyChoose = [
   'Intuitive, user-friendly dashboard',
   'Real-time transaction alerts',
   '24/7 dedicated customer support',
-  'FDIC-insured deposits up to ₦5M'
+  'Clear account activity and transaction alerts'
 ]
 
 const stats = [
-  { icon: Users, value: '50,000+', label: 'Active Users', suffix: '' },
-  { icon: TrendingUp, value: '₦20M+', label: 'Transferred Monthly', suffix: '' },
-  { icon: Activity, value: '99.9%', label: 'Uptime Guaranteed', suffix: '%' }
+  { icon: Wallet, value: '1', label: 'Connected money dashboard', suffix: '' },
+  { icon: TrendingUp, value: '24/7', label: 'Access to your account activity', suffix: '' },
+  { icon: Activity, value: 'Real-time', label: 'Transfer notifications', suffix: '' }
 ]
 
 const testimonials = [
@@ -41,7 +41,7 @@ const testimonials = [
 ]
 
 const faqs = [
-  { q: 'Is Credixa safe and regulated?', a: 'Yes. We are licensed by the Central Bank and use bank-grade 256-bit encryption, biometric authentication, and PIN protection on every transaction.' },
+  { q: 'How does Credixa protect my account?', a: 'Credixa uses authenticated sessions, PIN protection for transfers, OTP flows, and server-side validation for account activity. Review the security details in your account and contact support with any concerns.' },
   { q: 'How long does it take to open an account?', a: 'Less than 2 minutes. Just fill the form, verify your identity, and start banking immediately.' },
   { q: 'Can I get both virtual and physical cards?', a: 'Absolutely. Request a virtual card instantly for online shopping, or order a physical card delivered to your address.' },
   { q: 'Are transfers really instant?', a: 'Internal Credixa-to-Credixa transfers are instant. External bank transfers typically complete within minutes.' },
@@ -323,7 +323,7 @@ const LandingPage = () => {
           </div>
         </motion.div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center z-10 pt-24">
+        <div className="hero-hero-content relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10 pt-24">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -336,7 +336,7 @@ const LandingPage = () => {
               className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full mb-8"
             >
               <Sparkles className="text-violet-400" size={16} />
-              <span className="text-sm text-white/70">Trusted by 250K+ users worldwide</span>
+              <span className="text-sm text-white/70">One clear place for everyday money management</span>
             </motion.div>
 
             <motion.h1
@@ -376,15 +376,32 @@ const LandingPage = () => {
                 <ArrowRight size={20} />
                 Open Free Account
               </motion.button>
-              <motion.button
-                onClick={() => navigate('/register')}
+              <motion.a
+                href="#features"
                 className="px-8 py-4 border border-white/15 text-white rounded-xl font-medium hover:bg-white/5 transition-all backdrop-blur-sm flex items-center justify-center gap-2"
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
               >
-                <Download size={18} />
-                Download App
-              </motion.button>
+                Explore banking tools <ArrowRight size={18} />
+              </motion.a>
+            </motion.div>
+
+            <motion.div
+              className="hero-product-preview"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8, duration: 0.7 }}
+            >
+              <div className="hero-preview-topline"><span>Credixa overview</span><span className="hero-live-dot">Live account view</span></div>
+              <div className="hero-preview-balance"><span>Total balance</span><strong>$24,680.40</strong><small>Available to spend</small></div>
+              <div className="hero-preview-grid">
+                <div><span>Income</span><strong>+$8,420.00</strong><small>This month</small></div>
+                <div><span>Expenses</span><strong>-$3,184.28</strong><small>This month</small></div>
+                <div><span>Savings</span><strong>$12,240.00</strong><small>Across goals</small></div>
+              </div>
+              <div className="hero-preview-activity"><span>Recent activity</span><b>View history <ArrowRight size={14} /></b></div>
+              <div className="hero-preview-row"><i className="preview-icon">↗</i><span>Transfer to A. Morgan<small>Today, 10:42 AM</small></span><strong>− $240.00</strong></div>
+              <div className="hero-preview-row"><i className="preview-icon preview-icon-light">↙</i><span>Payment received<small>Yesterday, 4:18 PM</small></span><strong className="preview-positive">+ $1,280.00</strong></div>
             </motion.div>
 
             <motion.div
@@ -395,16 +412,13 @@ const LandingPage = () => {
             >
               <div className="flex items-center gap-2">
                 <Lock size={14} />
-                <span className="text-xs">Bank-Grade Security</span>
+                <span className="text-xs">Layered account security</span>
               </div>
               <div className="flex items-center gap-2">
                 <Globe size={14} />
                 <span className="text-xs">Global Transfers</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Smartphone size={14} />
-                <span className="text-xs">iOS & Android</span>
-              </div>
+              <div className="flex items-center gap-2"><Smartphone size={14} /><span className="text-xs">Built for every screen</span></div>
             </motion.div>
           </motion.div>
         </div>
@@ -551,8 +565,8 @@ const LandingPage = () => {
             viewport={{ once: true }}
           >
             <span className="text-violet-400 text-sm font-semibold tracking-wider uppercase mb-3 block">Testimonials</span>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Loved by thousands</h2>
-            <p className="text-white/40 text-lg">See what our users say about banking with Credixa</p>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">Designed around your everyday money</h2>
+            <p className="text-white/40 text-lg">A calmer, clearer way to move, monitor, and plan your finances with Credixa</p>
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-6">
@@ -668,7 +682,7 @@ const LandingPage = () => {
             viewport={{ once: true }}
           >
             <h2 className="text-4xl md:text-5xl font-bold mb-6">Ready to bank smarter?</h2>
-            <p className="text-white/40 text-lg mb-10 max-w-xl mx-auto">Join 50,000+ users who trust Credixa for their everyday banking needs. Open your account in under 2 minutes.</p>
+            <p className="text-white/40 text-lg mb-10 max-w-xl mx-auto">Open a focused account for transfers, savings, cards, bills, and the financial activity you want to understand.</p>
             <motion.button
               onClick={() => navigate('/register')}
               className="btn-primary btn-glow text-lg px-10 py-5"
@@ -692,7 +706,8 @@ const LandingPage = () => {
                 </div>
                 <span className="text-xl font-bold gradient-text">Credixa</span>
               </div>
-              <p className="text-white/30 text-sm leading-relaxed mb-5">Bank smarter, live better. The future of digital banking in Africa.</p>
+              <p className="text-white/30 text-sm leading-relaxed mb-5">A clear, connected way to manage transfers, savings, cards, and everyday payments.</p>
+              <a href="mailto:credixasupport@gmail.com" className="text-sm text-teal-300 hover:text-teal-200 transition-colors">credixasupport@gmail.com</a>
               <div className="flex gap-3">
                 {['Twitter', 'LinkedIn', 'Instagram'].map((social) => (
                   <div key={social} className="w-9 h-9 bg-white/5 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer">
@@ -727,9 +742,8 @@ const LandingPage = () => {
             </div>
           </div>
           <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-white/20
-text-sm">© 2024 Credixa Banking. All rights reserved.</p>
-            <p className="text-white/20 text-sm">Licensed by the Central Bank of Nigeria</p>
+            <p className="text-white/20 text-sm">© 2024 Credixa Banking. All rights reserved.</p>
+            <p className="text-white/20 text-sm">Digital banking tools for your everyday finances</p>
           </div>
         </div>
       </footer>

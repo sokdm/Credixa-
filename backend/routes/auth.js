@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const User = require('../models/User');
 const router = express.Router();
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV !== 'production' ? 'credixa-local-development-only-secret' : null);
 
 const generateAccountNumber = () => {
   return '30' + Math.floor(1000000000 + Math.random() * 9000000000);
@@ -12,6 +13,10 @@ const generateAccountNumber = () => {
 router.post('/register', async (req, res) => {
   try {
     const { fullName, phoneNumber, email, password, country, transactionPin } = req.body;
+    if (!JWT_SECRET) return res.status(500).json({ error: 'Authentication is not configured' });
+    if (!fullName || !phoneNumber || !email || !password || !country || !/^\d{4}$/.test(transactionPin || '')) {
+      return res.status(400).json({ error: 'Complete all required fields with a 4-digit transaction PIN' });
+    }
     console.log(`[AUTH] Registration attempt: ${email}, phone: ${phoneNumber}`);
 
     const existingUser = await User.findOne({ $or: [{ email }, { phoneNumber }] });
@@ -42,7 +47,7 @@ router.post('/register', async (req, res) => {
     await user.save();
     console.log(`[AUTH] User saved successfully: ${user._id}`);
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
 
     res.status(201).json({
       token,
@@ -67,6 +72,7 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!JWT_SECRET) return res.status(500).json({ error: 'Authentication is not configured' });
     console.log(`[AUTH] Login attempt: ${email}`);
 
     const user = await User.findOne({
@@ -77,9 +83,10 @@ router.post('/login', async (req, res) => {
       console.log(`[AUTH] Invalid credentials for: ${email}`);
       return res.status(400).json({ error: 'Invalid credentials' });
     }
+    if (user.isLocked) return res.status(403).json({ error: 'Account locked. Contact support.' });
 
     console.log(`[AUTH] Login successful: ${user._id}`);
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
 
     res.json({
       token,

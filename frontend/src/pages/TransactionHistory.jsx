@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ArrowUpRight, ArrowDownLeft, Download, Filter } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, ArrowDownLeft, Download, Filter, Search, X, Eye } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import axios from 'axios'
 
@@ -11,6 +11,10 @@ const TransactionHistory = () => {
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [selectedTransaction, setSelectedTransaction] = useState(null)
 
   useEffect(() => {
     fetchTransactions()
@@ -31,16 +35,19 @@ const TransactionHistory = () => {
     return `${currency}${amount?.toLocaleString() || '0'}`
   }
 
-  const filteredTransactions = transactions.filter(tx => {
-    if (filter === 'all') return true
-    if (filter === 'sent') {
-      return tx.senderId === user?.id || tx.senderId?._id === user?.id
-    }
-    if (filter === 'received') {
-      return tx.receiverId === user?.id || tx.receiverId?._id === user?.id
-    }
-    return true
-  })
+  const userId = user?.id || user?._id
+  const filteredTransactions = useMemo(() => transactions.filter(tx => {
+    const senderId = tx.senderId?._id || tx.senderId
+    const receiverId = tx.receiverId?._id || tx.receiverId
+    const isSender = String(senderId) === String(userId)
+    const haystack = [tx.reference, tx.senderName, tx.receiverName, tx.narration, tx.type]
+      .filter(Boolean).join(' ').toLowerCase()
+    if (filter === 'sent' && !isSender) return false
+    if (filter === 'received' && (isSender || String(receiverId) !== String(userId))) return false
+    if (typeFilter !== 'all' && tx.type !== typeFilter) return false
+    if (statusFilter !== 'all' && tx.status !== statusFilter) return false
+    return !search.trim() || haystack.includes(search.trim().toLowerCase())
+  }), [transactions, filter, typeFilter, statusFilter, search, userId])
 
   const downloadReceipt = (tx) => {
     const dateObj = new Date(tx.createdAt)
@@ -91,16 +98,13 @@ const TransactionHistory = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <header className="glass sticky top-0 z-30">
-        <div className="max-w-3xl mx-auto px-4 h-16 flex items-center">
-          <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className="ml-4 text-xl font-bold">Transaction History</h1>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, reference or memo" className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 py-3 pl-10 pr-10 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+          {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"><X size={16} /></button>}
         </div>
-      </header>
-
-      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="flex flex-wrap gap-2 mb-6">
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           {[
             { id: 'all', label: 'All' },
@@ -119,6 +123,13 @@ const TransactionHistory = () => {
               {f.label}
             </button>
           ))}
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm">
+            <option value="all">All types</option><option value="internal">Internal</option><option value="external">External</option><option value="admin">Admin</option>
+          </select>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm">
+            <option value="all">All statuses</option><option value="completed">Completed</option><option value="pending">Pending</option><option value="failed">Failed</option>
+          </select>
+        </div>
         </div>
 
         <div className="space-y-3">
@@ -129,7 +140,7 @@ const TransactionHistory = () => {
             </div>
           ) : (
             filteredTransactions.map((tx, idx) => {
-              const isSender = tx.senderId === user?.id || tx.senderId?._id === user?.id
+              const isSender = String(tx.senderId?._id || tx.senderId) === String(userId)
               return (
                 <motion.div
                   key={idx}
@@ -146,7 +157,7 @@ const TransactionHistory = () => {
                         {isSender ? <ArrowUpRight size={20} /> : <ArrowDownLeft size={20} />}
                       </div>
                       <div>
-                        <p className="font-medium">{tx.receiverName}</p>
+                        <p className="font-medium">{isSender ? `To ${tx.receiverName}` : `From ${tx.senderName}`}</p>
                         <p className="text-sm text-gray-500">{tx.narration || tx.type}</p>
                         <p className="text-xs text-gray-400">{tx.reference}</p>
                       </div>
@@ -163,9 +174,12 @@ const TransactionHistory = () => {
                     </div>
                   </div>
                   <div className="mt-3 pt-3 border-t dark:border-gray-700 flex gap-2">
+                    <button onClick={() => setSelectedTransaction(tx)} className="flex-1 py-2 text-sm text-teal-700 dark:text-teal-300 border border-teal-600 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20 flex items-center justify-center gap-2">
+                      <Eye size={14} /> View details
+                    </button>
                     <button
                       onClick={() => downloadReceipt(tx)}
-                      className="flex-1 py-2 text-sm text-primary-600 border border-primary-600 rounded-lg hover:bg-primary-50 flex items-center justify-center gap-2"
+                      className="flex-1 py-2 text-sm text-teal-700 dark:text-teal-300 border border-teal-600 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20 flex items-center justify-center gap-2"
                     >
                       <Download size={14} /> Download Receipt
                     </button>
@@ -176,6 +190,20 @@ const TransactionHistory = () => {
           )}
         </div>
       </div>
+      {selectedTransaction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSelectedTransaction(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-800 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5"><h2 className="text-lg font-bold">Transaction details</h2><button onClick={() => setSelectedTransaction(null)} aria-label="Close details"><X size={20} /></button></div>
+            <dl className="space-y-3 text-sm">
+              <div className="flex justify-between gap-4"><dt className="text-gray-500">Reference</dt><dd className="font-mono text-right">{selectedTransaction.reference}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-gray-500">Type</dt><dd className="capitalize">{selectedTransaction.type}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-gray-500">Status</dt><dd className="capitalize">{selectedTransaction.status}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-gray-500">Date and time</dt><dd className="text-right">{new Date(selectedTransaction.createdAt).toLocaleString()}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-gray-500">Memo</dt><dd className="text-right">{selectedTransaction.narration || 'None'}</dd></div>
+            </dl>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

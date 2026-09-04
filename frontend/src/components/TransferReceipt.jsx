@@ -88,7 +88,7 @@ const CURRENCY_META = {
 
 const fetchLiveRates = async () => {
   try {
-    const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD')
+    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/exchange-rates?base=USD`)
     if (!res.ok) throw new Error('API failed')
     const data = await res.json()
     return data.rates
@@ -147,6 +147,18 @@ const TransferReceipt = ({ receipt, transferType, onNewTransfer }) => {
   const receiverBank = receipt.receiverBankName || receipt.bankName || receipt.recipientBank || 'Credixa Banking'
 
   const handleDownload = () => {
+    const element = receiptRef.current
+    if (!element) return
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CREDIXA Receipt - ${transactionId}</title><style>body{margin:0;padding:16px;background:#f1f5f9;font-family:DM Sans,Arial,sans-serif}.receipt{max-width:480px;margin:auto;background:#fff;border:1px solid #dbe4e8;border-radius:18px;overflow:hidden;box-shadow:0 12px 30px #102a4314}@media print{body{padding:0;background:#fff}.receipt{box-shadow:none;border:0}}</style></head><body><div class="receipt">${element.innerHTML}</div></body></html>`
+    const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `Credixa-Receipt-${transactionId}.html`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handlePrint = () => {
     const element = receiptRef.current
     if (!element) return
     
@@ -413,8 +425,15 @@ return (
               <Download className="w-3.5 h-3.5" />
               Download
             </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-300 transition-all text-xs"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Print / PDF
+            </button>
             
-            <div className="relative">
+            <div className="relative col-span-2 sm:col-span-1">
               <button
                 onClick={() => setShowShareMenu(!showShareMenu)}
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-300 transition-all text-xs"

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, User, Mail, Phone, Lock, MapPin, ArrowLeft, ArrowRight, CheckCircle, Shield, Sparkles, ChevronDown, Globe } from 'lucide-react'
+import { Eye, EyeOff, User, Mail, Phone, Lock, MapPin, ArrowLeft, ArrowRight, CheckCircle, Shield, Sparkles, ChevronDown, Globe, Moon, Sun } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 
 const COUNTRIES = [
   'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Argentina', 'Armenia', 'Australia',
@@ -50,6 +51,7 @@ const Register = () => {
   const [countryOpen, setCountryOpen] = useState(false)
   const [countrySearch, setCountrySearch] = useState('')
   const { register } = useAuth()
+  const { darkMode, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
   const totalSteps = 3
@@ -132,23 +134,26 @@ const Register = () => {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="w-full max-w-lg relative z-10"
+        className="w-full max-w-lg relative z-10 premium-signup-shell"
       >
         <motion.div
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          <Link to="/" className="inline-flex items-center gap-2 text-white/40 mb-8 hover:text-white transition-colors text-sm font-medium">
-            <ArrowLeft size={16} /> Back to home
-          </Link>
+          <div className="flex items-center justify-between mb-8">
+            <Link to="/" className="inline-flex items-center gap-2 text-white/40 hover:text-white transition-colors text-sm font-medium">
+              <ArrowLeft size={16} /> Back to home
+            </Link>
+            <button type="button" onClick={toggleTheme} className="premium-theme-button" aria-label="Toggle color theme">{darkMode ? <Sun size={17} /> : <Moon size={17} />}</button>
+          </div>
         </motion.div>
 
         <motion.div
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.6 }}
-          className="glass-auth p-8 md:p-10"
+          className="glass-auth premium-auth-card p-8 md:p-10"
         >
           <div className="text-center mb-6">
             <motion.div

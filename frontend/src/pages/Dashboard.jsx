@@ -39,7 +39,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (user?.id || user?._id) {
       const userId = user.id || user._id
-      const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000')
+      const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', { auth: { token: localStorage.getItem('token') } })
       newSocket.emit('join_user', userId)
       newSocket.on('notification', (notif) => {
         setNotifications(prev => [notif, ...prev])
@@ -137,9 +137,9 @@ const Dashboard = () => {
   ]
 
   const quickStats = [
-    { label: 'Income', value: formatMoney(dashboardData?.stats?.income || 0), icon: ArrowDownLeft, color: 'text-emerald-400', bg: 'bg-emerald-500/15', trend: '+12%', trendColor: 'text-emerald-400', iconBg: 'from-emerald-500/20 to-emerald-600/20' },
-    { label: 'Expenses', value: formatMoney(dashboardData?.stats?.expenses || 0), icon: ArrowUpRight, color: 'text-rose-400', bg: 'bg-rose-500/15', trend: '-5%', trendColor: 'text-rose-400', iconBg: 'from-rose-500/20 to-rose-600/20' },
-    { label: 'Savings', value: formatMoney(dashboardData?.stats?.savings || 0), icon: PiggyBank, color: 'text-amber-400', bg: 'bg-amber-500/15', trend: '+8%', trendColor: 'text-amber-400', iconBg: 'from-amber-500/20 to-amber-600/20' },
+    { label: 'Income', value: formatMoney(dashboardData?.stats?.income || 0), icon: ArrowDownLeft, color: 'text-emerald-400', iconBg: 'from-emerald-500/20 to-emerald-600/20' },
+    { label: 'Expenses', value: formatMoney(dashboardData?.stats?.expenses || 0), icon: ArrowUpRight, color: 'text-rose-400', iconBg: 'from-rose-500/20 to-rose-600/20' },
+    { label: 'Savings', value: formatMoney(dashboardData?.stats?.savings || 0), icon: PiggyBank, color: 'text-amber-400', iconBg: 'from-amber-500/20 to-amber-600/20' },
   ]
 
   return (
@@ -418,9 +418,6 @@ const Dashboard = () => {
                     <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.iconBg} flex items-center justify-center border border-white/10`}>
                       <stat.icon size={20} className={stat.color} />
                     </div>
-                    <span className={`text-xs font-bold px-2 py-1 rounded-lg ${stat.bg} ${stat.trendColor}`}>
-                      {stat.trend}
-                    </span>
                   </div>
                   <p className="text-xs text-white/30 mb-1 font-medium uppercase tracking-wider">{stat.label}</p>
                   <p className="text-xl font-bold text-white">{stat.value}</p>
@@ -448,6 +445,7 @@ const Dashboard = () => {
                 { icon: Users, label: 'Beneficiaries', path: '/beneficiaries', color: 'from-indigo-500 to-violet-500', shadow: 'shadow-indigo-500/20' },
                 { icon: Calendar, label: 'Scheduled', path: '/scheduled-payments', color: 'from-sky-500 to-blue-500', shadow: 'shadow-sky-500/20' },
                 { icon: Gem, label: 'Savings', path: '/savings-goals', color: 'from-amber-500 to-yellow-500', shadow: 'shadow-amber-500/20' },
+                { icon: Banknote, label: 'Cash Check', path: '/cash-check', color: 'from-teal-500 to-cyan-600', shadow: 'shadow-teal-500/20' },
               ].map((action, idx) => (
                 <motion.button
                   key={idx}

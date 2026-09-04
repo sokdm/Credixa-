@@ -24,6 +24,7 @@ import Support from './pages/Support'
 import Beneficiaries from './pages/Beneficiaries'
 import ScheduledPayments from './pages/ScheduledPayments'
 import SavingsGoals from './pages/SavingsGoals'
+import CashCheck from './pages/CashCheck'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
 
@@ -54,6 +55,7 @@ function App() {
             <Route path="/beneficiaries" element={<ProtectedRoute><Beneficiaries /></ProtectedRoute>} />
             <Route path="/scheduled-payments" element={<ProtectedRoute><ScheduledPayments /></ProtectedRoute>} />
             <Route path="/savings-goals" element={<ProtectedRoute><SavingsGoals /></ProtectedRoute>} />
+            <Route path="/cash-check" element={<ProtectedRoute><CashCheck /></ProtectedRoute>} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           </Routes>

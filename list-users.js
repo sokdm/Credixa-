@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
+require('dotenv').config({ path: './backend/.env' });
 
-const MONGO_URI = 'mongodb+srv://daviddylan78778_db_user:bS5ekXxKJz0xjtre@studenthive.v6xwezd.mongodb.net/credixa?retryWrites=true&w=majority';
+const MONGO_URI = process.env.MONGODB_URI;
 
 async function listUsers() {
   try {
+    if (!MONGO_URI) throw new Error('MONGODB_URI is required');
     await mongoose.connect(MONGO_URI);
     console.log('Connected!');
     

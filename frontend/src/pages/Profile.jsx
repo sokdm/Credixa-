@@ -111,7 +111,7 @@ const Profile = () => {
         >
           <button className="w-full glass-card p-4 flex items-center gap-4 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
             <Download size={20} className="text-primary-600" />
-            <span className="font-medium">Download Mobile App</span>
+            <span className="font-medium">Manage account preferences</span>
           </button>
           
           <button

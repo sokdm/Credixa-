@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { auth } = require('../middleware/auth');
 const router = express.Router();
 
 // Ensure uploads directory exists
@@ -23,7 +24,8 @@ const storage = multer.diskStorage({
 
 // File filter — images only
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) {
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+  if (allowedTypes.has(file.mimetype)) {
     cb(null, true);
   } else {
     cb(new Error('Only image files are allowed'), false);
@@ -37,7 +39,7 @@ const upload = multer({
 });
 
 // POST /api/chat/upload
-router.post('/upload', upload.single('image'), (req, res) => {
+router.post('/upload', auth, upload.single('image'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
@@ -47,6 +49,11 @@ router.post('/upload', upload.single('image'), (req, res) => {
     if (!userId) {
       fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: 'userId is required' });
+    }
+    const authenticatedUserId = req.user._id.toString();
+    if (!req.user.isAdmin && userId.toString() !== authenticatedUserId) {
+      fs.unlinkSync(req.file.path);
+      return res.status(403).json({ error: 'You can only upload images to your own support chat' });
     }
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;

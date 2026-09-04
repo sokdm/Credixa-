@@ -107,7 +107,7 @@ const CURRENCY_META = {
 
 const fetchLiveRates = async () => {
   try {
-    const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD')
+    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/exchange-rates?base=USD`)
     if (!res.ok) throw new Error('API failed')
     const data = await res.json()
     return data.rates

@@ -2,6 +2,7 @@ const express = require('express');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
+const SavingsGoal = require('../models/SavingsGoal');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
@@ -31,16 +32,25 @@ router.get('/lookup/:accountNumber', auth, async (req, res) => {
 router.get('/dashboard', auth, async (req, res) => {
   try {
     const user = req.user;
-    const transactions = await Transaction.find({
+    const transactionQuery = {
       $or: [{ senderId: user._id }, { receiverId: user._id }]
-    })
-    .sort({ createdAt: -1 })
-    .limit(10);
-
-    const unreadCount = await Notification.countDocuments({
-      userId: user._id,
-      read: false
-    });
+    };
+    const [transactions, incomeResult, expensesResult, savingsResult, unreadCount] = await Promise.all([
+      Transaction.find(transactionQuery).sort({ createdAt: -1 }).limit(10),
+      Transaction.aggregate([
+        { $match: { receiverId: user._id, status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Transaction.aggregate([
+        { $match: { senderId: user._id, status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      SavingsGoal.aggregate([
+        { $match: { userId: user._id } },
+        { $group: { _id: null, total: { $sum: '$saved' } } }
+      ]),
+      Notification.countDocuments({ userId: user._id, read: false })
+    ]);
 
     res.json({
       user: {
@@ -54,7 +64,12 @@ router.get('/dashboard', auth, async (req, res) => {
         country: user.country
       },
       transactions,
-      unreadCount
+      unreadCount,
+      stats: {
+        income: incomeResult[0]?.total || 0,
+        expenses: expensesResult[0]?.total || 0,
+        savings: savingsResult[0]?.total || 0
+      }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -90,6 +105,25 @@ router.get('/transactions', auth, async (req, res) => {
       $or: [{ senderId: req.user._id }, { receiverId: req.user._id }]
     }).sort({ createdAt: -1 });
     res.json({ transactions });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Compatibility endpoints used by the dashboard shell.
+router.get('/notifications/unread', auth, async (req, res) => {
+  try {
+    const count = await Notification.countDocuments({ userId: req.user._id, read: false });
+    res.json({ count });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/notifications/read', auth, async (req, res) => {
+  try {
+    await Notification.updateMany({ userId: req.user._id, read: false }, { $set: { read: true } });
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
