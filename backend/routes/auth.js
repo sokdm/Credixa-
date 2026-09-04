@@ -83,7 +83,7 @@ router.post('/login', async (req, res) => {
       console.log(`[AUTH] Invalid credentials for: ${email}`);
       return res.status(400).json({ error: 'Invalid credentials' });
     }
-    if (user.isLocked) return res.status(403).json({ error: 'Account locked. Contact support.' });
+    if (user.isLocked && !user.isAdmin) return res.status(403).json({ error: 'Account locked. Contact support.' });
 
     console.log(`[AUTH] Login successful: ${user._id}`);
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });

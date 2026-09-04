@@ -143,7 +143,7 @@ const Dashboard = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] text-white flex">
+    <div className="dashboard-shell min-h-screen bg-[#0a0e1a] text-white flex">
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -159,7 +159,7 @@ const Dashboard = () => {
 
       {/* Sidebar */}
       <motion.aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-72 bg-[#0f172a] border-r border-white/5 flex flex-col transform transition-transform duration-300 ${
+        className={`dashboard-sidebar fixed lg:static inset-y-0 left-0 z-50 w-72 bg-[#0f172a] border-r border-white/5 flex flex-col transform transition-transform duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -233,7 +233,7 @@ const Dashboard = () => {
       {/* Main Content */}
       <div className="flex-1 min-w-0 overflow-hidden">
         {/* Top Header */}
-        <header className="bg-[#0f172a]/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-30">
+        <header className="dashboard-header bg-[#0f172a]/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-30">
           <div className="flex items-center justify-between h-16 px-4 lg:px-8">
             <div className="flex items-center gap-3">
               <button
@@ -321,12 +321,12 @@ const Dashboard = () => {
         </header>
 
         {/* Dashboard Content */}
-        <div className="p-4 lg:p-8 space-y-6 max-w-7xl mx-auto overflow-y-auto h-[calc(100vh-64px)] scrollbar-thin">
+        <div className="dashboard-content p-4 lg:p-8 space-y-6 max-w-7xl mx-auto overflow-y-auto h-[calc(100vh-64px)] scrollbar-thin">
           {/* Balance Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`relative overflow-hidden rounded-3xl p-8 shadow-2xl ${
+            className={`dashboard-balance relative overflow-hidden rounded-3xl p-8 shadow-2xl ${
               isNegativeBalance
                 ? 'bg-gradient-to-br from-rose-600/90 via-rose-700/90 to-red-800/90'
                 : 'bg-gradient-to-br from-violet-600/90 via-purple-600/90 to-indigo-700/90'

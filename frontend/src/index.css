@@ -1103,6 +1103,54 @@ td { border-color: var(--cx-line); }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
 }
 
+/* Product shell: dense, calm and operational on desktop; thumb-friendly on mobile. */
+.dashboard-shell {
+  background: var(--cx-page) !important;
+  color: var(--cx-ink) !important;
+}
+
+.dashboard-sidebar {
+  width: 248px !important;
+  background: color-mix(in srgb, var(--cx-panel) 92%, transparent) !important;
+  border-right: 1px solid var(--cx-line) !important;
+  box-shadow: 10px 0 32px rgba(8, 24, 14, 0.05);
+}
+
+.dashboard-header {
+  background: color-mix(in srgb, var(--cx-panel) 86%, transparent) !important;
+  border-bottom: 1px solid var(--cx-line) !important;
+}
+
+.dashboard-content { max-width: 1420px !important; }
+.dashboard-balance {
+  min-height: 276px;
+  border: 1px solid rgba(132, 214, 61, 0.28);
+  background: linear-gradient(140deg, #112b1d 0%, #1b4c2c 62%, #376c35 100%) !important;
+  box-shadow: 0 22px 48px rgba(13, 52, 25, 0.18) !important;
+}
+
+:root:not(.dark) .dashboard-balance {
+  background: linear-gradient(140deg, #183b26 0%, #2d6540 60%, #55924e 100%) !important;
+}
+
+.dashboard-content > .glass-card,
+.dashboard-content .glass-card {
+  border-radius: 15px;
+}
+
+.dashboard-content h3 { letter-spacing: -0.01em; }
+
+@media (max-width: 1023px) {
+  .dashboard-sidebar { width: 280px !important; }
+  .dashboard-content { padding-bottom: 92px !important; }
+}
+
+@media (max-width: 640px) {
+  .dashboard-balance { min-height: auto; padding: 20px !important; border-radius: 18px !important; }
+  .dashboard-balance h2 { font-size: 2.2rem !important; }
+  .dashboard-content { padding: 14px !important; gap: 14px !important; }
+}
+
 .hero-product-preview {
   width: min(100%, 510px);
   margin: 46px auto 0;
