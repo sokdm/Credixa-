@@ -317,6 +317,53 @@ textarea {
   .premium-auth-form { padding: 22px 20px 28px; }
 }
 
+@media print {
+  body * { visibility: hidden !important; }
+  .internal-check-preview, .internal-check-preview * { visibility: visible !important; }
+  .internal-check-preview { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; max-width: none !important; box-shadow: none !important; }
+}
+
+.internal-check-preview {
+  max-width: 980px;
+  padding: 28px;
+  color: #17231c;
+  border: 2px solid #526b52;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f9fcf5, #e9f1e3);
+  box-shadow: 0 18px 42px rgba(10, 35, 18, 0.15);
+}
+.check-preview-header, .check-preview-pay, .check-preview-details, .check-preview-footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.check-preview-header { padding-bottom: 18px; border-bottom: 1px solid #b8c9b8; }
+.check-preview-header strong { display: block; color: #245c38; font-family: 'Manrope', sans-serif; font-size: 29px; letter-spacing: 0.04em; }
+.check-preview-header span, .check-preview-header small, .check-preview-pay small, .check-preview-details small { display: block; color: #63806b; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; }
+.check-preview-amount { text-align: right; }
+.check-preview-amount b { display: block; font-size: 25px; }
+.check-preview-pay { align-items: end; margin: 25px 0 14px; }
+.check-preview-pay > div:first-child { flex: 1; }
+.check-preview-pay strong, .check-preview-pay span, .check-preview-details b, .check-preview-details span { display: block; }
+.check-preview-pay strong { min-height: 36px; border-bottom: 1px solid #617664; font-size: 18px; }
+.check-preview-pay span, .check-preview-details span { margin-top: 7px; color: #536a57; font-size: 11px; }
+.check-preview-id { min-width: 180px; padding: 12px; border: 1px solid #afc0ad; background: #fff; }
+.check-preview-id b { display: block; margin-top: 7px; font-family: monospace; font-size: 14px; }
+.check-preview-words { padding: 12px; border: 1px solid #afc0ad; background: #fff; font-size: 13px; font-style: italic; }
+.check-preview-details { align-items: end; padding: 22px 0; }
+.check-preview-details > div { flex: 1; }
+.check-preview-details img { width: 78px; height: 78px; border: 5px solid #fff; }
+.check-preview-warning { margin: 4px 0 18px; padding: 10px; text-align: center; color: #245c38; background: #dcebd2; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; }
+.check-preview-footer { padding-top: 15px; border-top: 1px solid #b8c9b8; color: #63806b; font-size: 11px; }
+.check-preview-footer b { font-family: monospace; font-size: 11px; }
+@media (max-width: 640px) {
+  .internal-check-preview { padding: 16px; overflow: hidden; }
+  .check-preview-header, .check-preview-pay, .check-preview-details, .check-preview-footer { gap: 12px; }
+  .check-preview-header strong { font-size: 21px; }
+  .check-preview-amount b { font-size: 17px; }
+  .check-preview-pay { align-items: stretch; flex-direction: column; }
+  .check-preview-id { min-width: 0; }
+  .check-preview-details { flex-wrap: wrap; }
+  .check-preview-details img { width: 66px; height: 66px; }
+  .check-preview-footer { flex-direction: column; }
+}
+
 .glass-card,
 .glass-auth,
 .glass {

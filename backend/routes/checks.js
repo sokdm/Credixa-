@@ -17,15 +17,18 @@ router.post('/', adminAuth, async (req, res) => {
     if (!recipientEmail || !Number.isFinite(numericAmount) || numericAmount <= 0) {
       return res.status(400).json({ error: 'Recipient email and a valid amount are required' });
     }
-    const recipient = await User.findOne({ email: recipientEmail.toLowerCase().trim() }).select('_id fullName email currency');
+    const recipient = await User.findOne({ email: recipientEmail.toLowerCase().trim() }).select('_id fullName email accountNumber currency');
     if (!recipient) return res.status(404).json({ error: 'Recipient account not found' });
 
     const check = await InternalCheck.create({
       checkId: makeCheckId(),
       createdBy: req.user._id,
+      issuerName: req.user.fullName || 'Credixa Banking',
+      issuerAccountNumber: req.user.accountNumber || '',
       recipientId: recipient._id,
       recipientName: recipient.fullName,
       recipientEmail: recipient.email,
+      recipientAccountNumber: recipient.accountNumber || '',
       amount: numericAmount,
       currency: String(currency).toUpperCase(),
       memo: String(memo).trim(),
@@ -66,7 +69,7 @@ router.post('/verify', auth, async (req, res) => {
   }
   if (check.recipientId.toString() !== req.user._id.toString()) return res.status(403).json({ error: 'This check is not assigned to your account' });
   if (check.status !== 'created' && check.status !== 'pending') return res.status(400).json({ error: `Check is ${check.status}` });
-  res.json({ valid: true, check: { checkId: check.checkId, recipientName: check.recipientName, amount: check.amount, currency: check.currency, memo: check.memo, expiresAt: check.expiresAt, status: check.status } });
+  res.json({ valid: true, check: { checkId: check.checkId, issuerName: check.issuerName, issuerAccountNumber: check.issuerAccountNumber, recipientName: check.recipientName, recipientEmail: check.recipientEmail, recipientAccountNumber: check.recipientAccountNumber, amount: check.amount, currency: check.currency, memo: check.memo, issuedAt: check.issuedAt, expiresAt: check.expiresAt, status: check.status } });
 });
 
 router.post('/:checkId/deposit', auth, async (req, res) => {
