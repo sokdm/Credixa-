@@ -56,7 +56,8 @@ router.post('/upload', auth, upload.single('image'), (req, res) => {
       return res.status(403).json({ error: 'You can only upload images to your own support chat' });
     }
 
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const forwardedProto = req.headers['x-forwarded-proto']?.split(',')[0]?.trim();
+    const baseUrl = `${forwardedProto || req.protocol}://${req.get('host')}`;
     const imageUrl = `${baseUrl}/uploads/chat/${req.file.filename}`;
 
     res.status(200).json({

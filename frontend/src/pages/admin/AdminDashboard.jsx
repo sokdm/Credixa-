@@ -374,12 +374,13 @@ const AdminDashboard = () => {
     formData.append('userId', selectedChat.userId?._id || selectedChat.userId);
 
     const res = await axios.post(`${API_URL}/api/chat/upload`, formData, {
+      timeout: 60000,
       headers: {
         'Content-Type': 'multipart/form-data',
         Authorization: `Bearer ${getToken()}`
       },
       onUploadProgress: (progressEvent) => {
-        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        const percent = progressEvent.total ? Math.round((progressEvent.loaded * 100) / progressEvent.total) : 0;
         setUploadProgress(percent);
       }
     });

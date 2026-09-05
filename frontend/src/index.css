@@ -1188,6 +1188,9 @@ td { border-color: var(--cx-line); }
 
 .dashboard-content h3 { letter-spacing: -0.01em; }
 
+.history-entry { border-color: rgba(132, 214, 61, 0.2) !important; }
+.history-entry-icon { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid rgba(132, 214, 61, 0.28); border-radius: 12px; color: var(--cx-lime); background: rgba(132, 214, 61, 0.1); }
+
 @media (max-width: 1023px) {
   .dashboard-sidebar { width: 280px !important; }
   .dashboard-content { padding-bottom: 92px !important; }

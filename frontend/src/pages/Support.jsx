@@ -230,9 +230,10 @@ const Support = () => {
     formData.append('userId', user._id);
 
     const res = await api.post('/api/chat/upload', formData, {
+      timeout: 60000,
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (progressEvent) => {
-        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        const percent = progressEvent.total ? Math.round((progressEvent.loaded * 100) / progressEvent.total) : 0;
         setUploadProgress(percent);
       }
     });

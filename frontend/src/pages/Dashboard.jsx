@@ -118,6 +118,7 @@ const Dashboard = () => {
 
   const navItems = [
     { icon: Wallet, label: 'Dashboard', path: '/dashboard' },
+    { icon: History, label: 'Transaction History', path: '/history' },
     { icon: Send, label: 'Transfer', path: '/transfer' },
     { icon: QrCode, label: 'QR Pay', path: '/qr-pay' },
     { icon: CreditCard, label: 'Cards', path: '/cards' },
@@ -498,80 +499,16 @@ const Dashboard = () => {
             </div>
           </motion.div>
 
-          {/* Recent Transactions */}
-          <motion.div
+          <motion.button
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="glass-card overflow-hidden"
+            onClick={() => navigate('/history')}
+            className="history-entry glass-card w-full p-5 text-left flex items-center justify-between group"
           >
-            <div className="p-6 border-b border-white/5 flex justify-between items-center">
-              <div>
-                <h3 className="text-base font-bold text-white">Recent Transactions</h3>
-                <p className="text-xs text-white/30 mt-0.5">Your latest activity</p>
-              </div>
-              <button
-                onClick={() => navigate('/history')}
-                className="flex items-center gap-1 text-violet-400 text-sm font-medium hover:text-violet-300 transition-colors group"
-              >
-                View All <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-              </button>
-            </div>
-
-            <div className="divide-y divide-white/5">
-              {(!dashboardData?.transactions || dashboardData.transactions.length === 0) ? (
-                <div className="p-8 text-center">
-                  <div className="w-16 h-16 mx-auto mb-3 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5">
-                    <History size={24} className="text-white/20" />
-                  </div>
-                  <p className="text-white/40 text-sm">No transactions yet</p>
-                  <p className="text-xs text-white/20 mt-1">Start by making your first transfer</p>
-                </div>
-              ) : (
-                dashboardData.transactions.slice(0, 5).map((tx, idx) => {
-                  const currentUserId = user?.id || user?._id?.toString()
-                  const senderId = tx.senderId?._id?.toString?.() || tx.senderId?.toString?.() || tx.senderId
-                  const isSender = senderId === currentUserId || tx.type === 'debit'
-                  const counterpartyName = isSender
-                    ? (tx.receiverName || 'Unknown')
-                    : (tx.senderName || 'Unknown')
-
-                  return (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer group"
-                      onClick={() => navigate('/history')}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                          isSender ? 'bg-rose-500/10 border border-rose-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'
-                        }`}>
-                          {isSender ? <ArrowUpRight size={20} className="text-rose-400" /> : <ArrowDownLeft size={20} className="text-emerald-400" />}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-sm text-white group-hover:text-violet-300 transition-colors">
-                            {isSender ? `Sent to ${counterpartyName}` : `Received from ${counterpartyName}`}
-                          </p>
-                          <p className="text-xs text-white/30 mt-0.5">{tx.narration || tx.type || 'Transfer'}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-bold text-sm ${isSender ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          {isSender ? '-' : '+'}{formatMoney(tx.amount, tx.currency || '$')}
-                        </p>
-                        <p className="text-[11px] text-white/20 mt-0.5">
-                          {new Date(tx.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </p>
-                      </div>
-                    </motion.div>
-                  )
-                })
-              )}
-            </div>
-          </motion.div>
+            <span className="flex items-center gap-3"><span className="history-entry-icon"><History size={19} /></span><span><strong className="block text-sm text-white">Transaction history</strong><small className="block mt-1 text-xs text-white/40">Review every transfer, receipt, and status</small></span></span>
+            <ArrowRight size={18} className="text-white/35 transition-transform group-hover:translate-x-1" />
+          </motion.button>
 
           {/* Bottom spacer */}
           <div className="h-4" />
