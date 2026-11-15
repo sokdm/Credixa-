@@ -1679,6 +1679,29 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .transfer-page input::placeholder, .transfer-page textarea::placeholder { color: var(--cx-text-muted) !important; }
 
+.transaction-page, .settings-page {
+  color: var(--cx-text);
+  background: var(--cx-bg) !important;
+}
+.transaction-page > header, .settings-page > header {
+  color: var(--cx-text);
+  background: color-mix(in srgb, var(--cx-surface) 94%, transparent) !important;
+  border-bottom: 1px solid var(--cx-border);
+}
+.transaction-page > div, .settings-page > div { max-width: 1040px; }
+.transaction-page .glass-card, .settings-page .glass-card {
+  border-radius: 16px;
+  background: var(--cx-surface) !important;
+  border-color: var(--cx-border) !important;
+}
+.transaction-page input, .transaction-page select, .settings-page input, .settings-page select {
+  color: var(--cx-text);
+  background-color: var(--cx-surface);
+  border-color: var(--cx-border);
+}
+.transaction-page input::placeholder, .settings-page input::placeholder { color: var(--cx-text-muted); }
+.settings-page .glass-card:hover { transform: none; }
+
 .support-premium { color: var(--cx-text); background: var(--cx-bg) !important; }
 .support-header { color: var(--cx-text); background: var(--cx-surface) !important; border-color: var(--cx-border) !important; }
 .support-messages { background: var(--cx-bg) !important; }

@@ -34,7 +34,7 @@ const stats = [
   { icon: Activity, value: 'Secure', label: 'PIN-protected transfer flow', suffix: '' }
 ]
 
-const testimonials = [
+const supportOptions = [
   { name: 'Talk to support', role: 'In-app support conversation', text: 'Send a message to the Credixa support team and continue the conversation from your account.', avatar: '01' },
   { name: 'Review a transfer', role: 'Transaction history and receipts', text: 'Find transaction details, check recorded statuses, and download receipts from your history.', avatar: '02' },
   { name: 'Protect your account', role: 'Security and account settings', text: 'Use account settings and your transaction PIN to help keep access and transfers protected.', avatar: '03' }
@@ -485,7 +485,7 @@ const LandingPage = () => {
             <ImageCard src={bankingImages[0]} alt="Secure Mobile Banking" delay={0} />
             <ImageCard src={bankingImages[1]} alt="Instant Card Payments" delay={0.1} />
             <ImageCard src={bankingImages[2]} alt="Smart Analytics" delay={0.2} />
-            <ImageCard src={bankingImages[3]} alt="Global Transfers" delay={0.3} />
+            <ImageCard src={bankingImages[3]} alt="Financial activity preview" delay={0.3} />
           </div>
         </div>
       </section>
@@ -569,7 +569,7 @@ const LandingPage = () => {
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((t, idx) => (
+            {supportOptions.map((t, idx) => (
               <motion.div
                 key={idx}
                 initial={{ opacity: 0, y: 30 }}

@@ -20,7 +20,7 @@ const Profile = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="settings-page min-h-screen bg-gray-50 dark:bg-gray-900">
       <header className="glass sticky top-0 z-30">
         <div className="max-w-3xl mx-auto px-4 h-16 flex items-center">
           <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
