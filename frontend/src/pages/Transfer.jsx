@@ -125,7 +125,7 @@ const Transfer = () => {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#0a0a0f] text-white">
+    <div className="transfer-page min-h-[100dvh] bg-[#0a0a0f] text-white">
       <div className="sticky top-0 z-20 bg-[#0a0a0f]/80 backdrop-blur-lg border-b border-white/5">
         <div className="flex items-center gap-3 px-4 py-4">
           <button onClick={() => step === 4 ? resetTransfer() : navigate(-1)} className="p-2 -ml-2 hover:bg-white/5 rounded-full transition-colors">

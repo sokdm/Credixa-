@@ -400,9 +400,9 @@ const Support = () => {
     );
   }
 return (
-    <div className="min-h-[100dvh] bg-[#0b141a] flex flex-col">
+    <div className="support-premium min-h-[100dvh] bg-[#0b141a] flex flex-col">
       {/* Header */}
-      <div className="bg-[#1f2c34] px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3 sticky top-0 z-20 border-b border-white/5">
+      <div className="support-header bg-[#1f2c34] px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3 sticky top-0 z-20 border-b border-white/5">
         <button
           onClick={() => navigate(-1)}
           className="text-white/70 hover:text-white active:text-white/90 p-2 -ml-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-white/5 transition-colors"
@@ -447,7 +447,7 @@ return (
       )}
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4" style={{ backgroundColor: '#0b141a' }}>
+      <div className="support-messages flex-1 overflow-y-auto p-3 sm:p-4" style={{ backgroundColor: '#0b141a' }}>
         <div className="max-w-2xl mx-auto space-y-1">
           <div className="flex justify-center mb-4">
             <span className="bg-[#1f2c34] text-white/40 text-[11px] px-4 py-1.5 rounded-full font-medium">Today</span>
@@ -455,8 +455,32 @@ return (
 
           {messages.length === 0 && (
             <div className="text-center py-16 sm:py-20">
-              <MessageCircle size={48} className="text-white/15 mx-auto mb-4" />
-              <p className="text-white/30 text-sm">No messages yet. Start the conversation!</p>
+              <span className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300">
+                <MessageCircle size={25} />
+              </span>
+              <h1 className="text-xl font-bold">How can we help?</h1>
+              <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500 dark:text-gray-400">
+                Start a secure conversation with Credixa support, or choose a topic to get started.
+              </p>
+              <div className="mx-auto mt-6 grid max-w-md grid-cols-1 gap-2 sm:grid-cols-3">
+                {[
+                  'I need help with a transfer',
+                  'I have an account question',
+                  'I need help with a transaction'
+                ].map((topic) => (
+                  <button
+                    key={topic}
+                    type="button"
+                    className="support-topic"
+                    onClick={() => {
+                      setNewMessage(topic)
+                      inputRef.current?.focus()
+                    }}
+                  >
+                    {topic}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

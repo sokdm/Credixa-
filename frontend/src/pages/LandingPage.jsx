@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Zap, CreditCard, PiggyBank, Clock, Receipt, Shield,
-  CheckCircle, Users, TrendingUp, Activity, Star,
+  CheckCircle, Users, TrendingUp, Activity,
   ChevronDown, Menu, X, ArrowRight,
   Wallet, ArrowUpRight, ArrowDownRight, BarChart3,
   Smartphone, Globe, Lock, Sparkles, Sun, Moon
@@ -11,41 +11,41 @@ import { useState } from 'react'
 import { useTheme } from '../context/ThemeContext'
 
 const features = [
-  { icon: Zap, title: 'Instant Transfers', desc: 'Send money in seconds to anyone, anywhere in the world with zero delays.' },
-  { icon: CreditCard, title: 'Virtual & Physical Cards', desc: 'Shop online and offline securely with instant card controls and real-time alerts.' },
-  { icon: PiggyBank, title: 'Smart Savings', desc: 'Auto-save with round-ups, set goals, and earn competitive daily rewards.' },
-  { icon: Clock, title: '24/7 Access', desc: 'Bank on your terms — anytime, any day, from any device, anywhere.' },
-  { icon: Receipt, title: 'Bill Payments', desc: 'Pay airtime, electricity, TV, internet, and more in one seamless tap.' },
+  { icon: Zap, title: 'Credixa transfers', desc: 'Send money to another Credixa account with a secure, PIN-protected flow.' },
+  { icon: CreditCard, title: 'Card management', desc: 'Review your card details and manage available card controls in one place.' },
+  { icon: PiggyBank, title: 'Savings goals', desc: 'Create personal goals and keep your progress organized.' },
+  { icon: Clock, title: 'Account access', desc: 'Review your balance and account activity from desktop, tablet, or mobile.' },
+  { icon: Receipt, title: 'Everyday payments', desc: 'Explore the bill-payment options available in your account.' },
   { icon: Shield, title: 'Layered Account Security', desc: 'PIN protection, OTP verification, authenticated sessions, and server-side checks help protect every transaction.' }
 ]
 
 const whyChoose = [
-  'Zero hidden charges — what you see is what you pay',
-  'Open an account in under 2 minutes',
+  'Review account activity and transfer records in one place',
+  'Set up an account with guided registration',
   'Intuitive, user-friendly dashboard',
-  'Real-time transaction alerts',
-  '24/7 dedicated customer support',
-  'Clear account activity and transaction alerts'
+  'PIN-protected transfer flow',
+  'Get help through the in-app support conversation',
+  'Saved indicative currency quotes on transfer records'
 ]
 
 const stats = [
-  { icon: Wallet, value: '1', label: 'Connected money dashboard', suffix: '' },
-  { icon: TrendingUp, value: '24/7', label: 'Access to your account activity', suffix: '' },
-  { icon: Activity, value: 'Real-time', label: 'Transfer notifications', suffix: '' }
+  { icon: Wallet, value: 'One', label: 'Connected account overview', suffix: '' },
+  { icon: TrendingUp, value: 'Clear', label: 'Spending and activity views', suffix: '' },
+  { icon: Activity, value: 'Secure', label: 'PIN-protected transfer flow', suffix: '' }
 ]
 
 const testimonials = [
-  { name: 'Sarah O.', role: 'Business Owner', text: 'Credixa made transfers so easy. Best banking app ever! The instant notifications give me peace of mind.', avatar: 'SO' },
-  { name: 'Michael K.', role: 'Software Engineer', text: 'The best digital banking experience I have had. Clean UI, fast transfers, and the savings feature is a game changer.', avatar: 'MK' },
-  { name: 'Amina B.', role: 'Freelancer', text: 'Fast, secure, and reliable. Highly recommended! I can manage all my payments from one dashboard.', avatar: 'AB' }
+  { name: 'Talk to support', role: 'In-app support conversation', text: 'Send a message to the Credixa support team and continue the conversation from your account.', avatar: '01' },
+  { name: 'Review a transfer', role: 'Transaction history and receipts', text: 'Find transaction details, check recorded statuses, and download receipts from your history.', avatar: '02' },
+  { name: 'Protect your account', role: 'Security and account settings', text: 'Use account settings and your transaction PIN to help keep access and transfers protected.', avatar: '03' }
 ]
 
 const faqs = [
   { q: 'How does Credixa protect my account?', a: 'Credixa uses authenticated sessions, PIN protection for transfers, OTP flows, and server-side validation for account activity. Review the security details in your account and contact support with any concerns.' },
   { q: 'How long does it take to open an account?', a: 'Less than 2 minutes. Just fill the form, verify your identity, and start banking immediately.' },
   { q: 'Can I get both virtual and physical cards?', a: 'Absolutely. Request a virtual card instantly for online shopping, or order a physical card delivered to your address.' },
-  { q: 'Are transfers really instant?', a: 'Internal Credixa-to-Credixa transfers are instant. External bank transfers typically complete within minutes.' },
-  { q: 'What currencies are supported?', a: 'We support NGN (₦), USD ($), EUR (€), GBP (£), and 20+ other currencies with real-time conversion rates.' }
+  { q: 'How do transfers work?', a: 'Internal Credixa-to-Credixa transfers update both account balances. External transfers debit and record the amount in Credixa, but are not settled through an outside bank.' },
+  { q: 'Are currency conversions guaranteed?', a: 'Currency conversions are indicative estimates. Rates may be unavailable or change; an estimate is not a promise of external bank settlement.' }
 ]
 
 const bankingImages = [
@@ -206,7 +206,7 @@ const LandingPage = () => {
             </motion.div>
 
             <div className="hidden md:flex items-center gap-8">
-              {['Features', 'Why Us', 'Gallery', 'Testimonials', 'FAQ'].map((item) => (
+              {['Features', 'Why Us', 'Gallery', 'Support', 'FAQ'].map((item) => (
                 <motion.a
                   key={item}
                   href={`#${item.toLowerCase().replace(' ', '-')}`}
@@ -261,7 +261,7 @@ const LandingPage = () => {
             animate={{ opacity: 1, y: 0 }}
             className="md:hidden glass-card mx-4 mb-4 p-4 space-y-3"
           >
-            {['Features', 'Why Us', 'Gallery', 'Testimonials', 'FAQ'].map((item) => (
+            {['Features', 'Why Us', 'Gallery', 'Support', 'FAQ'].map((item) => (
               <a key={item} href={`#${item.toLowerCase().replace(' ', '-')}`} className="block py-2 text-white/70 font-medium">
                 {item}
               </a>
@@ -288,8 +288,8 @@ const LandingPage = () => {
             <ArrowUpRight className="text-emerald-400" size={20} />
           </div>
           <div>
-            <p className="text-xs text-white/50">Transfer Sent</p>
-            <p className="text-sm font-bold text-emerald-400">+₦50,000</p>
+            <p className="text-xs text-white/50">Transfer activity</p>
+            <p className="text-sm font-bold text-emerald-400">PIN protected</p>
           </div>
         </motion.div>
 
@@ -304,7 +304,7 @@ const LandingPage = () => {
           </div>
           <div>
             <p className="text-xs text-white/50">Balance</p>
-            <p className="text-sm font-bold text-white">₦2.4M</p>
+            <p className="text-sm font-bold text-white">Account view</p>
           </div>
         </motion.div>
 
@@ -318,8 +318,8 @@ const LandingPage = () => {
             <BarChart3 className="text-pink-400" size={20} />
           </div>
           <div>
-            <p className="text-xs text-white/50">Savings Growth</p>
-            <p className="text-sm font-bold text-pink-400">+12.5%</p>
+            <p className="text-xs text-white/50">Savings goals</p>
+            <p className="text-sm font-bold text-pink-400">Track progress</p>
           </div>
         </motion.div>
 
@@ -336,7 +336,7 @@ const LandingPage = () => {
               className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full mb-8"
             >
               <Sparkles className="text-violet-400" size={16} />
-              <span className="text-sm text-white/70">One clear place for everyday money management</span>
+              <span className="text-sm text-white/70">A calmer view of everyday money</span>
             </motion.div>
 
             <motion.h1
@@ -358,7 +358,7 @@ const LandingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
             >
-              Secure online banking, instant transfers, smart savings, and full control of your money — all in one beautifully designed app.
+              A clearer way to review your balance, manage account activity, and move money within Credixa.
             </motion.p>
 
             <motion.div
@@ -392,16 +392,15 @@ const LandingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.8, duration: 0.7 }}
             >
-              <div className="hero-preview-topline"><span>Credixa overview</span><span className="hero-live-dot">Live account view</span></div>
-              <div className="hero-preview-balance"><span>Total balance</span><strong>$24,680.40</strong><small>Available to spend</small></div>
+              <div className="hero-preview-topline"><span>Credixa overview</span><span className="hero-live-dot">Product preview</span></div>
+              <div className="hero-preview-balance"><span>Your account balance</span><strong aria-label="Balance hidden">••••••</strong><small>Your real balance appears after you sign in</small></div>
               <div className="hero-preview-grid">
-                <div><span>Income</span><strong>+$8,420.00</strong><small>This month</small></div>
-                <div><span>Expenses</span><strong>-$3,184.28</strong><small>This month</small></div>
-                <div><span>Savings</span><strong>$12,240.00</strong><small>Across goals</small></div>
+                <div><span>Transfers</span><strong>Send securely</strong><small>PIN-protected</small></div>
+                <div><span>Spending</span><strong>Stay informed</strong><small>Review your activity</small></div>
+                <div><span>Savings</span><strong>Plan ahead</strong><small>Track personal goals</small></div>
               </div>
-              <div className="hero-preview-activity"><span>Recent activity</span><b>View history <ArrowRight size={14} /></b></div>
-              <div className="hero-preview-row"><i className="preview-icon">↗</i><span>Transfer to A. Morgan<small>Today, 10:42 AM</small></span><strong>− $240.00</strong></div>
-              <div className="hero-preview-row"><i className="preview-icon preview-icon-light">↙</i><span>Payment received<small>Yesterday, 4:18 PM</small></span><strong className="preview-positive">+ $1,280.00</strong></div>
+              <div className="hero-preview-activity"><span>Recent activity</span><b>Account history <ArrowRight size={14} /></b></div>
+              <p className="text-sm text-white/50">Your transactions appear here after you sign in and use your account.</p>
             </motion.div>
 
             <motion.div
@@ -416,7 +415,7 @@ const LandingPage = () => {
               </div>
               <div className="flex items-center gap-2">
                 <Globe size={14} />
-                <span className="text-xs">Global Transfers</span>
+                <span className="text-xs">Indicative FX estimates</span>
               </div>
               <div className="flex items-center gap-2"><Smartphone size={14} /><span className="text-xs">Built for every screen</span></div>
             </motion.div>
@@ -441,9 +440,9 @@ const LandingPage = () => {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <span className="text-violet-400 text-sm font-semibold tracking-wider uppercase mb-3 block">Features</span>
+            <span className="text-violet-400 text-sm font-semibold tracking-wider uppercase mb-3 block">Everyday banking</span>
             <h2 className="text-4xl md:text-5xl font-bold mb-4">Everything you need to<br />manage your money</h2>
-            <p className="text-white/40 text-lg max-w-2xl mx-auto">Powerful banking tools designed for the modern African. Simple, secure, and always available.</p>
+            <p className="text-white/40 text-lg max-w-2xl mx-auto">Explore account tools for transfers, cards, savings goals, bills, and account security.</p>
           </motion.div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -555,8 +554,8 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ===== TESTIMONIALS SECTION ===== */}
-      <section id="testimonials" className="py-24 relative mesh-bg">
+      {/* ===== CUSTOMER SUPPORT SECTION ===== */}
+      <section id="support" className="py-24 relative mesh-bg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             className="text-center mb-16"
@@ -564,9 +563,9 @@ const LandingPage = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <span className="text-violet-400 text-sm font-semibold tracking-wider uppercase mb-3 block">Testimonials</span>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Designed around your everyday money</h2>
-            <p className="text-white/40 text-lg">A calmer, clearer way to move, monitor, and plan your finances with Credixa</p>
+            <span className="text-violet-400 text-sm font-semibold tracking-wider uppercase mb-3 block">Customer support</span>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">Help when you need it</h2>
+            <p className="text-white/40 text-lg">Get help with your account, transfers, and transaction records through Credixa support.</p>
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-6">
@@ -578,14 +577,9 @@ const LandingPage = () => {
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.15 }}
                 whileHover={{ y: -8 }}
-                className="testimonial-card"
+                className="testimonial-card glass-card"
               >
-                <div className="flex gap-1 mb-5">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="text-yellow-400 fill-yellow-400" size={16} />
-                  ))}
-                </div>
-                <p className="text-white/60 mb-8 leading-relaxed text-sm">"{t.text}"</p>
+                <p className="text-white/60 mb-8 leading-relaxed text-sm">{t.text}</p>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
                     {t.avatar}
@@ -719,30 +713,43 @@ const LandingPage = () => {
             <div>
               <h4 className="font-semibold text-white/80 mb-5 text-sm">Product</h4>
               <ul className="space-y-3">
-                {['Features', 'Cards', 'Savings', 'Investments', 'Loans'].map((item) => (
-                  <li key={item}><a href="#" className="text-white/30 hover:text-white/60 text-sm transition-colors">{item}</a></li>
+                {[
+                  ['Product overview', '#features'],
+                  ['Account experience', '#gallery'],
+                  ['Security', '#why-us'],
+                  ['Frequently asked questions', '#faq']
+                ].map(([item, href]) => (
+                  <li key={item}><a href={href} className="text-white/30 hover:text-white/60 text-sm transition-colors">{item}</a></li>
                 ))}
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-white/80 mb-5 text-sm">Company</h4>
+              <h4 className="font-semibold text-white/80 mb-5 text-sm">Your account</h4>
               <ul className="space-y-3">
-                {['About Us', 'Careers', 'Blog', 'Press', 'Partners'].map((item) => (
-                  <li key={item}><a href="#" className="text-white/30 hover:text-white/60 text-sm transition-colors">{item}</a></li>
+                {[
+                  ['Open an account', '/register'],
+                  ['Sign in', '/login'],
+                  ['Customer support', '/support']
+                ].map(([item, href]) => (
+                  <li key={item}><a href={href} className="text-white/30 hover:text-white/60 text-sm transition-colors">{item}</a></li>
                 ))}
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-white/80 mb-5 text-sm">Legal</h4>
+              <h4 className="font-semibold text-white/80 mb-5 text-sm">Help</h4>
               <ul className="space-y-3">
-                {['Privacy Policy', 'Terms of Service', 'Cookie Policy', 'Security', 'Compliance'].map((item) => (
-                  <li key={item}><a href="#" className="text-white/30 hover:text-white/60 text-sm transition-colors">{item}</a></li>
+                {[
+                  ['Support center', '#support'],
+                  ['Contact support', '/support'],
+                  ['FAQ', '#faq']
+                ].map(([item, href]) => (
+                  <li key={item}><a href={href} className="text-white/30 hover:text-white/60 text-sm transition-colors">{item}</a></li>
                 ))}
               </ul>
             </div>
           </div>
           <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-white/20 text-sm">© 2024 Credixa Banking. All rights reserved.</p>
+            <p className="text-white/20 text-sm">© {new Date().getFullYear()} Credixa Banking. All rights reserved.</p>
             <p className="text-white/20 text-sm">Digital banking tools for your everyday finances</p>
           </div>
         </div>

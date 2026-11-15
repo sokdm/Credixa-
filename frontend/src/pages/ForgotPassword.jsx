@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Mail, Lock, Shield, Eye, EyeOff, Sparkles, KeyRound, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Mail, Lock, Shield, Eye, EyeOff, Sparkles, KeyRound, CheckCircle, Sun, Moon } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
 import axios from 'axios'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
@@ -16,6 +17,7 @@ const ForgotPassword = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const { darkMode, toggleTheme } = useTheme()
 
   const handleRequestOTP = async (e) => {
     e.preventDefault()
@@ -69,10 +71,13 @@ const ForgotPassword = () => {
         }} />
       ))}
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }} className="w-full max-w-md relative z-10">
-        <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
-          <Link to="/login" className="inline-flex items-center gap-2 text-white/40 mb-8 hover:text-white transition-colors text-sm font-medium">
+        <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="flex items-center justify-between mb-8">
+          <Link to="/login" className="inline-flex items-center gap-2 text-white/40 hover:text-white transition-colors text-sm font-medium">
             <ArrowLeft size={16} /> Back to login
           </Link>
+          <button type="button" onClick={toggleTheme} className="premium-theme-button" aria-label="Toggle color theme">
+            {darkMode ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
         </motion.div>
 
         <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1, duration: 0.6 }} className="glass-auth p-8 md:p-10">

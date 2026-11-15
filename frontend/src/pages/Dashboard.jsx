@@ -335,6 +335,25 @@ const Dashboard = () => {
                 {user?.fullName?.charAt(0) || 'U'}
               </div>
             </div>
+            <nav className="mobile-bottom-nav" aria-label="Primary navigation">
+              {[
+                { icon: Wallet, label: 'Home', path: '/dashboard' },
+                { icon: Send, label: 'Transfer', path: '/transfer' },
+                { icon: History, label: 'Activity', path: '/history' },
+                { icon: User, label: 'Profile', path: '/profile' }
+              ].map((item) => (
+                <button
+                  key={item.path}
+                  type="button"
+                  className={location.pathname === item.path ? 'active' : ''}
+                  aria-current={location.pathname === item.path ? 'page' : undefined}
+                  onClick={() => navigate(item.path)}
+                >
+                  <item.icon size={19} />
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </nav>
           </div>
         </header>
 
@@ -399,9 +418,9 @@ const Dashboard = () => {
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/15 transition-all">
                   <p className="text-xs text-white/50 mb-1 flex items-center gap-1">
-                    <CreditCard size={12} /> Account Type
+                    <CreditCard size={12} /> Account Currency
                   </p>
-                  <p className="font-semibold text-white text-sm">Premium Savings</p>
+                  <p className="font-semibold text-white text-sm">{dashboardData?.user?.currencyCode || 'USD'}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/15 transition-all">
                   <p className="text-xs text-white/50 mb-1">Status</p>
@@ -476,6 +495,50 @@ const Dashboard = () => {
                 )
               })}
             </div>
+          </section>
+
+          <section aria-label="Recent transactions" className="glass-card overflow-hidden">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--cx-border)] px-5 py-4">
+              <div>
+                <h3 className="font-semibold">Recent activity</h3>
+                <p className="mt-1 text-xs cx-muted">Your latest account transactions</p>
+              </div>
+              <button type="button" onClick={() => navigate('/history')} className="text-sm font-semibold cx-brand">
+                View all
+              </button>
+            </div>
+            {dashboardData?.transactions?.length ? (
+              <div className="divide-y divide-[var(--cx-border)]">
+                {dashboardData.transactions.slice(0, 5).map((transaction) => {
+                  const isOutgoing = String(transaction.senderId?._id || transaction.senderId) === String(dashboardData.user?._id)
+                  const counterparty = isOutgoing ? transaction.receiverName : transaction.senderName
+                  return (
+                    <div key={transaction._id || transaction.reference} className="flex items-center gap-3 px-5 py-4">
+                      <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${isOutgoing ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'}`}>
+                        {isOutgoing ? <ArrowUpRight size={18} /> : <ArrowDownLeft size={18} />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{isOutgoing ? `To ${counterparty || 'Recipient'}` : `From ${counterparty || 'Sender'}`}</span>
+                        <span className="mt-1 block truncate text-xs cx-muted">
+                          {transaction.isSimulation ? 'Credixa balance debited; external bank not contacted' : transaction.narration || transaction.type}
+                          {' · '}{new Date(transaction.createdAt).toLocaleDateString()}
+                        </span>
+                      </span>
+                      <span className={`shrink-0 text-right text-sm font-semibold ${isOutgoing ? 'text-rose-600 dark:text-rose-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
+                        {isOutgoing ? '−' : '+'}{formatMoney(transaction.amount, accountCurrency)}
+                        <span className="mt-1 block text-xs font-normal capitalize cx-muted">{transaction.status}</span>
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="px-5 py-8 text-center">
+                <History className="mx-auto mb-2 text-[var(--cx-text-muted)]" size={22} />
+                <p className="text-sm font-medium">No transactions yet</p>
+                <p className="mt-1 text-xs cx-muted">Your real account activity will appear here.</p>
+              </div>
+            )}
           </section>
 
           {/* Quick Actions Grid */}
