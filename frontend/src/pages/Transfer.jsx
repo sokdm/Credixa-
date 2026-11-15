@@ -15,13 +15,17 @@ const Transfer = () => {
   const [formData, setFormData] = useState({
     recipientAccount: '',
     bankName: '',
+    country: '',
     accountNumber: '',
     accountName: '',
     recipientEmail: '',
     amount: '',
     narration: '',
+    category: 'other',
     pin: '',
-    targetCurrency: 'USD'
+    targetCurrency: 'USD',
+    exchangeRate: 1,
+    convertedAmount: '0.00'
   })
   const [foundUser, setFoundUser] = useState(null)
   const [selectedRecipient, setSelectedRecipient] = useState(null)
@@ -80,13 +84,17 @@ const Transfer = () => {
         narration: formData.narration,
         targetCurrency: formData.targetCurrency,
         originalAmount: parseFloat(formData.amount),
-        recipientEmail: formData.recipientEmail
+        indicativeExchangeRate: formData.exchangeRate,
+        indicativeAmount: formData.convertedAmount,
+        recipientEmail: formData.recipientEmail,
+        category: formData.category
       }
       const endpoint = transferType === 'internal' ? '/api/transfer/internal' : '/api/transfer/external'
       if (transferType === 'internal') {
         payload.recipientAccount = formData.recipientAccount
       } else {
         payload.bankName = formData.bankName
+        payload.receiverCountry = formData.country
         payload.accountNumber = formData.accountNumber
         payload.accountName = formData.accountName
       }
@@ -106,8 +114,9 @@ const Transfer = () => {
     setStep(1)
     setTransferType('internal')
     setFormData({
-      recipientAccount: '', bankName: '', accountNumber: '', accountName: '',
-      recipientEmail: '', amount: '', narration: '', pin: '', targetCurrency: 'USD'
+      recipientAccount: '', bankName: '', country: '', accountNumber: '', accountName: '',
+      recipientEmail: '', amount: '', narration: '', category: 'other', pin: '', targetCurrency: 'USD',
+      exchangeRate: 1, convertedAmount: '0.00'
     })
     setSelectedRecipient(null)
     setFoundUser(null)

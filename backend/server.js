@@ -71,7 +71,7 @@ io.use(async (socket, next) => {
 app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -218,6 +218,8 @@ app.use('/api/beneficiary', require('./routes/beneficiary'));
 app.use('/api/otp', require('./routes/otp')); // OTP routes for forgot password/PIN
 app.use('/api/checks', require('./routes/checks'));
 app.use('/api/exchange-rates', require('./routes/exchangeRates'));
+app.use('/api/developer', require('./routes/developer'));
+app.use('/api/merchant', require('./routes/merchant'));
 
 const possibleDistPaths = [
   path.join(__dirname, 'dist'),

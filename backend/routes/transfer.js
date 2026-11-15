@@ -7,6 +7,7 @@ const Notification = require('../models/Notification');
 const { sendTransferEmail } = require('../services/emailService');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
+const TRANSFER_CATEGORIES = ['other', 'housing', 'food', 'transport', 'utilities', 'shopping', 'health', 'education', 'entertainment'];
 
 // Complete currency map matching frontend CURRENCY_META + FALLBACK_RATES
 const CURRENCY_MAP = {
@@ -123,11 +124,6 @@ const CURRENCY_MAP = {
   NIO: { flag: '🇳🇮', rate: '36.80', symbol: 'C$', name: 'Nicaraguan Cordoba' }
 };
 
-// Helper to safely get currency data
-const getCurrencyData = (code) => {
-  return CURRENCY_MAP[code] || CURRENCY_MAP['USD'];
-};
-
 router.get('/lookup-account/:accountNumber', auth, async (req, res) => {
   try {
     const cleanAccount = req.params.accountNumber.trim().replace(/\s/g, '');
@@ -139,7 +135,7 @@ router.get('/lookup-account/:accountNumber', auth, async (req, res) => {
 
 router.post('/internal', auth, async (req, res) => {
   try {
-    const { recipientAccount, amount, narration, pin, targetCurrency, originalAmount, recipientEmail } = req.body;
+    const { recipientAccount, amount, narration, pin, targetCurrency, originalAmount, recipientEmail, category, indicativeExchangeRate } = req.body;
     const sender = await User.findById(req.user._id);
     if (!sender) return res.status(404).json({ error: 'Sender not found' });
     if (sender.isLocked) return res.status(403).json({ error: 'Account locked. Contact support.' });
@@ -152,6 +148,7 @@ router.post('/internal', auth, async (req, res) => {
     const transferAmount = parseFloat(amount);
     if (isNaN(transferAmount) || transferAmount <= 0) return res.status(400).json({ error: 'Invalid amount' });
     if (sender.balance < transferAmount) return res.status(400).json({ error: 'Insufficient balance' });
+    if (category && !TRANSFER_CATEGORIES.includes(String(category))) return res.status(400).json({ error: 'Invalid expense category' });
 
     const cleanAccount = recipientAccount.toString().trim().replace(/\s/g, '');
     let receiver = await User.findOne({ accountNumber: cleanAccount });
@@ -170,8 +167,11 @@ router.post('/internal', auth, async (req, res) => {
       receiverId: receiver._id, receiverName: receiver.fullName,
       receiverAccountNumber: receiver.accountNumber,
       amount: transferAmount, originalAmount: originalAmount || transferAmount,
-      targetCurrency: targetCurrency || sender.currency, currency: sender.currency,
-      narration, type: 'internal', reference, status: 'completed'
+      targetCurrency: targetCurrency || sender.currency,
+      indicativeExchangeRate: Number.isFinite(Number(indicativeExchangeRate)) && Number(indicativeExchangeRate) > 0 ? Number(indicativeExchangeRate) : null,
+      indicativeAmount: Number.isFinite(Number(indicativeExchangeRate)) && Number(indicativeExchangeRate) > 0 ? transferAmount * Number(indicativeExchangeRate) : null,
+      currency: sender.currency,
+      narration, category: category || 'other', type: 'internal', reference, status: 'completed'
     });
     await transaction.save();
 
@@ -179,25 +179,24 @@ router.post('/internal', auth, async (req, res) => {
     await Notification.create({ userId: receiver._id, title: 'Money Received', message: `You received ${receiver.currency}${transferAmount.toLocaleString()} from ${sender.fullName}` });
 
     if (recipientEmail) {
-      const curr = getCurrencyData(targetCurrency || sender.currency || 'USD');
-      const rateNum = parseFloat(curr.rate);
-      const convertedAmt = targetCurrency && targetCurrency !== 'USD' 
-        ? (transferAmount * rateNum).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})
-        : transferAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-      
+      const currencyCode = targetCurrency || sender.currencyCode || 'USD';
+      const curr = CURRENCY_MAP[currencyCode] || { flag: '🌐' };
+      const convertedAmt = transaction.indicativeAmount === null
+        ? 'Rate unavailable'
+        : transaction.indicativeAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       await sendTransferEmail(recipientEmail, {
         senderName: sender.fullName, senderAccount: sender.accountNumber,
         recipientName: receiver.fullName, recipientAccount: receiver.accountNumber,
         recipientBank: 'Credixa Banking', recipientEmail,
         amountUSD: transferAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}),
-        amountConverted: `${curr.flag} ${convertedAmt}`, currencyCode: targetCurrency || sender.currency || 'USD',
-        currencyFlag: curr.flag, exchangeRate: curr.rate, transactionId: reference,
+        amountConverted: convertedAmt, currencyCode,
+        currencyFlag: curr.flag, exchangeRate: transaction.indicativeExchangeRate || 'N/A', transactionId: reference,
         date: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
         narration: narration || null, status: 'Completed'
       });
     }
 
-    res.json({ success: true, transaction: { reference, senderName: sender.fullName, senderAccountNumber: sender.accountNumber, receiverName: receiver.fullName, receiverAccountNumber: receiver.accountNumber, bankName: 'Credixa Banking', amount: transferAmount, originalAmount: originalAmount || transferAmount, targetCurrency: targetCurrency || sender.currency, currency: sender.currency, narration: narration || 'Internal Transfer', date: new Date().toISOString(), status: 'success' }});
+    res.json({ success: true, transaction: { reference, senderName: sender.fullName, senderAccountNumber: sender.accountNumber, receiverName: receiver.fullName, receiverAccountNumber: receiver.accountNumber, bankName: 'Credixa Banking', amount: transferAmount, originalAmount: originalAmount || transferAmount, targetCurrency: targetCurrency || sender.currency, indicativeExchangeRate: transaction.indicativeExchangeRate, indicativeAmount: transaction.indicativeAmount, currency: sender.currency, narration: narration || 'Internal Transfer', date: transaction.createdAt.toISOString(), status: 'success' }});
   } catch (error) {
     console.error('[TRANSFER] Internal transfer error:', error);
     res.status(500).json({ error: error.message || 'Transfer failed' });
@@ -206,7 +205,7 @@ router.post('/internal', auth, async (req, res) => {
 
 router.post('/external', auth, async (req, res) => {
   try {
-    const { bankName, accountNumber, accountName, amount, narration, pin, targetCurrency, originalAmount, recipientEmail } = req.body;
+    const { bankName, accountNumber, accountName, amount, narration, pin, targetCurrency, originalAmount, recipientEmail, receiverCountry, category, indicativeExchangeRate } = req.body;
     const sender = await User.findById(req.user._id);
     if (!sender) return res.status(404).json({ error: 'Sender not found' });
     if (sender.isLocked) return res.status(403).json({ error: 'Account locked. Contact support.' });
@@ -218,45 +217,81 @@ router.post('/external', auth, async (req, res) => {
 
     const transferAmount = parseFloat(amount);
     if (isNaN(transferAmount) || transferAmount <= 0) return res.status(400).json({ error: 'Invalid amount' });
-    if (sender.balance < transferAmount) return res.status(400).json({ error: 'Insufficient balance' });
+    if (!bankName || !accountNumber || !accountName) return res.status(400).json({ error: 'Bank, account number, and recipient name are required' });
+    if (category && !TRANSFER_CATEGORIES.includes(String(category))) return res.status(400).json({ error: 'Invalid expense category' });
+    const validCurrencies = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('currency') : Object.keys(CURRENCY_MAP);
+    if (targetCurrency && !validCurrencies.includes(String(targetCurrency).toUpperCase())) {
+      return res.status(400).json({ error: 'Unsupported recipient currency' });
+    }
+    if (receiverCountry && (typeof receiverCountry !== 'string' || receiverCountry.trim().length > 100)) {
+      return res.status(400).json({ error: 'Invalid recipient country' });
+    }
 
-    sender.balance -= transferAmount;
-    if (!sender.firstTransferDate) sender.firstTransferDate = new Date();
-    await sender.save();
+    const exchangeRate = Number(indicativeExchangeRate);
+    const validExchangeRate = Number.isFinite(exchangeRate) && exchangeRate > 0 && exchangeRate <= 1e12;
+    const indicativeAmount = validExchangeRate ? transferAmount * exchangeRate : null;
+
+    const debitedSender = await User.findOneAndUpdate(
+      { _id: sender._id, balance: { $gte: transferAmount } },
+      {
+        $inc: { balance: -transferAmount },
+        $set: { firstTransferDate: sender.firstTransferDate || new Date() }
+      },
+      { new: true, runValidators: true }
+    );
+    if (!debitedSender) return res.status(400).json({ error: 'Insufficient balance' });
 
     const reference = 'CRX' + uuidv4().substring(0, 12).toUpperCase();
     const transaction = new Transaction({
       senderId: sender._id, senderName: sender.fullName,
       receiverName: accountName, receiverAccountNumber: accountNumber,
-      receiverBankName: bankName, amount: transferAmount,
+      receiverBankName: bankName, receiverCountry: receiverCountry || '', amount: transferAmount,
       originalAmount: originalAmount || transferAmount,
-      targetCurrency: targetCurrency || sender.currency, currency: sender.currency,
-      narration, type: 'external', reference, status: 'completed'
+      targetCurrency: targetCurrency || sender.currency,
+      indicativeExchangeRate: validExchangeRate ? exchangeRate : null,
+      indicativeAmount,
+      currency: sender.currency,
+      narration, category: category || 'other', type: 'external', isSimulation: true, reference, status: 'completed'
     });
-    await transaction.save();
+    try {
+      await transaction.save();
+    } catch (error) {
+      const refund = await User.updateOne({ _id: sender._id }, { $inc: { balance: transferAmount } });
+      if (refund.modifiedCount !== 1) {
+        console.error('[TRANSFER] Failed to refund external transfer after transaction save failure:', reference);
+      }
+      throw error;
+    }
 
-    await Notification.create({ userId: sender._id, title: 'External Transfer Sent', message: `You sent ${sender.currency}${transferAmount.toLocaleString()} to ${accountName} at ${bankName}` });
+    try {
+      await Notification.create({
+        userId: sender._id,
+        title: 'External Transfer Recorded',
+        message: `${sender.currency}${transferAmount.toLocaleString()} was debited for a transfer to ${accountName} at ${bankName}. No external bank was contacted.`
+      });
+    } catch (error) {
+      console.error('[TRANSFER] Failed to create external transfer notification:', error);
+    }
 
     if (recipientEmail) {
-      const curr = getCurrencyData(targetCurrency || sender.currency || 'USD');
-      const rateNum = parseFloat(curr.rate);
-      const convertedAmt = targetCurrency && targetCurrency !== 'USD' 
-        ? (transferAmount * rateNum).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})
-        : transferAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-      
+      const currencyCode = targetCurrency || sender.currencyCode || 'USD';
+      const curr = CURRENCY_MAP[currencyCode] || { flag: '🌐' };
+      const convertedAmt = transaction.indicativeAmount === null
+        ? 'Rate unavailable'
+        : transaction.indicativeAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       await sendTransferEmail(recipientEmail, {
         senderName: sender.fullName, senderAccount: sender.accountNumber,
         recipientName: accountName, recipientAccount: accountNumber,
         recipientBank: bankName, recipientEmail,
         amountUSD: transferAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}),
-        amountConverted: `${curr.flag} ${convertedAmt}`, currencyCode: targetCurrency || sender.currency || 'USD',
-        currencyFlag: curr.flag, exchangeRate: curr.rate, transactionId: reference,
+        amountConverted: convertedAmt, currencyCode,
+        currencyFlag: curr.flag, exchangeRate: transaction.indicativeExchangeRate || 'N/A', transactionId: reference,
         date: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-        narration: narration || null, status: 'Completed'
+        narration: narration || null, status: 'Completed', isSimulated: true
       });
     }
 
-    res.json({ success: true, transaction: { reference, senderName: sender.fullName, senderAccountNumber: sender.accountNumber, receiverName: accountName, receiverAccountNumber: accountNumber, bankName: bankName, amount: transferAmount, originalAmount: originalAmount || transferAmount, targetCurrency: targetCurrency || sender.currency, currency: sender.currency, narration: narration || 'External Transfer', date: new Date().toISOString(), status: 'success' }});
+    res.json({ success: true, transaction: { reference, senderName: sender.fullName, senderAccountNumber: sender.accountNumber, receiverName: accountName, receiverAccountNumber: accountNumber, bankName: bankName, receiverCountry: receiverCountry || '', amount: transferAmount, originalAmount: originalAmount || transferAmount, targetCurrency: targetCurrency || sender.currency, indicativeExchangeRate: transaction.indicativeExchangeRate, indicativeAmount: transaction.indicativeAmount, currency: sender.currency, narration: narration || 'External Transfer', date: transaction.createdAt.toISOString(), status: 'completed', isSimulation: true }});
   } catch (error) {
     console.error('[TRANSFER] External transfer error:', error);
     res.status(500).json({ error: error.message || 'External transfer failed' });

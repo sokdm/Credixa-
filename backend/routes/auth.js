@@ -41,7 +41,8 @@ router.post('/register', async (req, res) => {
       transactionPin: hashedPin,
       accountNumber,
       balance: 0,
-      currency: '$'
+      currency: '$',
+      currencyCode: 'USD'
     });
 
     await user.save();
@@ -59,6 +60,7 @@ router.post('/register', async (req, res) => {
         accountNumber: user.accountNumber,
         balance: user.balance,
         currency: user.currency,
+        currencyCode: user.currencyCode || 'USD',
         country: user.country,
         isAdmin: user.isAdmin
       }
@@ -98,6 +100,7 @@ router.post('/login', async (req, res) => {
         accountNumber: user.accountNumber,
         balance: user.balance,
         currency: user.currency,
+        currencyCode: user.currencyCode || 'USD',
         country: user.country,
         isLocked: user.isLocked,
         isAdmin: user.isAdmin

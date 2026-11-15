@@ -6,7 +6,7 @@ const generateTransferEmail = (data) => {
   const {
     senderName, senderAccount, recipientName, recipientAccount, recipientBank,
     amountUSD, amountConverted, currencyCode, currencyFlag, exchangeRate,
-    transactionId, date, narration, status = 'Completed'
+    transactionId, date, narration, status = 'Completed', isSimulated = false
   } = data;
 
   const maskedSender = senderAccount ? '****' + senderAccount.slice(-4) : '****';
@@ -82,8 +82,8 @@ const generateTransferEmail = (data) => {
               </tr>
             </table>
             
-            <h1 style="margin:0 0 10px; font-size:28px; font-weight:800; color:#ffffff; letter-spacing:-0.5px;">Money Received!</h1>
-            <p style="margin:0; font-size:15px; color:#94a3b8;">You received money from <strong style="color:#c4b5fd;">${senderName}</strong></p>
+            <h1 style="margin:0 0 10px; font-size:28px; font-weight:800; color:#ffffff; letter-spacing:-0.5px;">${isSimulated ? 'External transfer recorded' : 'Money Received!'}</h1>
+            <p style="margin:0; font-size:15px; color:#94a3b8;">${isSimulated ? 'The sender’s Credixa balance was debited. No external bank was contacted and no funds were delivered.' : `You received money from <strong style="color:#c4b5fd;">${senderName}</strong>`}</p>
           </td>
         </tr>
         
@@ -95,7 +95,7 @@ const generateTransferEmail = (data) => {
             <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:linear-gradient(135deg,#1e1b4b 0%,#2d2b55 50%,#1e1b4b 100%); border:1px solid rgba(124,58,237,0.35); border-radius:16px; margin-bottom:24px;">
               <tr>
                 <td style="padding:32px 20px; text-align:center;">
-                  <p style="margin:0 0 12px; font-size:11px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:#a5b4fc;">AMOUNT RECEIVED</p>
+                  <p style="margin:0 0 12px; font-size:11px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:#a5b4fc;">${isSimulated ? 'TRANSFER AMOUNT' : 'AMOUNT RECEIVED'}</p>
                   <p class="amount-text" style="margin:0; font-size:44px; font-weight:900; color:#ffffff; letter-spacing:-1.5px;">$${amountUSD}</p>
                   <p style="margin:12px 0 0; font-size:18px; font-weight:600; color:#c4b5fd;">${amountConverted} ${currencyFlag}</p>
                   
@@ -574,7 +574,9 @@ const sendTransferEmail = async (recipientEmail, transferData) => {
     await sgMail.send({
       to: recipientEmail,
       from: 'credixasupport@gmail.com',
-      subject: `You received $${transferData.amountUSD} from ${transferData.senderName} — Credixa Banking`,
+      subject: transferData.isSimulated
+        ? `External transfer recorded — Credixa Banking`
+        : `You received $${transferData.amountUSD} from ${transferData.senderName} — Credixa Banking`,
       html: htmlContent,
     });
 

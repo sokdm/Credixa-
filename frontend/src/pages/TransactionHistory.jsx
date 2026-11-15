@@ -15,6 +15,7 @@ const TransactionHistory = () => {
   const [typeFilter, setTypeFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedTransaction, setSelectedTransaction] = useState(null)
+  const wasExternalDebitRecorded = (tx) => tx.isSimulation && tx.status === 'completed'
 
   useEffect(() => {
     fetchTransactions()
@@ -58,8 +59,8 @@ const TransactionHistory = () => {
 ╠══════════════════════════════════════════════════════════════╣
 ║  REFERENCE: ${tx.reference.padEnd(49)} ║
 ╠══════════════════════════════════════════════════════════════╣
-║  Status:              SUCCESSFUL${''.padEnd(42)} ║
-║  Type:                ${(tx.type === 'internal' ? 'Internal Transfer' : 'External Transfer').padEnd(42)} ║
+║  Status:              ${(tx.status.toUpperCase()).padEnd(42)} ║
+║  Type:                ${(tx.isSimulation ? 'External Transfer (Credixa debit)' : tx.type === 'internal' ? 'Internal Transfer' : 'External Transfer').padEnd(42)} ║
 ║  Date:                ${dateObj.toLocaleDateString().padEnd(42)} ║
 ║  Time:                ${dateObj.toLocaleTimeString().padEnd(42)} ║
 ╠══════════════════════════════════════════════════════════════╣
@@ -72,8 +73,11 @@ const TransactionHistory = () => {
 ║  Name:                ${tx.receiverName.padEnd(42)} ║
 ║  Account:             ${(tx.receiverAccountNumber || 'N/A').padEnd(42)} ║
 ║  Bank:                ${(tx.receiverBankName || 'Credixa Banking').padEnd(42)} ║
+║  Country:             ${(tx.receiverCountry || 'N/A').padEnd(42)} ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  AMOUNT:              ${formatMoney(tx.amount, tx.currency || '$').padEnd(42)} ║
+${tx.indicativeAmount ? `║  Indicative amount:    ${tx.indicativeAmount.toLocaleString()} ${tx.targetCurrency || ''}` : ''}
+${tx.isSimulation ? `║  ${wasExternalDebitRecorded(tx) ? 'Credixa balance debited; no external bank contacted.' : 'No funds were debited; no external bank contacted.'}` : ''}
 ╠══════════════════════════════════════════════════════════════╣
 ║  Thank you for banking with Credixa!                         ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -158,7 +162,7 @@ const TransactionHistory = () => {
                       </div>
                       <div>
                         <p className="font-medium">{isSender ? `To ${tx.receiverName}` : `From ${tx.senderName}`}</p>
-                        <p className="text-sm text-gray-500">{tx.narration || tx.type}</p>
+                        <p className="text-sm text-gray-500">{tx.isSimulation ? (wasExternalDebitRecorded(tx) ? 'Credixa balance debited — no external bank contacted' : 'External transfer not completed — no funds debited') : tx.narration || tx.type}</p>
                         <p className="text-xs text-gray-400">{tx.reference}</p>
                       </div>
                     </div>
@@ -171,6 +175,7 @@ const TransactionHistory = () => {
                       <p className="text-xs text-gray-500">
                         {new Date(tx.createdAt).toLocaleDateString()}
                       </p>
+                      {tx.isSimulation && <p className="text-xs font-medium text-amber-600 dark:text-amber-400">{wasExternalDebitRecorded(tx) ? 'Recorded debit' : 'Not completed'}</p>}
                     </div>
                   </div>
                   <div className="mt-3 pt-3 border-t dark:border-gray-700 flex gap-2">
@@ -196,8 +201,10 @@ const TransactionHistory = () => {
             <div className="flex items-center justify-between mb-5"><h2 className="text-lg font-bold">Transaction details</h2><button onClick={() => setSelectedTransaction(null)} aria-label="Close details"><X size={20} /></button></div>
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between gap-4"><dt className="text-gray-500">Reference</dt><dd className="font-mono text-right">{selectedTransaction.reference}</dd></div>
-              <div className="flex justify-between gap-4"><dt className="text-gray-500">Type</dt><dd className="capitalize">{selectedTransaction.type}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-gray-500">Type</dt><dd className="capitalize">{selectedTransaction.isSimulation ? 'External transfer (Credixa debit)' : selectedTransaction.type}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-gray-500">Status</dt><dd className="capitalize">{selectedTransaction.status}</dd></div>
+              {selectedTransaction.receiverCountry && <div className="flex justify-between gap-4"><dt className="text-gray-500">Recipient country</dt><dd>{selectedTransaction.receiverCountry}</dd></div>}
+              {selectedTransaction.isSimulation && <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">{wasExternalDebitRecorded(selectedTransaction) ? 'Your Credixa balance was debited. No outside bank was contacted or paid.' : 'This transfer was not completed and did not debit your balance.'}</p>}
               <div className="flex justify-between gap-4"><dt className="text-gray-500">Date and time</dt><dd className="text-right">{new Date(selectedTransaction.createdAt).toLocaleString()}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-gray-500">Memo</dt><dd className="text-right">{selectedTransaction.narration || 'None'}</dd></div>
             </dl>

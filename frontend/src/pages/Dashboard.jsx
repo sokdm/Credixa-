@@ -29,12 +29,28 @@ const Dashboard = () => {
   const [showNotifDropdown, setShowNotifDropdown] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [watchRates, setWatchRates] = useState({ EUR: 0.92, GBP: 0.79, NGN: 1550 })
+  const [ratesAreLive, setRatesAreLive] = useState(false)
   const notifRef = useRef(null)
 
   useEffect(() => {
     fetchDashboard()
     fetchUnreadCount()
   }, [])
+
+  useEffect(() => {
+    const baseCurrency = dashboardData?.user?.currencyCode || 'USD'
+    setRatesAreLive(false)
+    axios.get('/api/exchange-rates', { params: { base: baseCurrency } })
+      .then((response) => {
+        const rates = response.data?.rates || {}
+        if (['EUR', 'GBP', 'NGN'].every((code) => Number.isFinite(Number(rates[code])))) {
+          setWatchRates({ EUR: Number(rates.EUR), GBP: Number(rates.GBP), NGN: Number(rates.NGN) })
+          setRatesAreLive(true)
+        }
+      })
+      .catch((error) => console.warn('Using built-in indicative currency rates:', error.message))
+  }, [dashboardData?.user?.currencyCode])
 
   useEffect(() => {
     if (user?.id || user?._id) {
@@ -98,10 +114,10 @@ const Dashboard = () => {
 
   const formatMoney = (amount, currency = '$') => {
     const num = Number(amount) || 0
-    if (num < 0) return `${currency}0.00`
-    return `${currency}${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    return `${num < 0 ? '-' : ''}${currency}${Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   }
 
+  const accountCurrency = dashboardData?.user?.currency || '$'
   const isNegativeBalance = (dashboardData?.user?.balance || 0) < 0
 
   if (loading) {
@@ -130,6 +146,7 @@ const Dashboard = () => {
     { icon: Target, label: 'Budget', path: '/budget' },
     { icon: Landmark, label: 'Invest', path: '/invest' },
     { icon: PieChart, label: 'Analytics', path: '/analytics' },
+    { icon: Shield, label: 'API & Developer Settings', path: '/api-settings' },
   ]
 
   const bottomNav = [
@@ -138,9 +155,9 @@ const Dashboard = () => {
   ]
 
   const quickStats = [
-    { label: 'Income', value: formatMoney(dashboardData?.stats?.income || 0), icon: ArrowDownLeft, color: 'text-emerald-400', iconBg: 'from-emerald-500/20 to-emerald-600/20' },
-    { label: 'Expenses', value: formatMoney(dashboardData?.stats?.expenses || 0), icon: ArrowUpRight, color: 'text-rose-400', iconBg: 'from-rose-500/20 to-rose-600/20' },
-    { label: 'Savings', value: formatMoney(dashboardData?.stats?.savings || 0), icon: PiggyBank, color: 'text-amber-400', iconBg: 'from-amber-500/20 to-amber-600/20' },
+    { label: 'Income', value: formatMoney(dashboardData?.stats?.income || 0, accountCurrency), icon: ArrowDownLeft, color: 'text-emerald-400', iconBg: 'from-emerald-500/20 to-emerald-600/20' },
+    { label: 'Expenses', value: formatMoney(dashboardData?.stats?.expenses || 0, accountCurrency), icon: ArrowUpRight, color: 'text-rose-400', iconBg: 'from-rose-500/20 to-rose-600/20' },
+    { label: 'Savings', value: formatMoney(dashboardData?.stats?.savings || 0, accountCurrency), icon: PiggyBank, color: 'text-amber-400', iconBg: 'from-amber-500/20 to-amber-600/20' },
   ]
 
   return (
@@ -360,7 +377,7 @@ const Dashboard = () => {
 
               <div className="flex items-baseline gap-3 mb-8">
                 <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
-                  {showBalance ? formatMoney(dashboardData?.user?.balance, '$') : '••••••••'}
+                  {showBalance ? formatMoney(dashboardData?.user?.balance, accountCurrency) : '••••••••'}
                 </h2>
                 <BadgeCheck size={24} className="text-emerald-400" />
               </div>
@@ -426,6 +443,40 @@ const Dashboard = () => {
               </motion.div>
             ))}
           </motion.div>
+
+          <section aria-label="Currency equivalents">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-white/40">Currency watchlist</h3>
+              <span className="text-[10px] text-white/30">{ratesAreLive ? 'Live indicative rates' : 'Offline indicative rates'}</span>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {[
+                { code: 'EUR', name: 'Euro', flag: '🇪🇺', offlineRate: 0.92 },
+                { code: 'GBP', name: 'British Pound', flag: '🇬🇧', offlineRate: 0.79 },
+                { code: 'NGN', name: 'Nigerian Naira', flag: '🇳🇬', offlineRate: 1550 }
+              ].map(({ code, name, flag, offlineRate }) => {
+                const offlineBaseRate = { USD: 1, EUR: 0.92, GBP: 0.79, NGN: 1550 }
+                const baseCurrency = dashboardData?.user?.currencyCode || 'USD'
+                const rate = ratesAreLive ? watchRates[code] : offlineRate / (offlineBaseRate[baseCurrency] || 1)
+                const balance = Number(dashboardData?.user?.balance)
+                const equivalent = Number.isFinite(balance) ? balance * rate : null
+                return (
+                  <div key={code} className="glass-card flex items-center gap-3 p-4">
+                    <span className="text-2xl" aria-hidden="true">{flag}</span>
+                    <div className="min-w-0">
+                      <p className="text-xs text-white/50">{code} · {name}</p>
+                      <p className="truncate font-semibold text-white">
+                        {equivalent === null
+                          ? 'Balance unavailable'
+                          : new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).format(equivalent)}
+                      </p>
+                      <p className="text-[10px] text-white/30">Indicative equivalent of your {dashboardData?.user?.currencyCode || 'USD'} balance</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
 
           {/* Quick Actions Grid */}
           <motion.div

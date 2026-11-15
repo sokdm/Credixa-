@@ -61,6 +61,7 @@ router.get('/dashboard', auth, async (req, res) => {
         accountNumber: user.accountNumber,
         balance: user.balance,
         currency: user.currency || '$',
+        currencyCode: user.currencyCode || 'USD',
         country: user.country
       },
       transactions,

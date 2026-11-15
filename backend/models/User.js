@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema({
   accountNumber: { type: String, unique: true, sparse: true },
   balance: { type: Number, default: 0 },
   currency: { type: String, default: '$' },
+  currencyCode: { type: String, default: 'USD' },
   isLocked: { type: Boolean, default: false },
   isAdmin: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },

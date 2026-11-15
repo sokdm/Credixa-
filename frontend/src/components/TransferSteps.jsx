@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { CheckCircle, Users, Building2, Search, UserCheck, Globe, ArrowRightLeft, RefreshCw, Mail } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { COUNTRIES } from '../data/countries'
 
 const FALLBACK_RATES = {
   USD: { rate: 1, symbol: '$', flag: '🇺🇸', name: 'US Dollar' },
@@ -118,23 +119,49 @@ const fetchLiveRates = async () => {
 }
 
 const buildRates = (apiRates) => {
-  if (!apiRates) return FALLBACK_RATES
-  const built = {}
-  Object.keys(CURRENCY_META).forEach(code => {
-    if (apiRates[code]) built[code] = { ...CURRENCY_META[code], rate: apiRates[code] }
+  const built = { ...FALLBACK_RATES }
+  const currencyNames = new Intl.DisplayNames(['en'], { type: 'currency' })
+  const currencyCodes = typeof Intl.supportedValuesOf === 'function'
+    ? Intl.supportedValuesOf('currency')
+    : Object.keys(CURRENCY_META)
+
+  currencyCodes.forEach((code) => {
+    const symbol = new Intl.NumberFormat('en', { style: 'currency', currency: code })
+      .formatToParts(1)
+      .find((part) => part.type === 'currency')?.value || code
+    const fallback = FALLBACK_RATES[code] || CURRENCY_META[code]
+    built[code] = {
+      name: fallback?.name || currencyNames.of(code) || code,
+      symbol: fallback?.symbol || symbol,
+      flag: fallback?.flag || '🌐',
+      rate: Number(apiRates?.[code]) || fallback?.rate || null
+    }
   })
-  built.USD = { ...CURRENCY_META.USD, rate: 1 }
-  return Object.keys(built).length > 5 ? built : FALLBACK_RATES
+
+  built.USD = { ...built.USD, rate: 1 }
+  return built
 }
 
 const convertAmount = (amount, rate) => {
-  if (!amount || isNaN(amount) || !rate) return '0.00'
+  if (!amount || isNaN(amount) || !Number.isFinite(Number(rate)) || Number(rate) <= 0) return null
   return (parseFloat(amount) * rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 const getCurrencySymbol = (code, rates) => rates[code]?.symbol || '$'
 const getCurrencyFlag = (code, rates) => rates[code]?.flag || '🌐'
 const getCurrencyName = (code, rates) => rates[code]?.name || code
+const getCurrencyMeta = (code) => {
+  const currencyNames = new Intl.DisplayNames(['en'], { type: 'currency' })
+  const symbol = new Intl.NumberFormat('en', { style: 'currency', currency: code })
+    .formatToParts(1)
+    .find((part) => part.type === 'currency')?.value || code
+  const fallback = FALLBACK_RATES[code] || CURRENCY_META[code]
+  return {
+    name: fallback?.name || currencyNames.of(code) || code,
+    symbol: fallback?.symbol || symbol,
+    flag: fallback?.flag || '🌐'
+  }
+}
 
 export const StepIndicator = ({ step }) => (
   <div className="flex items-center justify-center mb-6 lg:mb-8">
@@ -161,7 +188,7 @@ export const Step1SelectType = ({ transferType, setTransferType, setStep }) => (
       <button onClick={() => { setTransferType('external'); setStep(2) }} className={`bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-6 lg:p-8 text-left hover:border-violet-500/50 transition-all ${transferType === 'external' ? 'ring-2 ring-violet-600' : ''}`}>
         <div className="w-14 h-14 bg-pink-500/20 rounded-2xl flex items-center justify-center mb-4"><Building2 className="text-pink-400" size={28} /></div>
         <h3 className="text-lg font-semibold mb-2">External Transfer</h3>
-        <p className="text-white/50 text-sm">Send to other banks worldwide</p>
+        <p className="text-white/50 text-sm">Debit your Credixa balance and record the transfer with an indicative conversion. External bank settlement is not integrated.</p>
       </button>
     </div>
   </motion.div>
@@ -173,22 +200,31 @@ export const Step2Details = ({ transferType, formData, setFormData, foundUser, s
   const [rates, setRates] = useState(FALLBACK_RATES)
   const [ratesLoading, setRatesLoading] = useState(false)
   const [ratesUpdated, setRatesUpdated] = useState(null)
+  const [ratesLive, setRatesLive] = useState(false)
 
   useEffect(() => {
+    if (transferType !== 'external') return
     const loadRates = async () => {
       setRatesLoading(true)
       const apiRates = await fetchLiveRates()
       const built = buildRates(apiRates)
       setRates(built)
-      setRatesUpdated(new Date().toLocaleTimeString())
+      setRatesLive(Boolean(apiRates))
+      setRatesUpdated(apiRates ? new Date().toLocaleTimeString() : null)
       setRatesLoading(false)
     }
     loadRates()
-  }, [])
+  }, [transferType])
 
   useEffect(() => {
-    const rate = rates[formData.targetCurrency]?.rate || 1
-    setConvertedAmount(convertAmount(formData.amount, rate))
+    const rate = rates[formData.targetCurrency]?.rate ?? null
+    const converted = convertAmount(formData.amount, rate)
+    setConvertedAmount(converted)
+    setFormData((previous) => ({
+      ...previous,
+      exchangeRate: rate,
+      convertedAmount: converted
+    }))
   }, [formData.amount, formData.targetCurrency, rates])
 
   const handleCurrencySelect = (currencyCode) => {
@@ -201,7 +237,8 @@ export const Step2Details = ({ transferType, formData, setFormData, foundUser, s
     const apiRates = await fetchLiveRates()
     const built = buildRates(apiRates)
     setRates(built)
-    setRatesUpdated(new Date().toLocaleTimeString())
+    setRatesLive(Boolean(apiRates))
+    setRatesUpdated(apiRates ? new Date().toLocaleTimeString() : null)
     setRatesLoading(false)
   }
 
@@ -253,6 +290,18 @@ export const Step2Details = ({ transferType, formData, setFormData, foundUser, s
         ) : (
           <>
             <div>
+              <label className="block text-sm font-medium mb-2 text-white/70">Recipient Country</label>
+              <select
+                required
+                value={formData.country || ''}
+                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                className="w-full px-4 py-3 bg-[#1a1a2e] border border-white/20 rounded-xl text-white focus:outline-none focus:border-violet-500"
+              >
+                <option value="" disabled>Select country</option>
+                {COUNTRIES.map((country) => <option key={country} value={country}>{country}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium mb-2 text-white/70">Bank Name</label>
               <input type="text" required value={formData.bankName}
                 onChange={(e) => setFormData({...formData, bankName: e.target.value})}
@@ -291,6 +340,7 @@ export const Step2Details = ({ transferType, formData, setFormData, foundUser, s
         {/* Amount Section with Currency Selector */}
         <div>
           <label className="block text-sm font-medium mb-2 text-white/70">Amount</label>
+          {transferType === 'external' ? (
           <div className="relative mb-3">
             <button type="button" onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
               className="w-full flex items-center justify-between px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white hover:bg-white/15 transition-colors focus:outline-none focus:border-violet-500 min-h-[52px]">
@@ -304,7 +354,7 @@ export const Step2Details = ({ transferType, formData, setFormData, foundUser, s
               <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                 className="absolute z-20 w-full mt-2 max-h-[70vh] overflow-y-auto bg-[#1a1a2e] border border-white/20 rounded-xl shadow-2xl">
                 <div className="sticky top-0 bg-[#1a1a2e] border-b border-white/10 p-3 flex items-center justify-between">
-                  <p className="text-xs text-white/50">{ratesUpdated ? `Updated: ${ratesUpdated}` : 'Live rates'}</p>
+                    <p className="text-xs text-white/50">{ratesUpdated ? `Live rates updated: ${ratesUpdated}` : 'Using offline indicative rates'}</p>
                   <button type="button" onClick={(e) => { e.stopPropagation(); refreshRates() }} disabled={ratesLoading}
                     className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 px-2 py-1 rounded-lg hover:bg-violet-500/10 transition-colors disabled:opacity-50">
                     <RefreshCw size={12} className={ratesLoading ? 'animate-spin' : ''} />Refresh
@@ -314,13 +364,16 @@ export const Step2Details = ({ transferType, formData, setFormData, foundUser, s
                   <button key={code} type="button" onClick={() => handleCurrencySelect(code)}
                     className={`w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/10 transition-colors text-left min-h-[52px] ${formData.targetCurrency === code ? 'bg-violet-500/20 border-l-2 border-violet-500' : ''}`}>
                     <span className="text-2xl">{currency.flag}</span>
-                    <div className="flex-1"><p className="text-sm font-medium text-white">{currency.name}</p><p className="text-xs text-white/50">1 USD = {currency.rate} {currency.symbol}</p></div>
+                    <div className="flex-1"><p className="text-sm font-medium text-white">{currency.name} ({code})</p><p className="text-xs text-white/50">{currency.rate ? `1 USD ≈ ${currency.rate} ${currency.symbol}` : 'Rate unavailable offline'}</p></div>
                     {formData.targetCurrency === code && <CheckCircle size={18} className="text-violet-400" />}
                   </button>
                 ))}
               </motion.div>
             )}
           </div>
+          ) : (
+            <p className="mb-3 text-xs text-white/50">Credixa-to-Credixa transfers stay in your account currency.</p>
+          )}
 
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 font-semibold text-lg">$</span>
@@ -330,16 +383,30 @@ export const Step2Details = ({ transferType, formData, setFormData, foundUser, s
               placeholder="0.00" />
           </div>
 
-          {formData.amount && parseFloat(formData.amount) > 0 && (
+          {transferType === 'external' && formData.amount && parseFloat(formData.amount) > 0 && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               className="mt-3 p-4 bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-violet-500/20 rounded-xl">
               <div className="flex items-center gap-2 mb-2"><ArrowRightLeft size={16} className="text-violet-400" /><p className="text-xs text-violet-400 font-medium uppercase tracking-wider">Recipient Receives</p></div>
-              <p className="text-2xl font-bold text-white">{selectedCurrency.symbol}{convertedAmount}</p>
-              <p className="text-xs text-white/50 mt-1">{selectedCurrency.flag} {getCurrencyName(formData.targetCurrency, rates)} • Exchange rate: 1 USD = {selectedCurrency.rate} {selectedCurrency.symbol}</p>
+              <p className="text-2xl font-bold text-white">{convertedAmount ? `${selectedCurrency.symbol}${convertedAmount}` : 'Rate unavailable offline'}</p>
+              <p className="text-xs text-white/50 mt-1">{selectedCurrency.flag} {getCurrencyName(formData.targetCurrency, rates)} • {selectedCurrency.rate ? `Indicative rate: 1 USD ≈ ${selectedCurrency.rate} ${selectedCurrency.symbol}` : 'Connect to fetch this currency’s rate'}</p>
+              {transferType === 'external' && <p className="text-xs text-amber-300/80 mt-1">External transfers are simulated in this app; no outside bank is contacted. Conversion is indicative only.</p>}
               {formData.targetCurrency !== 'USD' && <p className="text-xs text-white/40 mt-1">You send: ${parseFloat(formData.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD</p>}
-              {ratesUpdated && <p className="text-[10px] text-white/30 mt-2 flex items-center gap-1"><RefreshCw size={8} />Rate updated at {ratesUpdated}</p>}
+              <p className="text-[10px] text-white/30 mt-2">{ratesLive ? `Live rate updated at ${ratesUpdated}` : 'Indicative offline rate; no provider connection required'}</p>
             </motion.div>
           )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2 text-white/70">Expense category</label>
+          <select
+            value={formData.category || 'other'}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            className="w-full px-4 py-3 bg-[#1a1a2e] border border-white/20 rounded-xl text-white focus:outline-none focus:border-violet-500"
+          >
+            {['other', 'housing', 'food', 'transport', 'utilities', 'shopping', 'health', 'education', 'entertainment'].map((category) => (
+              <option key={category} value={category}>{category.charAt(0).toUpperCase() + category.slice(1)}</option>
+            ))}
+          </select>
         </div>
 
         <div>
@@ -360,22 +427,8 @@ export const Step2Details = ({ transferType, formData, setFormData, foundUser, s
 }
 
 export const Step3PIN = ({ transferType, formData, selectedRecipient, setFormData, handleSubmit, setStep, loading, error }) => {
-  const [rates, setRates] = useState(FALLBACK_RATES)
-  const [ratesLoading, setRatesLoading] = useState(false)
-
-  useEffect(() => {
-    const loadRates = async () => {
-      setRatesLoading(true)
-      const apiRates = await fetchLiveRates()
-      const built = buildRates(apiRates)
-      setRates(built)
-      setRatesLoading(false)
-    }
-    loadRates()
-  }, [])
-
-  const targetCurrency = rates[formData.targetCurrency] || rates.USD
-  const convertedAmount = convertAmount(formData.amount, targetCurrency.rate)
+  const targetCurrency = getCurrencyMeta(formData.targetCurrency || 'USD')
+  const convertedAmount = convertAmount(formData.amount, formData.exchangeRate)
 
   return (
     <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
@@ -388,12 +441,12 @@ export const Step3PIN = ({ transferType, formData, selectedRecipient, setFormDat
 
       <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 lg:p-8 mb-6">
         <div className="space-y-3 mb-6">
-          <div className="bg-gradient-to-r from-violet-900/30 to-purple-900/30 rounded-xl p-4 border border-violet-500/20">
+          {transferType === 'external' && <div className="bg-gradient-to-r from-violet-900/30 to-purple-900/30 rounded-xl p-4 border border-violet-500/20">
             <div className="flex justify-between items-start mb-2"><span className="text-white/50 text-sm">You Send</span><span className="font-bold text-lg">${parseFloat(formData.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
             <div className="flex items-center gap-2 mb-2"><ArrowRightLeft size={14} className="text-violet-400" /><div className="h-px flex-1 bg-gradient-to-r from-violet-500/50 to-transparent" /></div>
-            <div className="flex justify-between items-start"><span className="text-violet-400 text-sm font-medium">Recipient Gets</span><span className="font-bold text-lg text-violet-300">{targetCurrency.symbol}{convertedAmount} {targetCurrency.flag}</span></div>
-            <p className="text-xs text-white/40 mt-2 text-right">1 USD = {targetCurrency.rate} {targetCurrency.symbol}{ratesLoading && <RefreshCw size={10} className="inline ml-1 animate-spin" />}</p>
-          </div>
+            <div className="flex justify-between items-start"><span className="text-violet-400 text-sm font-medium">Indicative recipient amount</span><span className="font-bold text-lg text-violet-300">{convertedAmount ? `${targetCurrency.symbol}${convertedAmount} ${targetCurrency.flag}` : 'Rate unavailable'}</span></div>
+            {convertedAmount && <p className="text-xs text-white/40 mt-2 text-right">1 USD ≈ {formData.exchangeRate} {targetCurrency.symbol}</p>}
+          </div>}
 
           {transferType === 'internal' ? (
             <div className="flex justify-between py-2 border-b border-white/5"><span className="text-white/50 text-sm">To</span>
@@ -401,6 +454,7 @@ export const Step3PIN = ({ transferType, formData, selectedRecipient, setFormDat
             </div>
           ) : (
             <>
+              <div className="flex justify-between py-2 border-b border-white/5"><span className="text-white/50 text-sm">Country</span><span className="text-sm">{formData.country}</span></div>
               <div className="flex justify-between py-2 border-b border-white/5"><span className="text-white/50 text-sm">Bank</span><span className="text-sm">{formData.bankName}</span></div>
               <div className="flex justify-between py-2 border-b border-white/5"><span className="text-white/50 text-sm">Account</span><span className="text-sm">{formData.accountNumber}</span></div>
               <div className="flex justify-between py-2 border-b border-white/5"><span className="text-white/50 text-sm">Name</span><span className="text-sm">{formData.accountName}</span></div>
@@ -411,7 +465,7 @@ export const Step3PIN = ({ transferType, formData, selectedRecipient, setFormDat
           )}
 
           {formData.narration && <div className="flex justify-between py-2 border-b border-white/5"><span className="text-white/50 text-sm">Narration</span><span className="text-sm">{formData.narration}</span></div>}
-          <div className="flex justify-between py-2 border-b border-white/5"><span className="text-white/50 text-sm">Currency</span><span className="text-sm">{targetCurrency.flag} {targetCurrency.name}</span></div>
+          <div className="flex justify-between py-2 border-b border-white/5"><span className="text-white/50 text-sm">Currency</span><span className="text-sm">{transferType === 'external' ? `${targetCurrency.flag} ${targetCurrency.name}` : 'Your Credixa account currency'}</span></div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

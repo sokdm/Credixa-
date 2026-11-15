@@ -91,7 +91,7 @@ const ScheduledPayments = () => {
             <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-gray-700 rounded-lg">
               <ArrowLeft size={20} />
             </button>
-            <h1 className="font-bold text-lg">Scheduled Payments</h1>
+            <h1 className="font-bold text-lg">Payment Reminders</h1>
           </div>
           <button onClick={() => setShowAdd(!showAdd)} className="p-2 bg-violet-600 rounded-lg hover:bg-violet-700">
             <Plus size={20} />
@@ -100,6 +100,9 @@ const ScheduledPayments = () => {
       </header>
 
       <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
+        <div className="rounded-2xl border border-sky-500/25 bg-sky-500/10 p-4 text-sm text-sky-200">
+          These are reminders only. They do not automatically move money; review and authorize each transfer separately.
+        </div>
         {showAdd && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-gray-800 rounded-2xl p-5 border border-gray-700 space-y-3">
             <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Payment name" className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white" />

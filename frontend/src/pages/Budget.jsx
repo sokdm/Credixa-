@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Plus, Trash2, AlertTriangle, CheckCircle } from 'lucide-react'
 import axios from 'axios'
+import { useAuth } from '../context/AuthContext'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 const Budget = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const currency = user?.currency || '$'
   const [budgets, setBudgets] = useState([])
   const [showAdd, setShowAdd] = useState(false)
   const [newCategory, setNewCategory] = useState('')
@@ -35,7 +38,7 @@ const Budget = () => {
     if (!newCategory || !newLimit) return
     try {
       const res = await axios.post(`${API_URL}/api/budget`, {
-        category: newCategory,
+        category: newCategory.toLowerCase(),
         limit: Number(newLimit),
         spent: 0,
         color: 'bg-emerald-500'
@@ -66,7 +69,7 @@ const Budget = () => {
   const totalSpent = budgets.reduce((sum, b) => sum + (b.spent || 0), 0)
   const totalRemaining = totalBudget - totalSpent
 
-  const getProgress = (spent, limit) => Math.min(((spent || 0) / limit) * 100, 100)
+  const getProgress = (spent, limit) => limit > 0 ? Math.min(((spent || 0) / limit) * 100, 100) : 0
   const getStatus = (spent, limit) => {
     if ((spent || 0) > limit) return { icon: AlertTriangle, color: 'text-rose-400', bg: 'bg-rose-500/20', label: 'Over budget' }
     if ((spent || 0) / limit > 0.8) return { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/20', label: 'Nearly there' }
@@ -96,23 +99,24 @@ const Budget = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-2xl font-bold text-white">${totalBudget.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-white">{currency}{totalBudget.toLocaleString()}</p>
               <p className="text-xs text-gray-400 mt-1">Total Budget</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-rose-400">${totalSpent.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-rose-400">{currency}{totalSpent.toLocaleString()}</p>
               <p className="text-xs text-gray-400 mt-1">Spent</p>
             </div>
             <div>
               <p className={`text-2xl font-bold ${totalRemaining < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                ${Math.abs(totalRemaining).toLocaleString()}
+                {currency}{Math.abs(totalRemaining).toLocaleString()}
               </p>
               <p className="text-xs text-gray-400 mt-1">{totalRemaining < 0 ? 'Over' : 'Remaining'}</p>
             </div>
           </div>
           <div className="mt-4 h-3 bg-gray-700 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-violet-500 to-pink-500 rounded-full transition-all" style={{ width: `${Math.min((totalSpent / totalBudget) * 100, 100)}%` }} />
+            <div className="h-full bg-gradient-to-r from-violet-500 to-pink-500 rounded-full transition-all" style={{ width: `${totalBudget > 0 ? Math.min((totalSpent / totalBudget) * 100, 100) : 0}%` }} />
           </div>
+          <p className="mt-2 text-center text-xs text-gray-400">Spending is based on categorized completed transfers this month.</p>
         </motion.div>
 
         <button onClick={() => setShowAdd(!showAdd)} className="w-full py-3 bg-violet-600 rounded-xl font-medium hover:bg-violet-700 transition-colors flex items-center justify-center gap-2">
@@ -121,8 +125,13 @@ const Budget = () => {
 
         {showAdd && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-gray-800 rounded-2xl p-4 border border-gray-700 space-y-3">
-            <input type="text" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="Category name" className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white" />
-            <input type="number" value={newLimit} onChange={(e) => setNewLimit(e.target.value)} placeholder="Budget limit ($)" className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white" />
+            <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white">
+              <option value="" disabled>Select expense category</option>
+              {['housing', 'food', 'transport', 'utilities', 'shopping', 'health', 'education', 'entertainment', 'other'].map((category) => (
+                <option key={category} value={category}>{category.charAt(0).toUpperCase() + category.slice(1)}</option>
+              ))}
+            </select>
+            <input type="number" min="0.01" step="0.01" value={newLimit} onChange={(e) => setNewLimit(e.target.value)} placeholder={`Monthly budget limit (${currency})`} className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white" />
             <button onClick={addBudget} className="w-full py-3 bg-emerald-600 rounded-xl font-medium hover:bg-emerald-700">Create Budget</button>
           </motion.div>
         )}
@@ -149,15 +158,15 @@ const Budget = () => {
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-gray-400">${(budget.spent || 0).toLocaleString()} spent</span>
-                  <span className="text-gray-400">of ${budget.limit.toLocaleString()}</span>
+                  <span className="text-gray-400">{currency}{(budget.spent || 0).toLocaleString()} spent</span>
+                  <span className="text-gray-400">of {currency}{budget.limit.toLocaleString()}</span>
                 </div>
                 <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
                   <div className={`h-full ${budget.color || 'bg-violet-500'} rounded-full transition-all`} style={{ width: `${progress}%` }} />
                 </div>
                 {(budget.spent || 0) > budget.limit && (
                   <p className="text-xs text-rose-400 mt-2 flex items-center gap-1">
-                    <AlertTriangle size={12} /> Over budget by ${((budget.spent || 0) - budget.limit).toLocaleString()}
+                    <AlertTriangle size={12} /> Over budget by {currency}{((budget.spent || 0) - budget.limit).toLocaleString()}
                   </p>
                 )}
               </motion.div>
