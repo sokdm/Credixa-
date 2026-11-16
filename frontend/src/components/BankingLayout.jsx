@@ -141,6 +141,23 @@ const BankingLayout = ({ children }) => {
           <div className="banking-page-enter">{children}</div>
         </main>
       </div>
+      <nav className="banking-mobile-nav" aria-label="Quick account actions">
+        <NavLink to="/dashboard" aria-label="Dashboard" className={({ isActive }) => `banking-mobile-action${isActive ? ' is-active' : ''}`}>
+          <Home size={19} strokeWidth={1.9} /><span>Home</span>
+        </NavLink>
+        <NavLink to="/qr-pay" aria-label="QR Pay" className={({ isActive }) => `banking-mobile-action${isActive ? ' is-active' : ''}`}>
+          <QrCode size={19} strokeWidth={1.9} /><span>QR Pay</span>
+        </NavLink>
+        <NavLink to="/transfer" aria-label="Transfer" className={({ isActive }) => `banking-mobile-action banking-mobile-transfer${isActive ? ' is-active' : ''}`}>
+          <ArrowLeftRight size={23} strokeWidth={2} /><span>Transfer</span>
+        </NavLink>
+        <NavLink to="/history" aria-label="Activity" className={({ isActive }) => `banking-mobile-action${isActive ? ' is-active' : ''}`}>
+          <Receipt size={19} strokeWidth={1.9} /><span>Activity</span>
+        </NavLink>
+        <button type="button" className={`banking-mobile-action${mobileMenuOpen ? ' is-active' : ''}`} onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="More account actions">
+          <Menu size={19} strokeWidth={1.9} /><span>More</span>
+        </button>
+      </nav>
     </div>
   )
 }
