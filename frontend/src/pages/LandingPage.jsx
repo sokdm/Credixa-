@@ -1,758 +1,229 @@
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  Zap, CreditCard, PiggyBank, Clock, Receipt, Shield,
-  CheckCircle, Users, TrendingUp, Activity,
-  ChevronDown, Menu, X, ArrowRight,
-  Wallet, ArrowUpRight, ArrowDownRight, BarChart3,
-  Smartphone, Globe, Lock, Sparkles, Sun, Moon
+  ArrowDownLeft, ArrowRight, ArrowUpRight, BadgeCheck, BarChart3, Check,
+  ChevronDown, CreditCard, Globe2, LockKeyhole, Menu, MessageCircle,
+  Moon, ShieldCheck, Smartphone, Sun, WalletCards, X
 } from 'lucide-react'
-import { useState } from 'react'
 import { useTheme } from '../context/ThemeContext'
 
-const features = [
-  { icon: Zap, title: 'Credixa transfers', desc: 'Send money to another Credixa account with a secure, PIN-protected flow.' },
-  { icon: CreditCard, title: 'Card management', desc: 'Review your card details and manage available card controls in one place.' },
-  { icon: PiggyBank, title: 'Savings goals', desc: 'Create personal goals and keep your progress organized.' },
-  { icon: Clock, title: 'Account access', desc: 'Review your balance and account activity from desktop, tablet, or mobile.' },
-  { icon: Receipt, title: 'Everyday payments', desc: 'Explore the bill-payment options available in your account.' },
-  { icon: Shield, title: 'Layered Account Security', desc: 'PIN protection, OTP verification, authenticated sessions, and server-side checks help protect every transaction.' }
+const reveal = {
+  hidden: { opacity: 0, y: 22 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'easeOut' } }
+}
+
+const featureCards = [
+  { icon: WalletCards, title: 'A clear view of your money', copy: 'See account activity and your available balance together in one considered dashboard.' },
+  { icon: ArrowUpRight, title: 'Transfers with care', copy: 'Move money between Credixa accounts through a simple, PIN-protected flow.' },
+  { icon: BarChart3, title: 'Make sense of spending', copy: 'Review your recorded activity and organize your plans with built-in money tools.' },
+  { icon: ShieldCheck, title: 'Security at every step', copy: 'Authenticated sessions, verification flows, and server-side checks help protect account activity.' }
 ]
 
-const whyChoose = [
-  'Review account activity and transfer records in one place',
-  'Set up an account with guided registration',
-  'Intuitive, user-friendly dashboard',
-  'PIN-protected transfer flow',
-  'Get help through the in-app support conversation',
-  'Saved indicative currency quotes on transfer records'
+const faqItems = [
+  ['How do I get started?', 'Create an account using the registration form. Your available account features are shown after you sign in.'],
+  ['How do Credixa transfers work?', 'Transfers between Credixa accounts update both account balances. External transfers debit and record the amount in Credixa, but are not settled through an outside bank.'],
+  ['Are exchange rates guaranteed?', 'Currency quotes are indicative estimates and may change or be unavailable. A quote does not mean an external bank transfer will settle.'],
+  ['How is my account protected?', 'Credixa uses authenticated sessions, transaction PIN protection, verification flows, and server-side validation.']
 ]
-
-const stats = [
-  { icon: Wallet, value: 'One', label: 'Connected account overview', suffix: '' },
-  { icon: TrendingUp, value: 'Clear', label: 'Spending and activity views', suffix: '' },
-  { icon: Activity, value: 'Secure', label: 'PIN-protected transfer flow', suffix: '' }
-]
-
-const supportOptions = [
-  { name: 'Talk to support', role: 'In-app support conversation', text: 'Send a message to the Credixa support team and continue the conversation from your account.', avatar: '01' },
-  { name: 'Review a transfer', role: 'Transaction history and receipts', text: 'Find transaction details, check recorded statuses, and download receipts from your history.', avatar: '02' },
-  { name: 'Protect your account', role: 'Security and account settings', text: 'Use account settings and your transaction PIN to help keep access and transfers protected.', avatar: '03' }
-]
-
-const faqs = [
-  { q: 'How does Credixa protect my account?', a: 'Credixa uses authenticated sessions, PIN protection for transfers, OTP flows, and server-side validation for account activity. Review the security details in your account and contact support with any concerns.' },
-  { q: 'How long does it take to open an account?', a: 'Less than 2 minutes. Just fill the form, verify your identity, and start banking immediately.' },
-  { q: 'Can I get both virtual and physical cards?', a: 'Absolutely. Request a virtual card instantly for online shopping, or order a physical card delivered to your address.' },
-  { q: 'How do transfers work?', a: 'Internal Credixa-to-Credixa transfers update both account balances. External transfers debit and record the amount in Credixa, but are not settled through an outside bank.' },
-  { q: 'Are currency conversions guaranteed?', a: 'Currency conversions are indicative estimates. Rates may be unavailable or change; an estimate is not a promise of external bank settlement.' }
-]
-
-const bankingImages = [
-  'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=600&q=80',
-  'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&q=80',
-  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&q=80',
-  'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&q=80'
-]
-
-const HeroIllustration = () => (
-  <svg viewBox="0 0 500 400" className="fintech-illustration" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="250" cy="200" r="180" fill="url(#glow1)" opacity="0.3"/>
-    <circle cx="350" cy="150" r="100" fill="url(#glow2)" opacity="0.2"/>
-    <rect x="120" y="80" width="260" height="160" rx="20" fill="url(#cardGrad)" stroke="rgba(255,255,255,0.1)" strokeWidth="1"/>
-    <rect x="140" y="100" width="80" height="12" rx="6" fill="rgba(255,255,255,0.3)"/>
-    <rect x="140" y="125" width="140" height="8" rx="4" fill="rgba(255,255,255,0.15)"/>
-    <rect x="140" y="145" width="100" height="8" rx="4" fill="rgba(255,255,255,0.1)"/>
-    <circle cx="340" cy="130" r="25" fill="rgba(255,255,255,0.1)"/>
-    <text x="340" y="135" textAnchor="middle" fill="rgba(255,255,255,0.5)" fontSize="12" fontWeight="bold">VISA</text>
-    <motion.rect 
-      x="320" y="40" width="140" height="90" rx="14" 
-      fill="url(#cardGrad2)" 
-      stroke="rgba(255,255,255,0.08)" 
-      strokeWidth="1"
-      animate={{ y: [0, -10, 0] }}
-      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-    />
-    <motion.rect 
-      x="340" y="58" width="50" height="8" rx="4" 
-      fill="rgba(255,255,255,0.3)"
-      animate={{ y: [0, -10, 0] }}
-      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-    />
-    <motion.rect 
-      x="340" y="75" width="80" height="6" rx="3" 
-      fill="rgba(255,255,255,0.15)"
-      animate={{ y: [0, -10, 0] }}
-      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-    />
-    <motion.rect 
-      x="40" y="200" width="130" height="80" rx="12" 
-      fill="url(#cardGrad3)" 
-      stroke="rgba(255,255,255,0.08)" 
-      strokeWidth="1"
-      animate={{ y: [0, 8, 0] }}
-      transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-    />
-    <motion.circle 
-      cx="70" cy="230" r="15" 
-      fill="rgba(16,185,129,0.3)"
-      animate={{ y: [0, 8, 0] }}
-      transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-    />
-    <motion.rect 
-      x="95" y="222" width="50" height="6" rx="3" 
-      fill="rgba(255,255,255,0.2)"
-      animate={{ y: [0, 8, 0] }}
-      transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-    />
-    <motion.rect 
-      x="95" y="235" width="35" height="6" rx="3" 
-      fill="rgba(255,255,255,0.1)"
-      animate={{ y: [0, 8, 0] }}
-      transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-    />
-    <motion.path 
-      d="M 120 280 Q 180 260 220 270 T 300 250 T 380 240" 
-      stroke="url(#lineGrad)" 
-      strokeWidth="2" 
-      fill="none"
-      initial={{ pathLength: 0 }}
-      animate={{ pathLength: 1 }}
-      transition={{ duration: 3, repeat: Infinity, repeatType: "reverse" }}
-    />
-    <motion.circle cx="380" cy="240" r="5" fill="#a78bfa"
-      animate={{ scale: [1, 1.3, 1] }}
-      transition={{ duration: 2, repeat: Infinity }}
-    />
-    <circle cx="250" cy="320" r="4" fill="rgba(167,139,250,0.5)"/>
-    <circle cx="280" cy="310" r="3" fill="rgba(236,72,153,0.4)"/>
-    <circle cx="220" cy="330" r="3" fill="rgba(56,189,248,0.4)"/>
-    <defs>
-      <radialGradient id="glow1" cx="0.5" cy="0.5" r="0.5">
-        <stop offset="0%" stopColor="#7c3aed" stopOpacity="0.3"/>
-        <stop offset="100%" stopColor="#7c3aed" stopOpacity="0"/>
-      </radialGradient>
-      <radialGradient id="glow2" cx="0.5" cy="0.5" r="0.5">
-        <stop offset="0%" stopColor="#ec4899" stopOpacity="0.2"/>
-        <stop offset="100%" stopColor="#ec4899" stopOpacity="0"/>
-      </radialGradient>
-      <linearGradient id="cardGrad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="rgba(124,58,237,0.4)"/>
-        <stop offset="50%" stopColor="rgba(236,72,153,0.2)"/>
-        <stop offset="100%" stopColor="rgba(56,189,248,0.1)"/>
-      </linearGradient>
-      <linearGradient id="cardGrad2" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="rgba(236,72,153,0.3)"/>
-        <stop offset="100%" stopColor="rgba(124,58,237,0.2)"/>
-      </linearGradient>
-      <linearGradient id="cardGrad3" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="rgba(16,185,129,0.2)"/>
-        <stop offset="100%" stopColor="rgba(56,189,248,0.15)"/>
-      </linearGradient>
-      <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stopColor="#7c3aed"/>
-        <stop offset="50%" stopColor="#ec4899"/>
-        <stop offset="100%" stopColor="#38bdf8"/>
-      </linearGradient>
-    </defs>
-  </svg>
-)
-
-const ImageCard = ({ src, alt, delay }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 40 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true }}
-    transition={{ delay, duration: 0.6 }}
-    whileHover={{ y: -8, scale: 1.02 }}
-    className="relative rounded-2xl overflow-hidden group"
-  >
-    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10"/>
-    <img 
-      src={src} 
-      alt={alt} 
-      className="w-full h-64 object-cover transition-transform duration-500 group-hover:scale-110"
-      loading="lazy"
-    />
-    <div className="absolute bottom-4 left-4 right-4 z-20">
-      <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center mb-2 border border-white/10">
-        <Shield className="text-white" size={18} />
-      </div>
-      <p className="text-white font-semibold text-sm">{alt}</p>
-    </div>
-  </motion.div>
-)
 
 const LandingPage = () => {
   const navigate = useNavigate()
   const { darkMode, toggleTheme } = useTheme()
-  const [mobileMenu, setMobileMenu] = useState(false)
-  const [openFaq, setOpenFaq] = useState(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [openFaq, setOpenFaq] = useState(0)
+
+  const closeMenu = () => setMenuOpen(false)
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] text-white overflow-x-hidden">
-      {/* ===== NAVBAR ===== */}
-      <nav className="fixed w-full z-50 nav-glass">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <motion.div
-              className="flex items-center gap-3"
-              whileHover={{ scale: 1.02 }}
-            >
-              <div className="w-9 h-9 bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/20">
-                <span className="text-white font-bold text-sm">C</span>
+    <div className="landing-page">
+      <header className="landing-header">
+        <div className="landing-container landing-nav">
+          <Link className="landing-brand" to="/" aria-label="Credixa home">
+            <span className="landing-brand-mark">C</span>
+            <span>credixa</span>
+          </Link>
+          <button className="landing-menu-button" type="button" aria-label={menuOpen ? 'Close menu' : 'Open menu'} onClick={() => setMenuOpen(!menuOpen)}>
+            {menuOpen ? <X size={21} /> : <Menu size={21} />}
+          </button>
+          <nav className={`landing-links${menuOpen ? ' is-open' : ''}`} aria-label="Main navigation">
+            <a href="#features" onClick={closeMenu}>Features</a>
+            <a href="#how-it-works" onClick={closeMenu}>How it works</a>
+            <a href="#stories" onClick={closeMenu}>Stories</a>
+            <a href="#help" onClick={closeMenu}>Help</a>
+            <div className="landing-nav-actions">
+              <button className="landing-theme-button" type="button" aria-label={`Switch to ${darkMode ? 'light' : 'dark'} theme`} onClick={toggleTheme}>{darkMode ? <Sun size={17} /> : <Moon size={17} />}</button>
+              <button className="landing-signin" onClick={() => navigate('/login')}>Sign in</button>
+              <button className="landing-button landing-button-small" onClick={() => navigate('/register')}>Get started <ArrowRight size={16} /></button>
+            </div>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+        <section className="landing-hero">
+          <div className="landing-container landing-hero-grid">
+            <motion.div className="landing-hero-copy" initial="hidden" animate="visible" variants={reveal}>
+              <span className="landing-eyebrow"><span className="landing-eyebrow-dot" /> Banking, made more human</span>
+              <h1>Your money.<br /><span>Your next move.</span></h1>
+              <p>One thoughtful place to understand your account, follow your activity, and manage everyday money with confidence.</p>
+              <div className="landing-hero-actions">
+                <button className="landing-button" onClick={() => navigate('/register')}>Open your account <ArrowRight size={18} /></button>
+                <a className="landing-text-link" href="#features">Explore Credixa <span>↓</span></a>
               </div>
-              <span className="text-xl font-bold gradient-text">Credixa</span>
+              <div className="landing-trust-line"><ShieldCheck size={17} /> Secure account access <span /> Clear activity records <span /> No clutter</div>
             </motion.div>
 
-            <div className="hidden md:flex items-center gap-8">
-              {['Features', 'Why Us', 'Gallery', 'Support', 'FAQ'].map((item) => (
-                <motion.a
-                  key={item}
-                  href={`#${item.toLowerCase().replace(' ', '-')}`}
-                  className="text-white/60 hover:text-white text-sm font-medium transition-colors relative group"
-                  whileHover={{ y: -1 }}
-                >
-                  {item}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-violet-500 to-pink-500 transition-all group-hover:w-full"/>
-                </motion.a>
+            <motion.div className="landing-hero-visual" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, delay: 0.1 }}>
+              <div className="landing-photo-frame">
+                <img
+                  src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1100&q=80"
+                  alt="Customer using a payment card at a shop"
+                  fetchPriority="high"
+                />
+              </div>
+              <div className="landing-product-card" aria-label="Illustrative Credixa app preview">
+                <div className="landing-preview-top">
+                  <span className="landing-mini-brand"><span>C</span> credixa</span>
+                  <span className="landing-preview-avatar">A</span>
+                </div>
+                <p className="landing-preview-label">Account overview</p>
+                <div className="landing-preview-balance">Your account</div>
+                <div className="landing-preview-caption">A clear view of your balance and activity</div>
+                <div className="landing-preview-actions">
+                  <span><i><ArrowUpRight size={16} /></i>Send</span>
+                  <span><i><ArrowDownLeft size={16} /></i>Receive</span>
+                  <span><i><CreditCard size={16} /></i>Cards</span>
+                </div>
+                <div className="landing-preview-activity">
+                  <div className="landing-preview-activity-head"><strong>Recent activity</strong><span>View all</span></div>
+                  <div><i className="activity-icon"><ArrowDownLeft size={15} /></i><span><b>Incoming transfer</b><small>Account activity</small></span><em>Recorded</em></div>
+                  <div><i className="activity-icon"><ArrowUpRight size={15} /></i><span><b>Card payment</b><small>Account activity</small></span><em>Recorded</em></div>
+                </div>
+              </div>
+              <div className="landing-floating-note"><span className="landing-floating-icon"><BadgeCheck size={19} /></span><span><b>Built around clarity</b><small>See your activity at a glance</small></span></div>
+            </motion.div>
+          </div>
+        </section>
+
+        <section className="landing-proof-strip" aria-label="Credixa product highlights">
+          <div className="landing-container landing-proof-grid">
+            <span><LockKeyhole size={19} /> Account-first security</span>
+            <span><Smartphone size={19} /> Designed for every screen</span>
+            <span><Globe2 size={19} /> Currency tools in one place</span>
+            <span><MessageCircle size={19} /> Support when you need it</span>
+          </div>
+        </section>
+
+        <section className="landing-section landing-features" id="features">
+          <div className="landing-container">
+            <motion.div className="landing-section-heading" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={reveal}>
+              <span className="landing-eyebrow">Everyday banking, thoughtfully arranged</span>
+              <h2>Less searching.<br /><span>More understanding.</span></h2>
+              <p>Credixa brings your account essentials together in an interface designed to feel simple, clear, and in your control.</p>
+            </motion.div>
+            <div className="landing-feature-grid">
+              {featureCards.map(({ icon: Icon, title, copy }, index) => (
+                <motion.article className="landing-feature-card" key={title} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }} variants={reveal} transition={{ delay: index * 0.06 }}>
+                  <span className="landing-feature-icon"><Icon size={21} /></span>
+                  <h3>{title}</h3>
+                  <p>{copy}</p>
+                  <span className="landing-card-arrow"><ArrowRight size={17} /></span>
+                </motion.article>
               ))}
-              <button 
-                onClick={toggleTheme} 
-                className="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-white/60 hover:text-white"
-              >
-                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
-              <motion.button
-                onClick={() => navigate('/login')}
-                className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-medium hover:bg-white/10 transition-all"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                Sign In
-              </motion.button>
-              <motion.button
-                onClick={() => navigate('/register')}
-                className="btn-primary text-sm px-5 py-2.5"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                Get Started
-              </motion.button>
-            </div>
-
-            <div className="md:hidden flex items-center gap-2">
-              <button 
-                onClick={toggleTheme} 
-                className="p-2 rounded-xl bg-white/5 text-white/60"
-              >
-                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
-              <button onClick={() => setMobileMenu(!mobileMenu)} className="p-2 text-white">
-                {mobileMenu ? <X size={24} /> : <Menu size={24} />}
-              </button>
             </div>
           </div>
-        </div>
+        </section>
 
-        {mobileMenu && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="md:hidden glass-card mx-4 mb-4 p-4 space-y-3"
-          >
-            {['Features', 'Why Us', 'Gallery', 'Support', 'FAQ'].map((item) => (
-              <a key={item} href={`#${item.toLowerCase().replace(' ', '-')}`} className="block py-2 text-white/70 font-medium">
-                {item}
-              </a>
-            ))}
-            <div className="pt-2 space-y-2">
-              <button onClick={() => navigate('/login')} className="w-full py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-medium">Sign In</button>
-              <button onClick={() => navigate('/register')} className="w-full btn-primary text-sm py-3">Get Started</button>
+        <section className="landing-section landing-showcase" id="how-it-works">
+          <div className="landing-container landing-showcase-grid">
+            <div className="landing-showcase-image">
+              <img src="https://images.unsplash.com/photo-1516321310764-8d8a4c218d3c?auto=format&fit=crop&w=1000&q=80" alt="Person checking their finances on a smartphone" loading="lazy" />
+              <div className="landing-image-tag"><span className="landing-tag-dot" /> Your account, at a glance</div>
             </div>
-          </motion.div>
-        )}
-      </nav>
-
-      {/* ===== HERO SECTION ===== */}
-      <section className="hero-section relative">
-        <HeroIllustration />
-        
-        <motion.div 
-          className="float-card float-card-1 hidden lg:flex items-center gap-3"
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 1 }}
-        >
-          <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
-            <ArrowUpRight className="text-emerald-400" size={20} />
-          </div>
-          <div>
-            <p className="text-xs text-white/50">Transfer activity</p>
-            <p className="text-sm font-bold text-emerald-400">PIN protected</p>
-          </div>
-        </motion.div>
-
-        <motion.div 
-          className="float-card float-card-2 hidden lg:flex items-center gap-3"
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 1.3 }}
-        >
-          <div className="w-10 h-10 bg-violet-500/20 rounded-xl flex items-center justify-center">
-            <Wallet className="text-violet-400" size={20} />
-          </div>
-          <div>
-            <p className="text-xs text-white/50">Balance</p>
-            <p className="text-sm font-bold text-white">Account view</p>
-          </div>
-        </motion.div>
-
-        <motion.div 
-          className="float-card float-card-3 hidden lg:flex items-center gap-3"
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 1.6 }}
-        >
-          <div className="w-10 h-10 bg-pink-500/20 rounded-xl flex items-center justify-center">
-            <BarChart3 className="text-pink-400" size={20} />
-          </div>
-          <div>
-            <p className="text-xs text-white/50">Savings goals</p>
-            <p className="text-sm font-bold text-pink-400">Track progress</p>
-          </div>
-        </motion.div>
-
-        <div className="hero-hero-content relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10 pt-24">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full mb-8"
-            >
-              <Sparkles className="text-violet-400" size={16} />
-              <span className="text-sm text-white/70">A calmer view of everyday money</span>
+            <motion.div className="landing-showcase-copy" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={reveal}>
+              <span className="landing-eyebrow">Made for everyday decisions</span>
+              <h2>Everything in its place. <span>Nothing in your way.</span></h2>
+              <p>From account details to recorded transactions, navigate the things you need with a calmer, more considered banking experience.</p>
+              <ul>
+                <li><Check size={17} /> Review account activity and transaction status</li>
+                <li><Check size={17} /> Keep recipients and payment tools organized</li>
+                <li><Check size={17} /> Use a responsive experience on phone or desktop</li>
+              </ul>
+              <button className="landing-button landing-button-outline" onClick={() => navigate('/register')}>See your account <ArrowRight size={17} /></button>
             </motion.div>
-
-            <motion.h1
-              className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 leading-tight"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              Bank smarter<br />
-              with{' '}
-              <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                Credixa
-              </span>
-            </motion.h1>
-
-            <motion.p
-              className="text-lg md:text-xl text-white/50 mb-10 max-w-2xl mx-auto leading-relaxed"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-            >
-              A clearer way to review your balance, manage account activity, and move money within Credixa.
-            </motion.p>
-
-            <motion.div
-              className="flex flex-col sm:flex-row gap-4 justify-center"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-            >
-              <motion.button
-                onClick={() => navigate('/register')}
-                className="btn-primary btn-glow text-base px-8 py-4 flex items-center justify-center gap-2"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <ArrowRight size={20} />
-                Open Free Account
-              </motion.button>
-              <motion.a
-                href="#features"
-                className="px-8 py-4 border border-white/15 text-white rounded-xl font-medium hover:bg-white/5 transition-all backdrop-blur-sm flex items-center justify-center gap-2"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                Explore banking tools <ArrowRight size={18} />
-              </motion.a>
-            </motion.div>
-
-            <motion.div
-              className="hero-product-preview"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8, duration: 0.7 }}
-            >
-              <div className="hero-preview-topline"><span>Credixa overview</span><span className="hero-live-dot">Product preview</span></div>
-              <div className="hero-preview-balance"><span>Your account balance</span><strong aria-label="Balance hidden">••••••</strong><small>Your real balance appears after you sign in</small></div>
-              <div className="hero-preview-grid">
-                <div><span>Transfers</span><strong>Send securely</strong><small>PIN-protected</small></div>
-                <div><span>Spending</span><strong>Stay informed</strong><small>Review your activity</small></div>
-                <div><span>Savings</span><strong>Plan ahead</strong><small>Track personal goals</small></div>
-              </div>
-              <div className="hero-preview-activity"><span>Recent activity</span><b>Account history <ArrowRight size={14} /></b></div>
-              <p className="text-sm text-white/50">Your transactions appear here after you sign in and use your account.</p>
-            </motion.div>
-
-            <motion.div
-              className="mt-12 flex items-center justify-center gap-8 text-white/30"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.9 }}
-            >
-              <div className="flex items-center gap-2">
-                <Lock size={14} />
-                <span className="text-xs">Layered account security</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Globe size={14} />
-                <span className="text-xs">Indicative FX estimates</span>
-              </div>
-              <div className="flex items-center gap-2"><Smartphone size={14} /><span className="text-xs">Built for every screen</span></div>
-            </motion.div>
-          </motion.div>
-        </div>
-
-        <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
-          animate={{ y: [0, 10, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <ChevronDown size={24} className="text-white/30" />
-        </motion.div>
-      </section>
-
-      {/* ===== FEATURES SECTION ===== */}
-      <section id="features" className="py-24 relative mesh-bg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <span className="text-violet-400 text-sm font-semibold tracking-wider uppercase mb-3 block">Everyday banking</span>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Everything you need to<br />manage your money</h2>
-            <p className="text-white/40 text-lg max-w-2xl mx-auto">Explore account tools for transfers, cards, savings goals, bills, and account security.</p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}
-                whileHover={{ y: -8 }}
-                className="glass-card p-8 group cursor-pointer"
-              >
-                <div className="feature-icon mb-6">
-                  <feature.icon className="text-white" size={26} />
-                </div>
-                <h3 className="text-xl font-semibold mb-3 group-hover:text-violet-300 transition-colors">{feature.title}</h3>
-                <p className="text-white/40 text-sm leading-relaxed">{feature.desc}</p>
-              </motion.div>
-            ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ===== GALLERY SECTION ===== */}
-      <section id="gallery" className="py-24 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <span className="text-pink-400 text-sm font-semibold tracking-wider uppercase mb-3 block">Experience</span>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Banking at your fingertips</h2>
-            <p className="text-white/40 text-lg max-w-2xl mx-auto">See how Credixa transforms the way you manage, send, and grow your money.</p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <ImageCard src={bankingImages[0]} alt="Secure Mobile Banking" delay={0} />
-            <ImageCard src={bankingImages[1]} alt="Instant Card Payments" delay={0.1} />
-            <ImageCard src={bankingImages[2]} alt="Smart Analytics" delay={0.2} />
-            <ImageCard src={bankingImages[3]} alt="Financial activity preview" delay={0.3} />
+        <section className="landing-stories" id="stories">
+          <div className="landing-container landing-stories-inner">
+            <div className="landing-stories-heading">
+              <span className="landing-eyebrow">A more personal banking experience</span>
+              <h2>Built around the way<br />you manage money.</h2>
+              <p>Explore the parts of Credixa designed to make daily account management feel more straightforward.</p>
+            </div>
+            <div className="landing-story-cards">
+              <article className="landing-story-card">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=75" alt="" loading="lazy" />
+                <div><span>ACCOUNT OVERVIEW</span><p>Know where to find your account information and recent activity.</p></div>
+              </article>
+              <article className="landing-story-card">
+                <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&q=75" alt="" loading="lazy" />
+                <div><span>PAYMENT TOOLS</span><p>Keep transfer, recipient, and payment tools together in one place.</p></div>
+              </article>
+              <article className="landing-story-card">
+                <img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=160&q=75" alt="" loading="lazy" />
+                <div><span>HELP WHEN NEEDED</span><p>Find support and account guidance without losing your place.</p></div>
+              </article>
+              <p className="landing-story-disclaimer">Illustrative product scenarios. Images are representative and do not depict verified Credixa customers or testimonials.</p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ===== WHY CHOOSE + STATS SECTION ===== */}
-      <section id="why-us" className="py-24 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-20 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}
-            >
-              <span className="text-pink-400 text-sm font-semibold tracking-wider uppercase mb-3 block">Why Credixa</span>
-              <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">Built for people who<br />take money seriously</h2>
-              <p className="text-white/40 text-lg mb-10 leading-relaxed">
-                We built Credixa to give you complete control over your finances with zero hassle. No hidden fees, no complicated processes — just pure banking freedom.
-              </p>
-              <div className="space-y-5">
-                {whyChoose.map((item, idx) => (
-                  <motion.div
-                    key={idx}
-                    className="flex items-center gap-4"
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: idx * 0.1 }}
-                  >
-                    <div className="w-7 h-7 bg-emerald-500/15 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <CheckCircle className="text-emerald-400" size={16} />
-                    </div>
-                    <span className="text-white/80 text-base">{item}</span>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
+        <section className="landing-section landing-security">
+          <div className="landing-container landing-security-panel">
+            <div className="landing-security-icon"><ShieldCheck size={28} /></div>
+            <div><span className="landing-eyebrow">Security is part of the experience</span><h2>Designed with account protection in mind.</h2><p>Credixa uses authentication, verification, and server-side checks to support secure access and account activity.</p></div>
+            <button className="landing-button landing-button-light" onClick={() => navigate('/register')}>Get started <ArrowRight size={17} /></button>
+          </div>
+        </section>
 
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}
-              className="space-y-6"
-            >
-              {stats.map((stat, idx) => (
-                <motion.div
-                  key={idx}
-                  className="glass-card p-8 flex items-center gap-6"
-                  whileHover={{ scale: 1.02, x: 8 }}
-                  transition={{ type: 'spring', stiffness: 300 }}
-                >
-                  <div className="w-16 h-16 bg-gradient-to-br from-violet-500/20 to-pink-500/20 rounded-2xl flex items-center justify-center">
-                    <stat.icon className="text-violet-400" size={32} />
-                  </div>
-                  <div>
-                    <div className="text-4xl md:text-5xl font-bold stat-glow mb-1">
-                      {stat.value}
-                    </div>
-                    <div className="text-white/40 text-sm font-medium">{stat.label}</div>
-                  </div>
-                </motion.div>
+        <section className="landing-section landing-faq" id="help">
+          <div className="landing-container landing-faq-grid">
+            <div className="landing-section-heading">
+              <span className="landing-eyebrow">A few helpful answers</span>
+              <h2>Good to know.</h2>
+              <p>Find out more about getting started and managing your account.</p>
+              <Link className="landing-text-link" to="/login">Visit account support <ArrowRight size={16} /></Link>
+            </div>
+            <div className="landing-faq-list">
+              {faqItems.map(([question, answer], index) => (
+                <article className={`landing-faq-item${openFaq === index ? ' is-open' : ''}`} key={question}>
+                  <button type="button" aria-expanded={openFaq === index} onClick={() => setOpenFaq(openFaq === index ? -1 : index)}>
+                    {question}<ChevronDown size={19} />
+                  </button>
+                  {openFaq === index && <p>{answer}</p>}
+                </article>
               ))}
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== CUSTOMER SUPPORT SECTION ===== */}
-      <section id="support" className="py-24 relative mesh-bg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <span className="text-violet-400 text-sm font-semibold tracking-wider uppercase mb-3 block">Customer support</span>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Help when you need it</h2>
-            <p className="text-white/40 text-lg">Get help with your account, transfers, and transaction records through Credixa support.</p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {supportOptions.map((t, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.15 }}
-                whileHover={{ y: -8 }}
-                className="testimonial-card glass-card"
-              >
-                <p className="text-white/60 mb-8 leading-relaxed text-sm">{t.text}</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                    {t.avatar}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm text-white">{t.name}</p>
-                    <p className="text-xs text-white/40">{t.role}</p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ===== FAQ SECTION ===== */}
-      <section id="faq" className="py-24 relative">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <span className="text-pink-400 text-sm font-semibold tracking-wider uppercase mb-3 block">FAQ</span>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Questions? Answered.</h2>
-            <p className="text-white/40 text-lg">Everything you need to know about Credixa</p>
-          </motion.div>
-
-          <div className="space-y-4">
-            {faqs.map((faq, idx) => (
-              <motion.div
-                key={idx}
-                className="glass-card overflow-hidden"
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.08 }}
-              >
-                <button
-                  onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                  className="w-full px-6 py-5 flex justify-between items-center text-left"
-                >
-                  <span className="font-semibold text-white/90 text-sm pr-4">{faq.q}</span>
-                  <motion.div
-                    animate={{ rotate: openFaq === idx ? 180 : 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="flex-shrink-0"
-                  >
-                    <ChevronDown size={20} className="text-white/40" />
-                  </motion.div>
-                </button>
-                <motion.div
-                  initial={false}
-                  animate={{
-                    height: openFaq === idx ? 'auto' : 0,
-                    opacity: openFaq === idx ? 1 : 0
-                  }}
-                  transition={{ duration: 0.3 }}
-                  className="overflow-hidden"
-                >
-                  <div className="px-6 pb-5 text-white/50 text-sm leading-relaxed">
-                    {faq.a}
-                  </div>
-                </motion.div>
-              </motion.div>
-            ))}
-          </div>
-
-          <motion.div
-            className="mt-12 text-center"
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-          >
-            <p className="text-white/40 text-sm mb-4">Still have questions?</p>
-            <button
-              onClick={() => navigate('/support')}
-              className="text-violet-400 hover:text-violet-300 text-sm font-medium transition-colors"
-            >
-              Contact our support team →
-            </button>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ===== CTA SECTION ===== */}
-      <section className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-violet-900/20 via-purple-900/20 to-pink-900/20"/>
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">Ready to bank smarter?</h2>
-            <p className="text-white/40 text-lg mb-10 max-w-xl mx-auto">Open a focused account for transfers, savings, cards, bills, and the financial activity you want to understand.</p>
-            <motion.button
-              onClick={() => navigate('/register')}
-              className="btn-primary btn-glow text-lg px-10 py-5"
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              Create Free Account
-            </motion.button>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ===== FOOTER ===== */}
-      <footer className="border-t border-white/5 py-16 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-12 mb-12">
-            <div>
-              <div className="flex items-center gap-3 mb-5">
-                <div className="w-9 h-9 bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">C</span>
-                </div>
-                <span className="text-xl font-bold gradient-text">Credixa</span>
-              </div>
-              <p className="text-white/30 text-sm leading-relaxed mb-5">A clear, connected way to manage transfers, savings, cards, and everyday payments.</p>
-              <a href="mailto:credixasupport@gmail.com" className="text-sm text-teal-300 hover:text-teal-200 transition-colors">credixasupport@gmail.com</a>
-              <div className="flex gap-3">
-                {['Twitter', 'LinkedIn', 'Instagram'].map((social) => (
-                  <div key={social} className="w-9 h-9 bg-white/5 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer">
-                    <Globe size={16} className="text-white/40" />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white/80 mb-5 text-sm">Product</h4>
-              <ul className="space-y-3">
-                {[
-                  ['Product overview', '#features'],
-                  ['Account experience', '#gallery'],
-                  ['Security', '#why-us'],
-                  ['Frequently asked questions', '#faq']
-                ].map(([item, href]) => (
-                  <li key={item}><a href={href} className="text-white/30 hover:text-white/60 text-sm transition-colors">{item}</a></li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white/80 mb-5 text-sm">Your account</h4>
-              <ul className="space-y-3">
-                {[
-                  ['Open an account', '/register'],
-                  ['Sign in', '/login'],
-                  ['Customer support', '/support']
-                ].map(([item, href]) => (
-                  <li key={item}><a href={href} className="text-white/30 hover:text-white/60 text-sm transition-colors">{item}</a></li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white/80 mb-5 text-sm">Help</h4>
-              <ul className="space-y-3">
-                {[
-                  ['Support center', '#support'],
-                  ['Contact support', '/support'],
-                  ['FAQ', '#faq']
-                ].map(([item, href]) => (
-                  <li key={item}><a href={href} className="text-white/30 hover:text-white/60 text-sm transition-colors">{item}</a></li>
-                ))}
-              </ul>
             </div>
           </div>
-          <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-white/20 text-sm">© {new Date().getFullYear()} Credixa Banking. All rights reserved.</p>
-            <p className="text-white/20 text-sm">Digital banking tools for your everyday finances</p>
+        </section>
+
+        <section className="landing-cta">
+          <div className="landing-container landing-cta-inner">
+            <div><span className="landing-eyebrow">Take the next step</span><h2>A clearer way to manage your money starts here.</h2></div>
+            <button className="landing-button landing-button-light" onClick={() => navigate('/register')}>Create your account <ArrowRight size={18} /></button>
           </div>
+        </section>
+      </main>
+
+      <footer className="landing-footer">
+        <div className="landing-container landing-footer-main">
+          <div><Link className="landing-brand" to="/"><span className="landing-brand-mark">C</span><span>credixa</span></Link><p>Banking tools for a clearer view of your money.</p></div>
+          <div className="landing-footer-links"><a href="#features">Features</a><a href="#help">FAQs</a><Link to="/login">Sign in</Link><Link to="/register">Create account</Link></div>
+          <span className="landing-footer-note">Please review product details and account terms before use.</span>
         </div>
+        <div className="landing-container landing-footer-bottom"><span>© {new Date().getFullYear()} Credixa</span><span>Account features are subject to availability.</span></div>
       </footer>
     </div>
   )

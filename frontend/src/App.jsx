@@ -27,9 +27,16 @@ import SavingsGoals from './pages/SavingsGoals'
 import CashCheck from './pages/CashCheck'
 import APISettings from './pages/APISettings'
 import ProtectedRoute from './components/ProtectedRoute'
+import BankingLayout from './components/BankingLayout'
 import AdminRoute from './components/AdminRoute'
 
 function App() {
+  const protectedPage = (page) => (
+    <ProtectedRoute>
+      <BankingLayout>{page}</BankingLayout>
+    </ProtectedRoute>
+  )
+
   return (
     <ThemeProvider>
       <AuthProvider>
@@ -40,24 +47,24 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/forgot-pin" element={<ForgotPIN />} />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/transfer" element={<ProtectedRoute><Transfer /></ProtectedRoute>} />
-            <Route path="/cards" element={<ProtectedRoute><Cards /></ProtectedRoute>} />
-            <Route path="/loans" element={<ProtectedRoute><Loans /></ProtectedRoute>} />
-            <Route path="/bills" element={<ProtectedRoute><Bills /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-            <Route path="/history" element={<ProtectedRoute><TransactionHistory /></ProtectedRoute>} />
-            <Route path="/qr-pay" element={<ProtectedRoute><QrPay /></ProtectedRoute>} />
-            <Route path="/budget" element={<ProtectedRoute><Budget /></ProtectedRoute>} />
-            <Route path="/invest" element={<ProtectedRoute><Invest /></ProtectedRoute>} />
-            <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-            <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
-            <Route path="/beneficiaries" element={<ProtectedRoute><Beneficiaries /></ProtectedRoute>} />
-            <Route path="/scheduled-payments" element={<ProtectedRoute><ScheduledPayments /></ProtectedRoute>} />
-            <Route path="/savings-goals" element={<ProtectedRoute><SavingsGoals /></ProtectedRoute>} />
-            <Route path="/cash-check" element={<ProtectedRoute><CashCheck /></ProtectedRoute>} />
-            <Route path="/api-settings" element={<ProtectedRoute><APISettings /></ProtectedRoute>} />
+            <Route path="/dashboard" element={protectedPage(<Dashboard />)} />
+            <Route path="/transfer" element={protectedPage(<Transfer />)} />
+            <Route path="/cards" element={protectedPage(<Cards />)} />
+            <Route path="/loans" element={protectedPage(<Loans />)} />
+            <Route path="/bills" element={protectedPage(<Bills />)} />
+            <Route path="/profile" element={protectedPage(<Profile />)} />
+            <Route path="/notifications" element={protectedPage(<Notifications />)} />
+            <Route path="/history" element={protectedPage(<TransactionHistory />)} />
+            <Route path="/qr-pay" element={protectedPage(<QrPay />)} />
+            <Route path="/budget" element={protectedPage(<Budget />)} />
+            <Route path="/invest" element={protectedPage(<Invest />)} />
+            <Route path="/analytics" element={protectedPage(<Analytics />)} />
+            <Route path="/support" element={protectedPage(<Support />)} />
+            <Route path="/beneficiaries" element={protectedPage(<Beneficiaries />)} />
+            <Route path="/scheduled-payments" element={protectedPage(<ScheduledPayments />)} />
+            <Route path="/savings-goals" element={protectedPage(<SavingsGoals />)} />
+            <Route path="/cash-check" element={protectedPage(<CashCheck />)} />
+            <Route path="/api-settings" element={protectedPage(<APISettings />)} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           </Routes>
