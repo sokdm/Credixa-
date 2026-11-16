@@ -443,7 +443,7 @@ const Dashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="grid grid-cols-3 gap-4"
+            className="dashboard-stat-grid grid grid-cols-3 gap-4"
           >
             {quickStats.map((stat, idx) => (
               <motion.div
@@ -461,8 +461,8 @@ const Dashboard = () => {
                       <stat.icon size={20} className={stat.color} />
                     </div>
                   </div>
-                  <p className="text-xs text-white/30 mb-1 font-medium uppercase tracking-wider">{stat.label}</p>
-                  <p className="text-xl font-bold text-white">{stat.value}</p>
+                  <p className="dashboard-stat-label text-xs mb-1 font-medium uppercase tracking-wider">{stat.label}</p>
+                  <p className="dashboard-stat-value font-bold">{stat.value}</p>
                 </div>
               </motion.div>
             ))}
@@ -553,7 +553,7 @@ const Dashboard = () => {
             transition={{ delay: 0.2 }}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest">Quick Actions</h3>
+              <h3 className="dashboard-section-title text-xs font-semibold uppercase tracking-widest">Quick Actions</h3>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
@@ -572,12 +572,12 @@ const Dashboard = () => {
                   whileHover={{ y: -4, scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => navigate(action.path)}
-                  className="group glass-card p-5 text-left hover:bg-white/10 transition-all"
+                  className="group glass-card dashboard-action-card p-5 text-left hover:bg-white/10 transition-all"
                 >
                   <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center shadow-lg ${action.shadow} mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
                     <action.icon className="text-white" size={22} />
                   </div>
-                  <p className="font-semibold text-sm text-white group-hover:text-violet-300 transition-colors">{action.label}</p>
+                  <p className="dashboard-card-title font-semibold text-sm group-hover:text-violet-300 transition-colors">{action.label}</p>
                 </motion.button>
               ))}
             </div>
@@ -590,7 +590,7 @@ const Dashboard = () => {
             transition={{ delay: 0.3 }}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest">Financial Tools</h3>
+              <h3 className="dashboard-section-title text-xs font-semibold uppercase tracking-widest">Financial Tools</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
@@ -603,14 +603,14 @@ const Dashboard = () => {
                   whileHover={{ y: -4, scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => navigate(tool.path)}
-                  className="group glass-card p-5 text-left hover:bg-white/10 transition-all flex items-center gap-4"
+                  className="group glass-card dashboard-tool-card p-5 text-left hover:bg-white/10 transition-all flex items-center gap-4"
                 >
                   <div className={`w-14 h-14 rounded-2xl ${tool.iconBg} flex items-center justify-center border border-white/5 flex-shrink-0`}>
                     <tool.icon className="text-white" size={26} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white">{tool.label}</p>
-                    <p className="text-xs text-white/30 mt-0.5">{tool.desc}</p>
+                    <p className="dashboard-card-title font-semibold">{tool.label}</p>
+                    <p className="dashboard-card-copy text-xs mt-0.5">{tool.desc}</p>
                   </div>
                   <ChevronRight size={18} className="text-white/20 group-hover:text-violet-400 group-hover:translate-x-1 transition-all" />
                 </motion.button>

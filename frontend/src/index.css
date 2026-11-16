@@ -2296,3 +2296,72 @@ body { background: var(--cx-bg) !important; color: var(--cx-text); }
   .dashboard-skeleton-stat { height: 86px; }
   .dashboard-skeleton-activity { height: 195px; }
 }
+
+/* Fix narrow-screen dashboard clipping and auth surface contrast. */
+:root:not(.dark) .auth-bg .premium-auth-layout,
+:root:not(.dark) .auth-bg .premium-auth-form,
+:root:not(.dark) .auth-bg .premium-auth-card.glass-auth {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+:root.dark .auth-bg .premium-auth-layout,
+:root.dark .auth-bg .premium-auth-form,
+:root.dark .auth-bg .premium-auth-card.glass-auth {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.dashboard-content .dashboard-balance {
+  color: #fff !important;
+  background: linear-gradient(125deg, #15376e 0%, #1d4ed8 62%, #2563eb 100%) !important;
+}
+.dashboard-content .dashboard-balance h2 {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.55rem, 6.8vw, 3rem) !important;
+  letter-spacing: -.045em;
+}
+.dashboard-content .dashboard-balance .text-white,
+.dashboard-content .dashboard-balance [class*="text-white/"] { color: #fff !important; }
+.dashboard-stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dashboard-stat-grid > div { min-width: 0; padding: 16px; }
+.dashboard-stat-label { color: var(--cx-text-muted) !important; font-size: 10px; }
+.dashboard-stat-value { display: block; overflow: hidden; color: var(--cx-text) !important; font-size: clamp(11px, 2.8vw, 19px); letter-spacing: -.035em; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-section-title { color: var(--cx-text-muted) !important; }
+.dashboard-action-card, .dashboard-tool-card { color: var(--cx-text) !important; }
+.dashboard-action-card .dashboard-card-title,
+.dashboard-tool-card .dashboard-card-title { color: var(--cx-text) !important; }
+.dashboard-tool-card .dashboard-card-copy { color: var(--cx-text-muted) !important; }
+.dashboard-action-card .bg-gradient-to-br .text-white,
+.dashboard-tool-card .text-white { color: #fff !important; }
+:root.dark .dashboard-action-card .dashboard-card-title,
+:root.dark .dashboard-tool-card .dashboard-card-title { color: var(--cx-text) !important; }
+.dashboard-action-card,
+.dashboard-tool-card { min-width: 0; }
+.dashboard-content [aria-label="Currency equivalents"] .glass-card { min-width: 0; }
+.dashboard-content [aria-label="Currency equivalents"] .glass-card > div { min-width: 0; }
+.dashboard-content [aria-label="Currency equivalents"] .glass-card > div p { overflow-wrap: anywhere; }
+.dashboard-content [aria-label="Currency equivalents"] .glass-card > div p.font-semibold { font-size: clamp(13px, 3.2vw, 16px); }
+@media (max-width: 640px) {
+  .dashboard-content { padding-right: 0 !important; padding-left: 0 !important; }
+  .dashboard-content > .dashboard-stat-grid { gap: 8px; }
+  .dashboard-stat-grid > div { padding: 12px 9px; border-radius: 15px; }
+  .dashboard-stat-label { font-size: 9px; letter-spacing: .08em; }
+  .dashboard-stat-value { font-size: clamp(10px, 3vw, 15px); }
+  .dashboard-content .dashboard-balance { padding: 20px !important; border-radius: 20px !important; }
+  .dashboard-content .dashboard-balance .grid.grid-cols-1 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .dashboard-content .dashboard-balance .grid.grid-cols-1 > div:first-child { grid-column: 1 / -1; }
+  .dashboard-action-card { min-height: 120px; padding: 14px !important; }
+  .dashboard-action-card > div:first-child { width: 42px; height: 42px; margin-bottom: 12px; border-radius: 13px; }
+  .dashboard-action-card .dashboard-card-title { font-size: 12px; }
+  .dashboard-tool-card { padding: 14px !important; gap: 12px; }
+  .dashboard-tool-card > div:first-child { width: 44px; height: 44px; border-radius: 13px; }
+}
+@media (max-width: 380px) {
+  .dashboard-stat-grid { gap: 6px; }
+  .dashboard-stat-grid > div { padding: 11px 7px; }
+  .dashboard-stat-value { font-size: 10px; }
+  .dashboard-content .dashboard-balance { padding: 16px !important; }
+  .dashboard-content .dashboard-balance h2 { font-size: clamp(1.35rem, 6.6vw, 1.65rem) !important; }
+}
