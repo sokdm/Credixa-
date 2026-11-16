@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowLeftRight, Bell, BarChart3, Briefcase, CalendarClock,
@@ -56,7 +56,17 @@ const BankingLayout = ({ children }) => {
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [routeLoading, setRouteLoading] = useState(false)
+  const previousPath = useRef(location.pathname)
   const firstName = user?.fullName?.trim().split(/\s+/)[0] || 'there'
+
+  useEffect(() => {
+    if (previousPath.current === location.pathname) return
+    previousPath.current = location.pathname
+    setRouteLoading(true)
+    const timer = window.setTimeout(() => setRouteLoading(false), 350)
+    return () => window.clearTimeout(timer)
+  }, [location.pathname])
 
   const navLinkClass = ({ isActive }) => `banking-nav-link${isActive ? ' is-active' : ''}`
 
@@ -105,6 +115,7 @@ const BankingLayout = ({ children }) => {
       </aside>
 
       <div className="banking-main">
+        <div className={`banking-route-progress${routeLoading ? ' is-active' : ''}`} aria-hidden="true"><span /></div>
         <header className="banking-topbar">
           <div className="banking-page-heading">
             <p>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {firstName}</p>
@@ -126,23 +137,10 @@ const BankingLayout = ({ children }) => {
             </button>
           </div>
         </header>
-        <main className="banking-content" key={location.pathname}>
+        <main className="banking-content">
           <div className="banking-page-enter">{children}</div>
         </main>
       </div>
-
-      <nav className="banking-mobile-nav" aria-label="Mobile account navigation">
-        {[
-          { to: '/dashboard', label: 'Home', icon: Home },
-          { to: '/transfer', label: 'Send', icon: ArrowLeftRight },
-          { to: '/history', label: 'Activity', icon: Receipt },
-          { to: '/profile', label: 'Account', icon: Settings2 }
-        ].map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} className={({ isActive }) => `banking-mobile-link${isActive ? ' is-active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
-            <Icon size={19} strokeWidth={1.8} /><span>{label}</span>
-          </NavLink>
-        ))}
-      </nav>
     </div>
   )
 }

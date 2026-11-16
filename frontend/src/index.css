@@ -2105,3 +2105,194 @@ body { background: var(--cx-bg) !important; color: var(--cx-text); }
   .banking-topbar { padding-right: 12px; padding-left: 12px; }
   .banking-topbar-profile > span:last-child { display: none; }
 }
+
+/* Mobile-first account and auth refinements */
+.banking-layout { padding-bottom: 0 !important; }
+.banking-route-progress { position: sticky; z-index: 31; top: 0; height: 3px; overflow: hidden; background: transparent; }
+.banking-route-progress span { display: block; width: 35%; height: 100%; transform: translateX(-110%); background: linear-gradient(90deg, #60a5fa, #1d4ed8); }
+.banking-route-progress.is-active span { animation: banking-route-progress .45s ease-out both; }
+@keyframes banking-route-progress { 0% { transform: translateX(-110%); } 75% { transform: translateX(190%); } 100% { transform: translateX(290%); } }
+.banking-page-enter { animation: banking-page-enter .18s ease-out both; }
+@keyframes banking-page-enter { from { transform: translateY(5px); } to { transform: translateY(0); } }
+.banking-mobile-nav { display: none !important; }
+.dashboard-balance {
+  color: #fff !important;
+  background: linear-gradient(125deg, #122d5c 0%, #1748a0 58%, #2563eb 100%) !important;
+}
+.dashboard-balance,
+.dashboard-balance * { color: #fff !important; }
+.dashboard-balance .text-white\/60,
+.dashboard-balance .text-white\/50 { color: rgba(255,255,255,.76) !important; }
+.dashboard-balance [class*="bg-white/10"],
+.dashboard-balance [class*="bg-white/15"] { color: #fff !important; }
+
+.auth-bg {
+  min-height: 100vh;
+  align-items: center;
+  padding: clamp(20px, 5vh, 56px) 20px !important;
+  background: var(--cx-bg) !important;
+}
+.auth-bg::before, .auth-bg::after, .auth-bg .particle { display: none !important; }
+.premium-auth-layout {
+  display: block;
+  width: min(100%, 470px);
+  max-width: 470px !important;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+}
+.premium-auth-aside { display: none !important; }
+.premium-auth-form {
+  padding: 0;
+  background: transparent !important;
+}
+.premium-auth-form > .flex { margin-bottom: 35px !important; }
+.premium-auth-card {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.premium-auth-card > div:first-child { margin-bottom: 28px !important; }
+.premium-auth-card > div:first-child > div:first-child {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 18px !important;
+  place-items: center;
+  border-radius: 15px !important;
+  background: #2563eb !important;
+  box-shadow: 0 9px 22px rgba(37,99,235,.2) !important;
+  animation: none !important;
+}
+.premium-auth-card h1 { color: var(--cx-text) !important; font-size: 28px !important; letter-spacing: -.04em; }
+.premium-auth-card .text-white,
+.premium-auth-card [class*="text-white/"] { color: var(--cx-text-muted) !important; }
+.premium-auth-card label { color: #44546a !important; }
+.premium-auth-card .text-violet-400,
+.premium-auth-card .text-violet-300,
+.premium-auth-card a[class*="text-violet"] { color: var(--cx-brand) !important; }
+.premium-auth-card .glass-input {
+  min-height: 50px;
+  padding-left: 43px;
+  color: var(--cx-text) !important;
+  border: 1px solid var(--cx-border) !important;
+  border-radius: 11px;
+  background: var(--cx-surface) !important;
+}
+.premium-auth-card .glass-input::placeholder { color: #8491a3 !important; }
+.premium-auth-card .glass-input:focus { border-color: #6094f4 !important; background: var(--cx-surface) !important; }
+.premium-auth-card form > button[type="submit"],
+.premium-auth-card form > button[type="button"] {
+  min-height: 50px;
+  border-radius: 11px;
+  color: #fff !important;
+  background: #2563eb !important;
+  box-shadow: 0 8px 18px rgba(37,99,235,.16) !important;
+}
+.premium-auth-card form > button[type="submit"] *,
+.premium-auth-card form > button[type="button"] * { color: #fff !important; }
+.premium-auth-card .bg-red-500\/10 { color: #b42318 !important; background: #fff1f0 !important; }
+.premium-auth-card .bg-red-500\/10 * { color: inherit; }
+.premium-signup-shell {
+  width: min(100%, 500px);
+  max-width: 500px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.premium-signup-shell > div:first-child { margin-bottom: 29px; }
+.premium-signup-shell .premium-auth-card > div:first-child { margin-bottom: 25px !important; }
+.premium-signup-shell .premium-auth-card > div:first-child > div:first-child { display: none; }
+.premium-signup-shell .premium-auth-card form > div:not([class]) { color: var(--cx-text); }
+.premium-signup-shell .premium-auth-card [class*="bg-[#1e293b]"] {
+  color: var(--cx-text);
+  border: 1px solid var(--cx-border);
+  background: var(--cx-surface) !important;
+  box-shadow: var(--cx-shadow);
+}
+.premium-signup-shell .premium-auth-card [class*="bg-[#1e293b]"] button { color: var(--cx-text); }
+.premium-signup-shell .premium-auth-card .text-white\/30,
+.premium-signup-shell .premium-auth-card .text-white\/35,
+.premium-signup-shell .premium-auth-card .text-white\/40,
+.premium-signup-shell .premium-auth-card .text-white\/50,
+.premium-signup-shell .premium-auth-card .text-white\/60,
+.premium-signup-shell .premium-auth-card .text-white\/70 { color: var(--cx-text-muted) !important; }
+.premium-signup-shell .premium-auth-card .text-white { color: var(--cx-text) !important; }
+.premium-signup-shell .premium-auth-card .text-violet-400 { color: var(--cx-brand) !important; }
+.premium-signup-shell .premium-auth-card .text-emerald-400 { color: var(--cx-brand) !important; }
+.premium-signup-shell .premium-auth-card .border-white\/10,
+.premium-signup-shell .premium-auth-card .border-white\/5 { border-color: var(--cx-border) !important; }
+.premium-signup-shell .premium-auth-card .bg-white\/5,
+.premium-signup-shell .premium-auth-card .bg-white\/10 { background: var(--cx-panel-muted) !important; }
+.premium-signup-shell .premium-auth-card .bg-white\/5.text-white\/30 { color: var(--cx-text-muted) !important; }
+:root:not(.dark) .banking-content [class~="text-white"] { color: var(--cx-text) !important; }
+:root:not(.dark) .banking-content [class*="text-white/"] { color: var(--cx-text-muted) !important; }
+:root:not(.dark) .banking-content button[class*="bg-"][class~="text-white"],
+:root:not(.dark) .banking-content button[class*="from-"] { color: #fff !important; }
+:root:not(.dark) .banking-content button[class*="bg-"] [class~="text-white"],
+:root:not(.dark) .banking-content button[class*="from-"] [class~="text-white"] { color: #fff !important; }
+:root:not(.dark) .banking-content .dashboard-balance,
+:root:not(.dark) .banking-content .dashboard-balance * { color: #fff !important; }
+:root.dark .banking-content .dashboard-balance,
+:root.dark .banking-content .dashboard-balance * { color: #fff !important; }
+.dashboard-loading { display: grid; width: min(100%, 1120px); gap: 18px; margin: 0 auto; padding: 8px 0 30px; }
+.dashboard-loading-heading { display: grid; gap: 10px; padding: 8px 0; }
+.dashboard-skeleton { display: block; position: relative; overflow: hidden; border-radius: 12px; background: var(--cx-panel-muted); }
+.dashboard-skeleton::after { position: absolute; inset: 0; content: ''; transform: translateX(-100%); background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cx-surface) 75%, transparent), transparent); animation: skeleton-shimmer 1.35s ease-in-out infinite; }
+.dashboard-skeleton-title { width: min(240px, 60%); height: 22px; }
+.dashboard-skeleton-copy { width: min(360px, 82%); height: 13px; }
+.dashboard-skeleton-balance { height: 238px; border-radius: 24px; background: linear-gradient(125deg, #173b78, #2563eb); }
+.dashboard-loading-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+.dashboard-skeleton-stat { height: 110px; border: 1px solid var(--cx-border); background: var(--cx-surface); }
+.dashboard-skeleton-activity { height: 245px; border: 1px solid var(--cx-border); background: var(--cx-surface); }
+@keyframes skeleton-shimmer { 100% { transform: translateX(100%); } }
+:root.dark .dashboard-skeleton::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent); }
+:root.dark .premium-auth-card h1 { color: var(--cx-text) !important; }
+:root.dark .premium-auth-card .text-white,
+:root.dark .premium-auth-card [class*="text-white/"] { color: var(--cx-text-muted) !important; }
+:root.dark .premium-auth-card label { color: #b8c5d8 !important; }
+:root.dark .premium-signup-shell .premium-auth-card .text-white { color: var(--cx-text) !important; }
+:root.dark .premium-signup-shell .premium-auth-card .text-white\/30,
+:root.dark .premium-signup-shell .premium-auth-card .text-white\/35,
+:root.dark .premium-signup-shell .premium-auth-card .text-white\/40,
+:root.dark .premium-signup-shell .premium-auth-card .text-white\/50,
+:root.dark .premium-signup-shell .premium-auth-card .text-white\/60,
+:root.dark .premium-signup-shell .premium-auth-card .text-white\/70 { color: var(--cx-text-muted) !important; }
+
+@media (max-width: 1023px) {
+  .banking-layout { padding-bottom: 0 !important; }
+  .banking-topbar { min-height: 60px; padding: 0 13px; }
+  .banking-content { padding: 15px 13px 28px; }
+  .banking-page-heading p { display: none; }
+  .banking-page-heading span { font-size: 14px; }
+  .banking-topbar-actions { gap: 6px; }
+  .banking-icon-button { width: 36px; height: 36px; }
+  .banking-topbar-profile { display: none; }
+  .banking-sidebar { overflow-y: auto; padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+  .banking-sidebar-bottom { padding-bottom: 8px; }
+  .dashboard-header { display: none !important; }
+  .dashboard-content { padding: 0 0 15px !important; }
+  .premium-auth-layout, .premium-signup-shell { width: min(100%, 470px); }
+}
+@media (max-width: 480px) {
+  .auth-bg { align-items: flex-start; padding: max(22px, env(safe-area-inset-top)) 21px max(24px, env(safe-area-inset-bottom)) !important; }
+  .premium-auth-form > .flex, .premium-signup-shell > div:first-child { margin-bottom: 34px !important; }
+  .premium-auth-card h1 { font-size: 25px !important; }
+  .premium-auth-card form { gap: 18px !important; }
+  .premium-auth-card .glass-input { min-height: 52px; }
+  .premium-auth-card form > button[type="submit"],
+  .premium-auth-card form > button[type="button"] { min-height: 52px; }
+  .premium-signup-shell .premium-auth-card .flex.justify-between.text-xs { font-size: 9px; }
+  .dashboard-loading { gap: 13px; }
+  .dashboard-skeleton-balance { height: 190px; border-radius: 20px; }
+  .dashboard-loading-stats { gap: 8px; }
+  .dashboard-skeleton-stat { height: 86px; }
+  .dashboard-skeleton-activity { height: 195px; }
+}

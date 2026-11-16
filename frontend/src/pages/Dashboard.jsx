@@ -122,12 +122,17 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0e1a]">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-12 h-12 border-3 border-violet-500/20 border-t-violet-500 rounded-full"
-        />
+      <div className="dashboard-loading" role="status" aria-label="Loading account overview">
+        <div className="dashboard-loading-heading">
+          <span className="dashboard-skeleton dashboard-skeleton-title" />
+          <span className="dashboard-skeleton dashboard-skeleton-copy" />
+        </div>
+        <div className="dashboard-skeleton dashboard-skeleton-balance" />
+        <div className="dashboard-loading-stats">
+          {[1, 2, 3].map((item) => <span className="dashboard-skeleton dashboard-skeleton-stat" key={item} />)}
+        </div>
+        <div className="dashboard-skeleton dashboard-skeleton-activity" />
+        <span className="sr-only">Loading your account overview</span>
       </div>
     )
   }
