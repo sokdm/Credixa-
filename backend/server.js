@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const User = require('./models/User');
+const { startWebhookWorker } = require('./services/webhookDelivery');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 mongoose.set('bufferCommands', false);
@@ -42,7 +43,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key', 'X-Request-Timestamp', 'X-Signature', 'Idempotency-Key']
 };
 
 const io = new Server(httpServer, {
@@ -84,6 +85,7 @@ let databaseReady = false;
 mongoose.connection.on('connected', () => {
   databaseReady = true;
   console.log('MongoDB Connected');
+  startWebhookWorker();
 });
 mongoose.connection.on('disconnected', () => {
   databaseReady = false;

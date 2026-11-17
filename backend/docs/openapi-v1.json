@@ -1,0 +1,238 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Credixa Developer API",
+    "version": "2026-11-17",
+    "summary": "Application-scoped Credixa payment intents and webhook delivery.",
+    "description": "Sandbox intents are simulations and never move funds. Production intents can complete only after verification of a completed Credixa internal transfer. No external-bank settlement, capture, refund, or reversal API is available.",
+    "contact": { "name": "Credixa Support" }
+  },
+  "servers": [{ "url": "{origin}", "variables": { "origin": { "default": "https://credixa-api.onrender.com" } } }],
+  "security": [{ "ApiKey": [], "RequestTimestamp": [], "RequestSignature": [] }],
+  "tags": [
+    { "name": "Merchant accounts" },
+    { "name": "Payment intents" },
+    { "name": "Webhooks" }
+  ],
+  "paths": {
+    "/api/merchant/collection-account": {
+      "get": {
+        "tags": ["Merchant accounts"],
+        "summary": "Read the application's own collection account",
+        "description": "Returns the owner account assigned to this application; never exposes balance or email.",
+        "x-required-permission": "read:merchant_accounts",
+        "responses": {
+          "200": { "description": "Collection account", "content": { "application/json": { "schema": { "type": "object", "properties": { "collectionAccount": { "$ref": "#/components/schemas/CollectionAccount" } }, "required": ["collectionAccount"] } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/merchant/payment-intent": {
+      "post": {
+        "tags": ["Payment intents"],
+        "summary": "Create a pending payment intent",
+        "description": "Does not debit or credit any account. Payment intents expire after 30 minutes.",
+        "x-required-permission": "write:payment_intents",
+        "parameters": [{ "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreatePaymentIntent" }, "example": { "amount": 42.5, "currency": "USD", "customerName": "Example Customer", "metadata": { "order_id": "order_123" } } } } },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentIntentResponse" } } } },
+          "200": { "description": "Idempotent replay", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentIntentResponse" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    },
+    "/api/merchant/payment-intent/{reference}": {
+      "get": {
+        "tags": ["Payment intents"],
+        "summary": "Retrieve a payment intent",
+        "x-required-permission": "read:payments",
+        "parameters": [{ "$ref": "#/components/parameters/Reference" }],
+        "responses": {
+          "200": { "description": "Payment intent", "content": { "application/json": { "schema": { "type": "object", "properties": { "paymentIntent": { "$ref": "#/components/schemas/PaymentIntent" } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/merchant/payment-intent/{reference}/status": {
+      "get": {
+        "tags": ["Payment intents"],
+        "summary": "Retrieve payment status",
+        "x-required-permission": "read:payments",
+        "parameters": [{ "$ref": "#/components/parameters/Reference" }],
+        "responses": {
+          "200": { "description": "Current status", "content": { "application/json": { "schema": { "type": "object", "properties": { "reference": { "type": "string" }, "status": { "$ref": "#/components/schemas/PaymentStatus" }, "environment": { "type": "string" }, "simulated": { "type": "boolean" }, "expiresAt": { "type": ["string", "null"], "format": "date-time" } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/merchant/payment-intent/verify": {
+      "post": {
+        "tags": ["Payment intents"],
+        "summary": "Verify a completed Credixa internal transfer",
+        "description": "Verifies a real, completed, non-simulated transaction received by this app's collection account. Does not initiate a transfer.",
+        "x-required-permission": "write:payment_verification",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerifyPayment" } } } },
+        "responses": {
+          "200": { "description": "Verified payment", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "paymentIntent": { "$ref": "#/components/schemas/PaymentIntent" }, "transactionReference": { "type": "string" }, "replayed": { "type": "boolean" } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "description": "No matching completed transfer", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/merchant/verify-transfer": {
+      "post": {
+        "tags": ["Payment intents"],
+        "summary": "Legacy alias for transfer verification",
+        "deprecated": true,
+        "x-required-permission": "write:payment_verification",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerifyPayment" } } } },
+        "responses": { "200": { "description": "Verification result" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "422": { "description": "No matching transfer" } }
+      }
+    },
+    "/api/merchant/payment-intent/{reference}/transaction": {
+      "get": {
+        "tags": ["Payment intents"],
+        "summary": "Retrieve the verified Credixa transaction",
+        "x-required-permission": "read:payments",
+        "parameters": [{ "$ref": "#/components/parameters/Reference" }],
+        "responses": {
+          "200": { "description": "Verified ledger transaction" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "description": "No financial transaction exists for this intent" }
+        }
+      }
+    },
+    "/api/merchant/payment-intent/{reference}/simulate": {
+      "post": {
+        "tags": ["Payment intents"],
+        "summary": "Simulate a sandbox outcome",
+        "description": "Sandbox only. Creates no financial transaction and changes no balance.",
+        "x-required-permission": "write:sandbox",
+        "parameters": [{ "$ref": "#/components/parameters/Reference" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["outcome"], "properties": { "outcome": { "type": "string", "enum": ["succeeded", "failed", "expired"] } } } } } },
+        "responses": {
+          "200": { "description": "Sandbox outcome recorded" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/merchant/webhook-deliveries": {
+      "get": {
+        "tags": ["Webhooks"],
+        "summary": "List this application's webhook deliveries",
+        "x-required-permission": "read:webhooks",
+        "responses": {
+          "200": { "description": "Latest 50 deliveries" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKey": { "type": "apiKey", "in": "header", "name": "X-API-Key" },
+      "RequestTimestamp": { "type": "apiKey", "in": "header", "name": "X-Request-Timestamp", "description": "Unix timestamp in milliseconds." },
+      "RequestSignature": { "type": "apiKey", "in": "header", "name": "X-Signature", "description": "HMAC-SHA256 of timestamp + '.' + exact raw body, using SHA256(api secret) as the key." }
+    },
+    "parameters": {
+      "Reference": { "name": "reference", "in": "path", "required": true, "schema": { "type": "string", "maxLength": 100 } },
+      "IdempotencyKey": { "name": "Idempotency-Key", "in": "header", "required": false, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } }
+    },
+    "schemas": {
+      "CollectionAccount": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "identifier": { "type": "string" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "type": { "const": "personal" },
+          "status": { "const": "active" }
+        },
+        "required": ["id", "name", "identifier", "currency", "type", "status"]
+      },
+      "CreatePaymentIntent": {
+        "type": "object",
+        "required": ["amount", "currency"],
+        "properties": {
+          "amount": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000000, "multipleOf": 0.01 },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "customerName": { "type": "string", "maxLength": 120 },
+          "metadata": { "type": "object", "maxProperties": 100 }
+        }
+      },
+      "PaymentStatus": { "type": "string", "enum": ["pending", "authorized", "completed", "expired", "failed"] },
+      "PaymentIntent": {
+        "type": "object",
+        "properties": {
+          "reference": { "type": "string" },
+          "amount": { "type": "number" },
+          "currency": { "type": "string" },
+          "merchantName": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/PaymentStatus" },
+          "environment": { "type": "string", "enum": ["sandbox", "production"] },
+          "simulated": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "expiresAt": { "type": ["string", "null"], "format": "date-time" },
+          "completedAt": { "type": ["string", "null"], "format": "date-time" },
+          "transferReference": { "type": ["string", "null"] },
+          "metadata": { "type": "object" }
+        },
+        "required": ["reference", "amount", "currency", "merchantName", "status", "environment", "simulated", "createdAt"]
+      },
+      "PaymentIntentResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "paymentIntent": { "$ref": "#/components/schemas/PaymentIntent" },
+          "replayed": { "type": "boolean" },
+          "testMode": { "type": "boolean" },
+          "message": { "type": "string" }
+        },
+        "required": ["success", "paymentIntent"]
+      },
+      "VerifyPayment": {
+        "type": "object",
+        "required": ["reference", "transferReference"],
+        "properties": {
+          "reference": { "type": "string" },
+          "transferReference": { "type": "string" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": { "error": { "type": "string" }, "required": { "type": "array", "items": { "type": "string" } } },
+        "required": ["error"]
+      }
+    },
+    "responses": {
+      "BadRequest": { "description": "Invalid request", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Unauthorized": { "description": "Missing or invalid credentials/signature", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Forbidden": { "description": "Required scope or environment permission is missing", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "NotFound": { "description": "Resource not found within this application", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Conflict": { "description": "Idempotency or state conflict", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "RateLimited": { "description": "Application or server rate limit exceeded", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+    }
+  }
+}
